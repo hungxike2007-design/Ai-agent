@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Hùng Store - Phân Tích AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* CSS bổ sung để đồng bộ với giao diện Dashboard */
+        .container { max-width: 1000px; margin: 30px auto; padding: 0 15px; }
+        
+        .data-preview { 
+            width: 100%; 
+            overflow-x: auto; 
+            margin-top: 15px; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            background: #fff;
+            max-height: 400px; /* Thêm cuộn dọc nếu bảng quá dài */
+        }
+
+        /* Làm đẹp bảng dữ liệu đổ từ Pandas */
+        .data-preview table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        .data-preview th { background: #f8f9fa; position: sticky; top: 0; z-index: 10; }
+        
+        .chat-section { 
+            margin-top: 30px; 
+            padding: 25px; 
+            background: #ffffff; 
+            border-radius: 15px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
+        }
+
+        .ai-response { 
+            margin-top: 20px; 
+            padding: 20px; 
+            background: #f0fdf4; 
+            border-left: 6px solid #28a745; 
+            border-radius: 10px; 
+            line-height: 1.6; 
+            color: #1a2e1a; 
+            display: none;
+            font-size: 15px;
+        }
+
+        .btn-main:disabled { background: #ccc; cursor: not-allowed; }
+
+        #userQuestion { 
+            width: 100%; 
+            padding: 15px; 
+            border: 2px solid #e0e0e0; 
+            border-radius: 10px; 
+            margin-bottom: 15px; 
+            font-size: 16px; 
+            transition: all 0.3s;
+        }
+
+        #userQuestion:focus { border-color: #28a745; outline: none; box-shadow: 0 0 8px rgba(40,167,69,0.2); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card" style="max-width: 100%;">
+            <h2 style="display: flex; align-items: center; gap: 10px; margin-top: 0;">🚀 AI Agent - Phân Tích Dữ Liệu</h2>
+            <p>Chào mừng <b>Hùng</b> quay trở lại! Hãy bắt đầu bằng việc tải file Excel lên nhé.</p>
+            <hr>
+            
+            <form action="{{ url_for('ai.upload_file') }}" method="POST" enctype="multipart/form-data">
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <input type="file" name="file" accept=".xlsx, .xls" required style="flex: 1; min-width: 200px;">
+                    <button type="submit" class="btn-main" style="width: auto; margin: 0; padding: 12px 25px;">Tải lên & Khởi tạo</button>
+                </div>
+            </form>
+        </div>
+
+        {% if table_html %}
+        <div class="card" style="max-width: 100%; margin-top: 20px;">
+            <h3 style="margin-top: 0;">📊 Xem trước 5 dòng dữ liệu:</h3>
+            <div class="data-preview">
+                {{ table_html | safe }}
+            </div>
+        </div>
+        <div style="margin-top: 20px;">
+            <h4>📥 Tải báo cáo về máy:</h4>
+            <a href="/export/word" class="btn-main" style="background:#2b579a; text-decoration:none; padding: 10px 20px;">Xuất file Word</a>
+            <a href="/export/pdf" class="btn-main" style="background:#b91d1d; text-decoration:none; padding: 10px 20px;">Xuất file PDF</a>
+        </div>
+
+        <div class="chat-section">
+            <h3 style="margin-top: 0;">💬 Đặt câu hỏi cho AI về bảng này:</h3>
+            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">
+                (Mẹo: Bạn có thể hỏi về tổng điểm, danh sách sinh viên vắng, hoặc nhờ AI tìm các dòng bất thường)
+            </p>
+            
+            <input type="text" id="userQuestion" placeholder="Ví dụ: Ai có điểm cao nhất?">
+            
+            <button id="btnAsk" onclick="askAI()" class="btn-main" style="width: auto; padding: 12px 40px; font-size: 16px;">Gửi câu hỏi</button>
+            
+            <div id="ai-loading" class="loading-spinner">⏳ Đang phân tích dữ liệu, vui lòng chờ đợi</div>
+            <div id="ai-response" class="ai-response"></div>
+        </div>
+        {% endif %}
+
+        <br>
+        <div style="text-align: center; margin-bottom: 50px;">
+            <a href="/" style="color: #ff4d4d; text-decoration: none; font-weight: bold; border: 1px solid #ff4d4d; padding: 8px 25px; border-radius: 20px; transition: 0.3s;">🚪 Đăng xuất</a>
+        </div>
+    </div>
+
+    <script>
+        async function askAI() {
+            const questionInput = document.getElementById('userQuestion');
+            const question = questionInput.value.trim();
+            const responseDiv = document.getElementById('ai-response');
+            const loading = document.getElementById('ai-loading');
+            const btnAsk = document.getElementById('btnAsk');
+
+            if (!question) {
+                alert("Vui lòng nhập câu hỏi để phân tích.");
+                return;
+            }
+
+            // Trạng thái Loading
+            loading.style.display = 'block';
+            responseDiv.style.display = 'none';
+            btnAsk.disabled = true;
+
+            try {
+                // Sử dụng url_for để Flask tự tạo đường dẫn đúng đến blueprint ai
+                const response = await fetch("{{ url_for('ai.ask') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: question })
+                });
+                
+                if (!response.ok) throw new Error("Server gặp lỗi");
+
+                const data = await response.json();
+                
+                loading.style.display = 'none';
+                responseDiv.style.display = 'block';
+                btnAsk.disabled = false;
+                
+                // Hiển thị kết quả (Dùng innerHTML để hỗ trợ xuống dòng từ <br>)
+                responseDiv.innerHTML = `<h4 style="margin-top: 0; color: #155724; border-bottom: 1px solid #c3e6cb; padding-bottom: 5px;">🤖 AI Phân Tích:</h4>${data.answer.replace(/\n/g, '<br>')}`;
+                
+                // Cuộn xuống mượt mà
+                responseDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                
+            } catch (error) {
+                console.error("Lỗi:", error);
+                alert("Lỗi kết nối!");
+                loading.style.display = 'none';
+                btnAsk.disabled = false;
+            }
+        }
+
+        // Hỗ trợ Enter
+        document.getElementById('userQuestion').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                askAI();
+            }
+        });
+    </script>
+</body>
+</html>
