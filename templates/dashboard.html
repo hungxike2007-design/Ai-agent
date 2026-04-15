@@ -2,76 +2,244 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Hùng Store - Phân Tích AI</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Web - AI Agent Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
-        .container { max-width: 1000px; margin: 30px auto; padding: 0 15px; }
-        .data-preview { width: 100%; overflow-x: auto; margin-top: 15px; border: 1px solid #ddd; border-radius: 8px; background: #fff; max-height: 400px; }
-        .data-preview table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        .data-preview th { background: #f8f9fa; position: sticky; top: 0; z-index: 10; padding: 10px; border: 1px solid #eee; }
-        .data-preview td { padding: 10px; border: 1px solid #eee; }
-        
-        .chat-section { margin-top: 30px; padding: 25px; background: #ffffff; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        .ai-response { margin-top: 20px; padding: 20px; background: #f0fdf4; border-left: 6px solid #28a745; border-radius: 10px; line-height: 1.6; color: #1a2e1a; display: none; font-size: 15px; }
+        :root {
+            --primary: #10a37f; /* Màu xanh chuẩn AI */
+            --primary-hover: #0e8c6d;
+            --bg-body: #f7f7f8;
+            --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+            --text-main: #2d333a;
+            --border-color: #e5e7eb;
+        }
 
-        /* Style cho thông báo lỗi dữ liệu (ẩn mặc định) */
-        .cleaning-hint { 
-            display: none; 
-            background: #fff3cd; 
-            border-left: 6px solid #ffc107; 
-            padding: 15px; 
-            border-radius: 8px; 
-            margin-top: 15px; 
-            color: #856404; 
-            animation: fadeIn 0.3s ease;
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        /* Navbar Sang Trọng */
+        .navbar {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 0.8rem 2rem;
+            box-shadow: 0 1px 0 var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 2.5rem auto;
+            padding: 0 1.5rem;
+        }
+
+        /* Nâng cấp Card */
+        .card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        h2, h3 {
+            font-weight: 700;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Form & Select hiện đại */
+        .report-options {
+            background: #f9fafb;
+            padding: 1.2rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        select, input[type="file"] {
+            padding: 0.75rem;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            font-size: 0.95rem;
+            background: white;
+            transition: 0.3s;
+        }
+
+        select:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
+        }
+
+        /* Table đẹp hơn */
+        .data-preview {
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .data-preview table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-preview th {
+            background: #f9fafb;
+            padding: 14px;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #6b7280;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-preview td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 0.95rem;
+        }
+
+        /* AI Chat Section bóng bẩy */
+        .chat-section {
+            background: #fff;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            padding: 2rem;
+            box-shadow: var(--card-shadow);
+        }
+
+        #userQuestion {
+            width: 100%;
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            font-size: 1rem;
+            background: #fff;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+            transition: 0.3s;
+        }
+
+        #userQuestion:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(16, 163, 127, 0.1);
+            outline: none;
+        }
+
+        .ai-response {
+            background: #f7f7f8;
+            border: 1px solid #e5e7eb;
+            border-left: 5px solid var(--primary);
+            border-radius: 14px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            color: #374151;
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+
+        /* Nút bấm hiệu ứng Gradient */
+        .btn-custom {
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-primary { 
+            background: var(--primary); 
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(16, 163, 127, 0.2);
         }
         
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .btn-primary:hover { 
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
 
-        .report-options { background: #e9ecef; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }
-        .report-options select { padding: 8px; border-radius: 5px; border: 1px solid #ced4da; }
+        .btn-word { background: #2b579a; color: white; }
+        .btn-pdf { background: #b91d1d; color: white; }
+        .btn-hint { background: #ff9800; color: white; }
 
-        .btn-export { text-decoration: none; padding: 10px 20px; border-radius: 8px; color: white; font-weight: bold; font-size: 14px; transition: 0.3s; display: inline-block; }
-        .btn-word { background: #2b579a; }
-        .btn-pdf { background: #b91d1d; }
-        .btn-hint { background: #ffc107; color: #333; cursor: pointer; border: none; font-weight: bold; }
-        .btn-export:hover, .btn-hint:hover { opacity: 0.8; }
+        .logout-link {
+            color: #ef4444;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 8px 18px;
+            border-radius: 10px;
+            transition: 0.3s;
+        }
+
+        .logout-link:hover { background: #fef2f2; }
     </style>
 </head>
 <body>
+
+    <nav class="navbar">
+        <div class="logo">
+            <h3 style="margin:0;"><i class="fas fa-brain" style="color: var(--primary);"></i> AI Agent <span style="font-weight: 300; color: #9ca3af;">AI</span></h3>
+        </div>
+        <a href="/" class="logout-link"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a>
+    </nav>
+
     <div class="container">
-        <div class="card" style="max-width: 100%;">
-            <h2 style="display: flex; align-items: center; gap: 10px; margin-top: 0;">🚀 AI Agent - Phân Tích Dữ Liệu</h2>
-            <p>Chào mừng <b>Hùng</b>! Hãy tải lên file Excel để bắt đầu phân tích tự động.</p>
-            <hr>
+        <div class="card">
+            <h2><i class="fas fa-file-import" style="color: var(--primary);"></i> Nạp dữ liệu hệ thống</h2>
+            <p style="color: #6b7280; margin-bottom: 20px;">Chào <b>Bạn</b>! Hãy tải file Excel để AI bắt đầu phân tích báo cáo cho bạn.</p>
             
             <form action="{{ url_for('ai.upload_file') }}" method="POST" enctype="multipart/form-data">
                 <div class="report-options">
-                    <label><b>Đối tượng đọc báo cáo:</b></label>
-                    <select name="style_preference">
-                        <option value="Giám đốc">Giám đốc (Ngắn gọn, số liệu tổng quát)</option>
-                        <option value="Kỹ thuật" selected>Kỹ thuật (Chi tiết, đầy đủ bảng biểu)</option>
+                    <label style="font-weight: 600;"><i class="fas fa-user-graduate"></i> Đối tượng báo cáo:</label>
+                    <select name="style_preference" style="margin-left: 10px; width: 250px;">
+                        <option value="Giám đốc">Giám đốc (Súc tích)</option>
+                        <option value="Kỹ thuật" selected>Kỹ thuật (Chi tiết)</option>
                     </select>
                 </div>
 
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <input type="file" name="file" accept=".xlsx, .xls" required style="flex: 1; min-width: 200px;">
-                    <button type="submit" class="btn-main" style="width: auto; margin: 0; padding: 12px 25px;">Tải lên & Phân tích</button>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <input type="file" name="file" accept=".xlsx, .xls" required style="flex: 1;">
+                    <button type="submit" class="btn-custom btn-primary">
+                        <i class="fas fa-magic"></i> Bắt đầu phân tích
+                    </button>
                 </div>
             </form>
         </div>
 
         {% if cleaning_hints %}
-        <div style="margin-top: 20px;">
-            <button onclick="toggleHints()" class="btn-export btn-hint">
-                🔍 Kiểm tra dữ liệu ({{ cleaning_hints|length }} cảnh báo)
+        <div class="card" style="background: #fff9f2; border-color: #ffe0b2;">
+            <button onclick="toggleHints()" class="btn-custom btn-hint">
+                <i class="fas fa-stethoscope"></i> Chẩn đoán sức khỏe dữ liệu ({{ cleaning_hints|length }})
             </button>
             
-            <div id="cleaning-box" class="cleaning-hint">
-                <h4 style="margin-top: 0;">⚠️ Gợi ý làm sạch dữ liệu (Data Processor):</h4>
-                <ul style="margin-bottom: 0;">
+            <div id="cleaning-box" class="ai-response" style="background: white; display:none; margin-top: 1.5rem; border-color: #ff9800;">
+                <h4 style="color: #e65100;"><i class="fas fa-lightbulb"></i> Gợi ý Data Processor:</h4>
+                <ul style="padding-left: 1.5rem; color: #5d4037;">
                     {% for hint in cleaning_hints %}
-                    <li>Cột <b>{{ hint.column }}</b>: {{ hint.issue }} ({{ hint.action }})</li>
+                    <li style="margin-bottom: 8px;"><b>{{ hint.column }}</b>: {{ hint.issue }} → <span style="color: #2e7d32;">{{ hint.action }}</span></li>
                     {% endfor %}
                 </ul>
             </div>
@@ -79,49 +247,46 @@
         {% endif %}
 
         {% if table_html %}
-        <div class="card" style="max-width: 100%; margin-top: 20px;">
-            <h3 style="margin-top: 0;">📊 Xem trước dữ liệu:</h3>
+        <div class="card">
+            <h3><i class="fas fa-database" style="color: #3b82f6;"></i> Cấu trúc dữ liệu trích xuất</h3>
             <div class="data-preview">
                 {{ table_html | safe }}
             </div>
-        </div>
-
-        <div style="margin-top: 20px; display: flex; gap: 10px; align-items: center;">
-            <h4 style="margin: 0;">📥 Xuất báo cáo:</h4>
-            <a href="/export/word" class="btn-export btn-word">Báo cáo Word (.docx)</a>
-            <a href="/export/pdf" class="btn-export btn-pdf">Báo cáo PDF (.html)</a>
+            
+            <div style="margin-top: 2rem; display: flex; gap: 15px; align-items: center;">
+                <span style="font-weight: 600; color: #4b5563;">Xuất bản báo cáo:</span>
+                <a href="/export/word" class="btn-custom btn-word"><i class="fas fa-file-word"></i> Word (.docx)</a>
+                <a href="/export/pdf" class="btn-custom btn-pdf"><i class="fas fa-file-code"></i> PDF (.html)</a>
+            </div>
         </div>
 
         <div class="chat-section">
-            <h3 style="margin-top: 0;">💬 Nhập yêu cầu phân tích (AI Agent):</h3>
-            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
-                Ví dụ: "Hãy tìm xu hướng doanh thu" hoặc "So sánh chi phí giữa các phòng ban".
+            <h3><i class="fas fa-comment-alt" style="color: var(--primary);"></i> AI Agent Trợ Lý</h3>
+            <p style="font-size: 0.9rem; color: #6b7280; margin-bottom: 1.5rem;">
+                Bạn có thể yêu cầu AI tính toán, so sánh hoặc tìm lỗi bất thường trong bảng.
             </p>
             
-            <input type="text" id="userQuestion" placeholder="Nhập câu hỏi tự nhiên (Prompt)...">
+            <input type="text" id="userQuestion" placeholder="Nhập câu hỏi tại đây (Ví dụ: Tìm top 5 sinh viên có điểm cao nhất)...">
             
-            <button id="btnAsk" onclick="askAI()" class="btn-main" style="width: auto; padding: 12px 40px; font-size: 16px;">Gửi yêu cầu</button>
+            <div style="margin-top: 1rem;">
+                <button id="btnAsk" onclick="askAI()" class="btn-custom btn-primary">
+                    <i class="fas fa-paper-plane"></i> Gửi yêu cầu cho AI
+                </button>
+            </div>
             
-            <div id="ai-loading" class="loading-spinner" style="display:none; margin-top: 10px;">⏳ AI đang xử lý dữ liệu...</div>
+            <div id="ai-loading" style="display:none; margin-top: 1rem; color: var(--primary);">
+                <i class="fas fa-spinner fa-spin"></i> AI đang suy luận dữ liệu, Bạn chờ tí nhé...
+            </div>
             <div id="ai-response" class="ai-response"></div>
         </div>
         {% endif %}
 
-        <br>
-        <div style="text-align: center; margin-bottom: 50px;">
-            <a href="/" style="color: #ff4d4d; text-decoration: none; font-weight: bold; border: 1px solid #ff4d4d; padding: 8px 25px; border-radius: 20px;">🚪 Đăng xuất</a>
-        </div>
     </div>
 
     <script>
-        // Hàm ẩn hiện bảng gợi ý lỗi
         function toggleHints() {
             const box = document.getElementById('cleaning-box');
-            if (box.style.display === 'none' || box.style.display === '') {
-                box.style.display = 'block';
-            } else {
-                box.style.display = 'none';
-            }
+            box.style.display = (box.style.display === 'none' || box.style.display === '') ? 'block' : 'none';
         }
 
         async function askAI() {
@@ -132,7 +297,7 @@
             const btnAsk = document.getElementById('btnAsk');
 
             if (!question) {
-                alert("Hùng ơi, hãy nhập câu hỏi đã nhé!");
+                alert("Bạn ơi, hãy nhập câu hỏi đã nhé!");
                 return;
             }
 
@@ -152,7 +317,7 @@
                 responseDiv.style.display = 'block';
                 btnAsk.disabled = false;
                 
-                responseDiv.innerHTML = `<h4 style="margin-top: 0; color: #155724;">🤖 AI Trả lời:</h4>${data.answer.replace(/\n/g, '<br>')}`;
+                responseDiv.innerHTML = `<h4 style="margin-top: 0; color: var(--primary);"><i class="fas fa-robot"></i> Kết quả phân tích:</h4><div>${data.answer.replace(/\n/g, '<br>')}</div>`;
                 responseDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             } catch (error) {
                 alert("Lỗi kết nối AI!");
