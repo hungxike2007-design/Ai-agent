@@ -10,5 +10,5 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(ai_bp)
 
 if __name__ == '__main__':
-    print("🚀 Hùng Store đang chạy tại: http://127.0.0.1:5000")
+    print("🚀 Con cac đang chạy tại: http://127.0.0.1:5000")
     app.run(debug=True, port=5000, use_reloader=False)
