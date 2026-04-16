@@ -1,23 +1,20 @@
-from flask import Flask, redirect, url_for
-from controllers.auth_controller import auth_bp
+from flask import Flask
+from controllers.auth_controller import auth_bp, oauth  
 from controllers.ai_controller import ai_bp
 
-# 1. Khởi tạo App trước (Bắt buộc)
 app = Flask(__name__)
 
 
 app.secret_key = "hung_store_key_bi_mat"
 
-# 2. Định nghĩa trang chủ (Redirect về trang login)
-@app.route('/')
-def index():
-    # Thường tên định danh sẽ là 'tên_blueprint.tên_hàm'
-    # Bạn thử 'auth.login', nếu báo lỗi thì đổi thành 'auth_bp.login'
-    return redirect(url_for('auth.login')) 
+# --- KHỞI TẠO OAUTH ---
+# Dòng này cực kỳ quan trọng để kết nối thư viện Authlib với ứng dụng Flask của Hùng
+oauth.init_app(app)
 
-# 3. Đăng ký các Blueprint
-app.register_blueprint(auth_bp)
-app.register_blueprint(ai_bp)
+# Đăng ký các Blueprint (Controller)
+# Lưu ý: Nếu trang chủ là trang đăng nhập, ta để url_prefix của auth là '/'
+app.register_blueprint(auth_bp, url_prefix='/')
+app.register_blueprint(ai_bp, url_prefix='/ai')
 
 if __name__ == '__main__':
     print("🚀 Đồ án đang chạy tại: http://127.0.0.1:5000")
