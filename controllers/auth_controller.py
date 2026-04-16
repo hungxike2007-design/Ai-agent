@@ -18,7 +18,7 @@ google = oauth.register(
 def index():
     return render_template('index.html')
 
-# --- LOGIC ĐĂNG NHẬP TRUYỀN THỐNG ---
+# --- ĐĂNG KÝ / ĐĂNG NHẬP TRUYỀN THỐNG ---
 @auth_bp.route('/register', methods=['POST'])
 def register():
     fullname = request.form.get('username')
@@ -37,37 +37,52 @@ def login():
     password = request.form.get('password')
     user = db.check_login(email, password)
     if user:
-        # Lưu thông tin user vào session
         session['user_id'] = user[0] 
-        session['username'] = user[2]
+        session['username'] = user[3] # Cột Fullname trong SQL
         return redirect(url_for('ai.dashboard'))
     return "<h1>Sai tài khoản!</h1><a href='/'>Thử lại</a>"
 
-# --- LOGIC ĐĂNG NHẬP GOOGLE (MỚI) ---
+# --- LOGIC ĐĂNG NHẬP GOOGLE & KẾT NỐI SQL ---
 
 @auth_bp.route('/login/google')
 def google_login():
-    # Hùng dùng hẳn đường dẫn tuyệt đối này để không sợ Blueprint làm lệch URL
     redirect_uri = 'http://127.0.0.1:5000/google/callback' 
     return google.authorize_redirect(redirect_uri)
 
 @auth_bp.route('/google/callback')
 def google_callback():
-    # Bước 2: Google trả mã xác thực về, ứng dụng đổi lấy thông tin user
     token = google.authorize_access_token()
     user_info = google.get('https://openidconnect.googleapis.com/v1/userinfo').json()
     
     if user_info:
-        # Bước 3: Lưu thông tin vào Session (Khớp với Sequence Diagram của Nhóm 7)
-        session['user_id'] = user_info.get('sub') # ID định danh của Google
-        session['username'] = user_info.get('name')
-        session['email'] = user_info.get('email')
-        session['avatar'] = user_info.get('picture')
+        google_id = user_info.get('sub')
+        email = user_info.get('email')
+        fullname = user_info.get('name')
+        picture = user_info.get('picture')
+
+        user = db.get_user_by_google_id(google_id)
+        
+        if not user:
+            username = email.split('@')[0]
+            # Đăng ký user mới vào bảng Users
+            # Password Hùng để là 'GOOGLE' vì đăng nhập qua Google không cần pass
+            db.register_user(username, 'GOOGLE', fullname, email)
+            
+            # Lấy lại UserID vừa tạo (Lúc này hàm get_user_by_email trả về 4 cột)
+            new_user = db.get_user_by_email(email)
+            new_user_id = new_user[0] # UserID
+            
+            # Lưu vào bảng GoogleAccounts (khớp với ảnh 2 của Hùng)
+            db.link_google_account(google_id, new_user_id, email, picture)
+            user = new_user
+
+        # Lấy dữ liệu an toàn dựa trên hàm SELECT 4 cột ở trên:
+        session['user_id'] = user[0]   # UserID
+        session['username'] = user[3] # FullName (Cột thứ 4 trong lệnh SELECT)
+        session['avatar'] = picture
         
         return redirect(url_for('ai.dashboard'))
     
-    return "<h1>Lỗi xác thực Google!</h1><a href='/'>Thử lại</a>"
-
 @auth_bp.route('/logout')
 def logout():
     session.clear()

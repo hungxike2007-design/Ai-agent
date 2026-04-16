@@ -1,41 +1,107 @@
 import pyodbc
 
 # Chuỗi kết nối đến SQL Server của Hùng
-# Lưu ý: Dấu r trước ngoặc kép để tránh lỗi đường dẫn
 CONN_STR = r"Driver={SQL Server};Server=TOM\SQLEXPRESS;Database=QuanLyAIAgent;Trusted_Connection=yes;"
 
 def get_connection():
     """Hàm tạo kết nối đến Database"""
     return pyodbc.connect(CONN_STR)
 
-def register_user(username, password, fullname, email):
-    """Hàm lưu người dùng mới vào bảng Users"""
+# --- PHẦN 1: QUẢN LÝ NGƯỜI DÙNG (USERS) ---
+
+def register_user(username, password, fullname, email, avatar=None):
+    """Hàm lưu người dùng mới (Hỗ trợ cả avatar từ Google)"""
     conn = get_connection()
     cursor = conn.cursor()
-    
-    # Câu lệnh SQL INSERT khớp với các cột trong ảnh SSMS của bạn
-    # UserID là khóa chính tự tăng nên không cần chèn vào đây
+    # Cập nhật query để hỗ trợ cột Avatar nếu Hùng đã thêm vào bảng
     query = """
-        INSERT INTO Users (Username, Password, FullName, Email, Role) 
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO Users (Username, Password, FullName, Email, Role, Avatar) 
+        VALUES (?, ?, ?, ?, ?, ?)
     """
-    
-    # Mặc định khi đăng ký sẽ là quyền 'User'
-    cursor.execute(query, (username, password, fullname, email, 'User'))
-    
-    conn.commit()
-    conn.close()
+    try:
+        cursor.execute(query, (username, password, fullname, email, 'User', avatar))
+        conn.commit()
+    except Exception as e:
+        print(f"Lỗi register_user: {e}")
+    finally:
+        conn.close()
 
 def check_login(email, password):
-    """Hàm kiểm tra đăng nhập"""
+    """Hàm kiểm tra đăng nhập truyền thống"""
     conn = get_connection()
     cursor = conn.cursor()
-    
-    # Tìm xem có ông nào trùng Email và Password không
-    query = "SELECT FullName, Role FROM Users WHERE Email = ? AND Password = ?"
+    query = "SELECT UserID, Username, FullName, Role FROM Users WHERE Email = ? AND Password = ?"
     cursor.execute(query, (email, password))
-    
-    user = cursor.fetchone() # Lấy ra 1 hàng kết quả đầu tiên
+    user = cursor.fetchone()
     conn.close()
-    
-    return user # Trả về thông tin user hoặc None nếu không tìm thấy
+    return user
+
+def get_user_by_email(email):
+    conn = get_connection()
+    cursor = conn.cursor()
+    # Hùng liệt kê rõ tên cột theo thứ tự bạn muốn lấy
+    # 0: UserID, 1: Username, 2: Email, 3: FullName
+    query = "SELECT UserID, Username, Email, FullName FROM Users WHERE Email = ?"
+    cursor.execute(query, (email,))
+    user = cursor.fetchone()
+    conn.close()
+    return user
+
+# --- PHẦN 2: KẾT NỐI TÀI KHOẢN GOOGLE ---
+
+def get_user_by_google_id(google_id):
+    """Lấy thông tin User thông qua liên kết GoogleID"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    # Join bảng Users và GoogleAccounts để lấy đầy đủ data
+    query = """
+        SELECT u.UserID, u.Username, u.FullName, u.Email, u.Role, g.AvatarURL
+        FROM Users u
+        JOIN GoogleAccounts g ON u.UserID = g.UserID
+        WHERE g.GoogleID = ?
+    """
+    cursor.execute(query, (google_id,))
+    user = cursor.fetchone()
+    conn.close()
+    return user
+
+def link_google_account(google_id, user_id, email, avatar_url):
+    """Tạo liên kết giữa UserID hiện tại và tài khoản Google"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    query = "INSERT INTO GoogleAccounts (GoogleID, UserID, Email, AvatarURL) VALUES (?, ?, ?, ?)"
+    try:
+        cursor.execute(query, (google_id, user_id, email, avatar_url))
+        conn.commit()
+    except Exception as e:
+        print(f"Lỗi link_google_account: {e}")
+    finally:
+        conn.close()
+
+# --- PHẦN 3: QUẢN LÝ BÁO CÁO AI (REPORTS) ---
+
+def save_report(user_id, title, query_text, ai_response, tokens=0):
+    """Lưu lịch sử báo cáo mà AI đã sinh ra"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    query = """
+        INSERT INTO Reports (UserID, Title, QueryText, AiResponse, TokenUsed)
+        VALUES (?, ?, ?, ?, ?)
+    """
+    try:
+        cursor.execute(query, (user_id, title, query_text, ai_response, tokens))
+        conn.commit()
+    except Exception as e:
+        print(f"Lỗi save_report: {e}")
+    finally:
+        conn.close()
+
+def get_user_reports(user_id):
+    """Lấy danh sách các báo cáo cũ của người dùng"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    query = "SELECT * FROM Reports WHERE UserID = ? ORDER BY CreatedAt DESC"
+    cursor.execute(query, (user_id,))
+    reports = cursor.fetchall()
+    conn.close()
+    return reports
