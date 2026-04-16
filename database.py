@@ -2,12 +2,7 @@ import pyodbc
 
 # Chuỗi kết nối đến SQL Server của Hùng
 # Lưu ý: Dấu r trước ngoặc kép để tránh lỗi đường dẫn
-<<<<<<< Updated upstream
-CONN_STR = r"Driver={SQL Server};Server=TOM\SQLEXPRESS;Database=QuanLyAIAgent;Trusted_Connection=yes;"
-=======
 CONN_STR = r"Driver={SQL Server};Server=LAPTOP-355TS2QT;Database=QuanLyAIAgent;Trusted_Connection=yes;"
->>>>>>> Stashed changes
-
 def get_connection():
     """Hàm tạo kết nối đến Database"""
     return pyodbc.connect(CONN_STR)

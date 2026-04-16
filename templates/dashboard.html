@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-<<<<<<< Updated upstream
         :root {
             --primary: #10a37f; /* Màu xanh chuẩn AI */
             --primary-hover: #0e8c6d;
@@ -196,39 +195,6 @@
         }
 
         .logout-link:hover { background: #fef2f2; }
-=======
-        .container { max-width: 1000px; margin: 30px auto; padding: 0 15px; }
-        .data-preview { width: 100%; overflow-x: auto; margin-top: 15px; border: 1px solid #ddd; border-radius: 8px; background: #fff; max-height: 400px; }
-        .data-preview table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        .data-preview th { background: #f8f9fa; position: sticky; top: 0; z-index: 10; padding: 10px; border: 1px solid #eee; }
-        .data-preview td { padding: 10px; border: 1px solid #eee; }
-        
-        .chat-section { margin-top: 30px; padding: 25px; background: #ffffff; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        .ai-response { margin-top: 20px; padding: 20px; background: #f0fdf4; border-left: 6px solid #28a745; border-radius: 10px; line-height: 1.6; color: #1a2e1a; display: none; font-size: 15px; }
-
-        /* Style cho thông báo lỗi dữ liệu (ẩn mặc định) */
-        .cleaning-hint { 
-            display: none; 
-            background: #fff3cd; 
-            border-left: 6px solid #ffc107; 
-            padding: 15px; 
-            border-radius: 8px; 
-            margin-top: 15px; 
-            color: #856404; 
-            animation: fadeIn 0.3s ease;
-        }
-        
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-
-        .report-options { background: #e9ecef; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; }
-        .report-options select { padding: 8px; border-radius: 5px; border: 1px solid #ced4da; }
-
-        .btn-export { text-decoration: none; padding: 10px 20px; border-radius: 8px; color: white; font-weight: bold; font-size: 14px; transition: 0.3s; display: inline-block; }
-        .btn-word { background: #2b579a; }
-        .btn-pdf { background: #b91d1d; }
-        .btn-hint { background: #ffc107; color: #333; cursor: pointer; border: none; font-weight: bold; }
-        .btn-export:hover, .btn-hint:hover { opacity: 0.8; }
->>>>>>> Stashed changes
     </style>
 </head>
 <body>
@@ -241,7 +207,6 @@
     </nav>
 
     <div class="container">
-<<<<<<< Updated upstream
         <div class="card">
             <h2><i class="fas fa-file-import" style="color: var(--primary);"></i> Nạp dữ liệu hệ thống</h2>
             <p style="color: #6b7280; margin-bottom: 20px;">Chào <b>Bạn</b>! Hãy tải file Excel để AI bắt đầu phân tích báo cáo cho bạn.</p>
@@ -260,31 +225,11 @@
                     <button type="submit" class="btn-custom btn-primary">
                         <i class="fas fa-magic"></i> Bắt đầu phân tích
                     </button>
-=======
-        <div class="card" style="max-width: 100%;">
-            <h2 style="display: flex; align-items: center; gap: 10px; margin-top: 0;">🚀 AI Agent - Phân Tích Dữ Liệu</h2>
-            <p>Chào mừng <b>Hùng</b>! Hãy tải lên file Excel để bắt đầu phân tích tự động.</p>
-            <hr>
-            
-            <form action="{{ url_for('ai.upload_file') }}" method="POST" enctype="multipart/form-data">
-                <div class="report-options">
-                    <label><b>Đối tượng đọc báo cáo:</b></label>
-                    <select name="style_preference">
-                        <option value="Giám đốc">Giám đốc (Ngắn gọn, số liệu tổng quát)</option>
-                        <option value="Kỹ thuật" selected>Kỹ thuật (Chi tiết, đầy đủ bảng biểu)</option>
-                    </select>
-                </div>
-
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <input type="file" name="file" accept=".xlsx, .xls" required style="flex: 1; min-width: 200px;">
-                    <button type="submit" class="btn-main" style="width: auto; margin: 0; padding: 12px 25px;">Tải lên & Phân tích</button>
->>>>>>> Stashed changes
                 </div>
             </form>
         </div>
 
         {% if cleaning_hints %}
-<<<<<<< Updated upstream
         <div class="card" style="background: #fff9f2; border-color: #ffe0b2;">
             <button onclick="toggleHints()" class="btn-custom btn-hint">
                 <i class="fas fa-stethoscope"></i> Chẩn đoán sức khỏe dữ liệu ({{ cleaning_hints|length }})
@@ -295,18 +240,6 @@
                 <ul style="padding-left: 1.5rem; color: #5d4037;">
                     {% for hint in cleaning_hints %}
                     <li style="margin-bottom: 8px;"><b>{{ hint.column }}</b>: {{ hint.issue }} → <span style="color: #2e7d32;">{{ hint.action }}</span></li>
-=======
-        <div style="margin-top: 20px;">
-            <button onclick="toggleHints()" class="btn-export btn-hint">
-                🔍 Kiểm tra dữ liệu ({{ cleaning_hints|length }} cảnh báo)
-            </button>
-            
-            <div id="cleaning-box" class="cleaning-hint">
-                <h4 style="margin-top: 0;">⚠️ Gợi ý làm sạch dữ liệu (Data Processor):</h4>
-                <ul style="margin-bottom: 0;">
-                    {% for hint in cleaning_hints %}
-                    <li>Cột <b>{{ hint.column }}</b>: {{ hint.issue }} ({{ hint.action }})</li>
->>>>>>> Stashed changes
                     {% endfor %}
                 </ul>
             </div>
@@ -314,7 +247,6 @@
         {% endif %}
 
         {% if table_html %}
-<<<<<<< Updated upstream
         <div class="card">
             <h3><i class="fas fa-database" style="color: #3b82f6;"></i> Cấu trúc dữ liệu trích xuất</h3>
             <div class="data-preview">
@@ -345,60 +277,16 @@
             <div id="ai-loading" style="display:none; margin-top: 1rem; color: var(--primary);">
                 <i class="fas fa-spinner fa-spin"></i> AI đang suy luận dữ liệu, Bạn chờ tí nhé...
             </div>
-=======
-        <div class="card" style="max-width: 100%; margin-top: 20px;">
-            <h3 style="margin-top: 0;">📊 Xem trước dữ liệu:</h3>
-            <div class="data-preview">
-                {{ table_html | safe }}
-            </div>
-        </div>
-
-        <div style="margin-top: 20px; display: flex; gap: 10px; align-items: center;">
-            <h4 style="margin: 0;">📥 Xuất báo cáo:</h4>
-            <a href="/export/word" class="btn-export btn-word">Báo cáo Word (.docx)</a>
-            <a href="/export/pdf" class="btn-export btn-pdf">Báo cáo PDF (.html)</a>
-        </div>
-
-        <div class="chat-section">
-            <h3 style="margin-top: 0;">💬 Nhập yêu cầu phân tích (AI Agent):</h3>
-            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
-                Ví dụ: "Hãy tìm xu hướng doanh thu" hoặc "So sánh chi phí giữa các phòng ban".
-            </p>
-            
-            <input type="text" id="userQuestion" placeholder="Nhập câu hỏi tự nhiên (Prompt)...">
-            
-            <button id="btnAsk" onclick="askAI()" class="btn-main" style="width: auto; padding: 12px 40px; font-size: 16px;">Gửi yêu cầu</button>
-            
-            <div id="ai-loading" class="loading-spinner" style="display:none; margin-top: 10px;">⏳ AI đang xử lý dữ liệu...</div>
->>>>>>> Stashed changes
             <div id="ai-response" class="ai-response"></div>
         </div>
         {% endif %}
 
-<<<<<<< Updated upstream
     </div>
 
     <script>
         function toggleHints() {
             const box = document.getElementById('cleaning-box');
             box.style.display = (box.style.display === 'none' || box.style.display === '') ? 'block' : 'none';
-=======
-        <br>
-        <div style="text-align: center; margin-bottom: 50px;">
-            <a href="/" style="color: #ff4d4d; text-decoration: none; font-weight: bold; border: 1px solid #ff4d4d; padding: 8px 25px; border-radius: 20px;">🚪 Đăng xuất</a>
-        </div>
-    </div>
-
-    <script>
-        // Hàm ẩn hiện bảng gợi ý lỗi
-        function toggleHints() {
-            const box = document.getElementById('cleaning-box');
-            if (box.style.display === 'none' || box.style.display === '') {
-                box.style.display = 'block';
-            } else {
-                box.style.display = 'none';
-            }
->>>>>>> Stashed changes
         }
 
         async function askAI() {
@@ -409,11 +297,7 @@
             const btnAsk = document.getElementById('btnAsk');
 
             if (!question) {
-<<<<<<< Updated upstream
                 alert("Bạn ơi, hãy nhập câu hỏi đã nhé!");
-=======
-                alert("Hùng ơi, hãy nhập câu hỏi đã nhé!");
->>>>>>> Stashed changes
                 return;
             }
 
@@ -433,11 +317,7 @@
                 responseDiv.style.display = 'block';
                 btnAsk.disabled = false;
                 
-<<<<<<< Updated upstream
                 responseDiv.innerHTML = `<h4 style="margin-top: 0; color: var(--primary);"><i class="fas fa-robot"></i> Kết quả phân tích:</h4><div>${data.answer.replace(/\n/g, '<br>')}</div>`;
-=======
-                responseDiv.innerHTML = `<h4 style="margin-top: 0; color: #155724;">🤖 AI Trả lời:</h4>${data.answer.replace(/\n/g, '<br>')}`;
->>>>>>> Stashed changes
                 responseDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             } catch (error) {
                 alert("Lỗi kết nối AI!");
