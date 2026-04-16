@@ -182,10 +182,10 @@
 
     <div style="text-align:center; margin: 1.5rem 0; color: #9ca3af; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Hoặc</div>
     
-    <button class="btn-google" onclick="alert('Tính năng liên kết Google đang được phát triển!')">
+    <a href="{{ url_for('auth.google_login') }}" class="btn-google" style="text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 10px;">
         <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" style="width: 20px;">
-        Tiếp tục với Google [cite: 6]
-    </button>
+        Tiếp tục với Google
+    </a>
 </div>
 
 <script>

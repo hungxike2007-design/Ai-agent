@@ -5,6 +5,16 @@ import database as db
 
 auth_bp = Blueprint('auth', __name__)
 
+# --- CẤU HÌNH GOOGLE OAUTH ---
+oauth = OAuth()
+google = oauth.register(
+    name='google',
+    client_id='44095566122-91udbj167e4lf7re6g5i33t5ce5d1479.apps.googleusercontent.com',
+    client_secret='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', 
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={'scope': 'openid email profile'}
+)
+
 @auth_bp.route('/')
 def index():
     return render_template('index.html')

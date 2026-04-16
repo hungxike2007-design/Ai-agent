@@ -4,6 +4,8 @@ from controllers.ai_controller import ai_bp
 
 # 1. Khởi tạo App trước (Bắt buộc)
 app = Flask(__name__)
+
+
 app.secret_key = "hung_store_key_bi_mat"
 
 # 2. Định nghĩa trang chủ (Redirect về trang login)
