@@ -205,6 +205,43 @@
             </div>
         </div>
 
+        {% if cleaning_hints %}
+        <div class="card" style="background: #fff9f2; border-color: #ffe0b2;">
+            <button onclick="toggleHints()" class="btn-custom btn-hint">
+                <i class="fas fa-stethoscope"></i> Gợi ý sửa lỗi ({{ cleaning_hints|length }})
+            </button>
+            
+            <div id="cleaning-box" class="ai-response" style="background: white; display:none; margin-top: 1.5rem; border-color: #ff9800;">
+                <h4 style="color: #e65100;"><i class="fas fa-lightbulb"></i> Gợi ý Data Processor:</h4>
+                <ul style="padding-left: 1.5rem; color: #5d4037;">
+                    {% for hint in cleaning_hints %}
+                    <li style="margin-bottom: 8px;"><b>{{ hint.column }}</b>: {{ hint.issue }} → <span style="color: #2e7d32;">{{ hint.action }}</span></li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="hints-section" style="margin-top: 20px;">
+    <button class="btn-hints" onclick="toggleHints()" style="background: #fff5f5; border: 1px solid #feb2b2; padding: 10px 20px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; width: 100%;">
+        <i class="fas fa-magic" style="color: #e53e3e;"></i>
+        <span style="font-weight: 600; color: #c53030;">Gợi ý sửa lỗi ({{ cleaning_hints|length if cleaning_hints else 0 }})</span>
+        <i class="fas fa-chevron-down" style="margin-left: auto; color: #c53030;"></i>
+    </button>
+
+    <div id="hints-content" style="display: none; background: #fff; border: 1px solid #feb2b2; border-top: none; padding: 15px; border-radius: 0 0 12px 12px; animation: slideDown 0.3s ease;">
+        {% if cleaning_hints %}
+            <ul style="margin: 0; padding-left: 20px; color: #4a5568; line-height: 1.6;">
+                {% for hint in cleaning_hints %}
+                    <li style="margin-bottom: 8px;">{{ hint }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p style="font-size: 0.9rem; color: #718096; margin: 0;">Không phát hiện lỗi dữ liệu nào cần xử lý.</p>
+        {% endif %}
+    </div>
+</div>
+
         <div id="chat-section" class="card" style="display: {% if table_html %}block{% else %}none{% endif %}; padding: 1.5rem;">
             <h3><i class="fas fa-robot" style="color: var(--primary);"></i> Trợ lý AI Phân Tích</h3>
             <div id="chat-container" class="chat-container">
@@ -387,6 +424,30 @@
 
     document.addEventListener("DOMContentLoaded", loadSidebarHistory);
 </script>
+
+<script>
+function toggleHints() {
+    var content = document.getElementById("hints-content");
+    var icon = document.querySelector(".btn-hints .fa-chevron-down");
+    
+    if (content.style.display === "none") {
+        content.style.display = "block";
+        icon.style.transform = "rotate(180deg)"; // Xoay icon cho đẹp
+    } else {
+        content.style.display = "none";
+        icon.style.transform = "rotate(0deg)";
+    }
+}
+</script>
+
+<style>
+/* Thêm hiệu ứng trượt nhẹ nhàng */
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.btn-hints i { transition: transform 0.3s ease; }
+</style>
 
 </body>
 </html>
