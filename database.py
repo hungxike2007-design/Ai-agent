@@ -63,7 +63,15 @@ def get_user_by_google_id(google_id):
     cursor.execute(query, (google_id,))
     user = cursor.fetchone()
     conn.close()
-    return user
+    return 
+
+def update_user_password(email, new_password):
+    conn = get_connection()
+    cursor = conn.cursor()
+    query = "UPDATE Users SET Password = ? WHERE Email = ?"
+    cursor.execute(query, (new_password, email))
+    conn.commit()
+    conn.close()
 
 def link_google_account(google_id, user_id, email, avatar_url):
     """Tạo liên kết giữa UserID hiện tại và tài khoản Google"""

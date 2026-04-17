@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session
+from flask import Blueprint, render_template, request, redirect, url_for, session,flash
 from authlib.integrations.flask_client import OAuth
 import database as db
 
@@ -82,7 +82,32 @@ def google_callback():
         session['avatar'] = picture
         
         return redirect(url_for('ai.dashboard'))
-    
+@auth_bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        user = db.get_user_by_email(email)
+        
+        if user:
+            # Ở đây Hùng có thể gửi email, nhưng đơn giản nhất là 
+            # cho họ chuyển hướng đến trang đặt lại mật khẩu với token là email
+            return redirect(url_for('auth.reset_password', email=email))
+        else:
+            flash("Email không tồn tại trong hệ thống!", "danger")
+            
+    return render_template('forgot_password.html')
+
+@auth_bp.route('/reset-password/<email>', methods=['GET', 'POST'])
+def reset_password(email):
+    if request.method == 'POST':
+        new_password = request.form.get('password')
+        # Gọi hàm cập nhật pass trong database.py
+        db.update_user_password(email, new_password)
+        flash("Đổi mật khẩu thành công! Vui lòng đăng nhập lại.", "success")
+        return redirect(url_for('auth.index'))
+        
+    return render_template('reset_password.html', email=email)
+   
 @auth_bp.route('/logout')
 def logout():
     session.clear()

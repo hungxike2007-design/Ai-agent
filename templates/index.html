@@ -232,16 +232,24 @@
     </div>
 
     <div id="login-form">
-        <form action="{{ url_for('auth.login') }}" method="POST">
-            <div class="form-group">
-                <input type="email" name="email" placeholder="Email của bạn" required>
+    <form action="{{ url_for('auth.login') }}" method="POST">
+        <div class="form-group">
+            <input type="email" name="email" placeholder="Email của bạn" required>
+        </div>
+        <div class="form-group">
+            <input type="password" name="password" placeholder="Mật khẩu" required>
+            
+            <div style="text-align: right; margin-top: 8px;">
+                <a href="{{ url_for('auth.forgot_password') }}" 
+                   style="font-size: 0.8rem; color: #10a37f; text-decoration: none; font-weight: 600;">
+                   Quên mật khẩu?
+                </a>
             </div>
-            <div class="form-group">
-                <input type="password" name="password" placeholder="Mật khẩu" required>
-            </div>
-            <button type="submit" class="btn-main">Đăng nhập ngay</button>
-        </form>
-    </div>
+        </div>
+        
+        <button type="submit" class="btn-main">Đăng nhập ngay</button>
+    </form>
+</div>
 
     <div id="register-form" class="hidden">
         <form action="{{ url_for('auth.register') }}" method="POST">
