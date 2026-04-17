@@ -251,7 +251,7 @@
         {% if cleaning_hints %}
         <div class="card" style="background: #fff9f2; border-color: #ffe0b2;">
             <button onclick="toggleHints()" class="btn-custom btn-hint">
-                <i class="fas fa-stethoscope"></i> Chẩn đoán sức khỏe dữ liệu ({{ cleaning_hints|length }})
+                <i class="fas fa-stethoscope"></i> Gợi ý sửa lỗi ({{ cleaning_hints|length }})
             </button>
             
             <div id="cleaning-box" class="ai-response" style="background: white; display:none; margin-top: 1.5rem; border-color: #ff9800;">
@@ -272,12 +272,18 @@
                 {{ table_html | safe }}
             </div>
             
+            
             <div style="margin-top: 2rem; display: flex; gap: 15px; align-items: center;">
-                <span style="font-weight: 600; color: #4b5563;">Xuất bản báo cáo:</span>
-                <a href="/export/word" class="btn-custom btn-word"><i class="fas fa-file-word"></i> Word (.docx)</a>
-                <a href="/export/pdf" class="btn-custom btn-pdf"><i class="fas fa-file-code"></i> PDF (.html)</a>
-            </div>
-        </div>
+    <span style="font-weight: 600; color: #4b5563;">Xuất bản báo cáo:</span>
+    
+    <a href="{{ url_for('ai.export_report', fmt='word') }}" class="btn-custom btn-word">
+        <i class="fas fa-file-word"></i> Word (.docx)
+    </a>
+    
+    <a href="{{ url_for('ai.export_report', fmt='pdf') }}" class="btn-custom btn-pdf">
+        <i class="fas fa-file-pdf"></i> PDF (HTML)
+    </a>
+</div>
 
         <div class="chat-section">
             <h3><i class="fas fa-comment-alt" style="color: var(--primary);"></i> AI Agent Trợ Lý</h3>
