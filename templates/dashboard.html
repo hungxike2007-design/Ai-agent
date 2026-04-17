@@ -205,23 +205,6 @@
             </div>
         </div>
 
-        {% if cleaning_hints %}
-        <div class="card" style="background: #fff9f2; border-color: #ffe0b2;">
-            <button onclick="toggleHints()" class="btn-custom btn-hint">
-                <i class="fas fa-stethoscope"></i> Gợi ý sửa lỗi ({{ cleaning_hints|length }})
-            </button>
-            
-            <div id="cleaning-box" class="ai-response" style="background: white; display:none; margin-top: 1.5rem; border-color: #ff9800;">
-                <h4 style="color: #e65100;"><i class="fas fa-lightbulb"></i> Gợi ý Data Processor:</h4>
-                <ul style="padding-left: 1.5rem; color: #5d4037;">
-                    {% for hint in cleaning_hints %}
-                    <li style="margin-bottom: 8px;"><b>{{ hint.column }}</b>: {{ hint.issue }} → <span style="color: #2e7d32;">{{ hint.action }}</span></li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-        {% endif %}
-
         <div class="hints-section" style="margin-top: 20px;">
     <button class="btn-hints" onclick="toggleHints()" style="background: #fff5f5; border: 1px solid #feb2b2; padding: 10px 20px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; width: 100%;">
         <i class="fas fa-magic" style="color: #e53e3e;"></i>
