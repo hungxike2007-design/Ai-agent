@@ -1,7 +1,7 @@
 from flask import Flask
 from controllers.auth_controller import auth_bp, oauth  
 from controllers.ai_controller import ai_bp
-
+from controllers.api_controller import api_bp
 app = Flask(__name__)
 
 
@@ -15,6 +15,7 @@ oauth.init_app(app)
 # Lưu ý: Nếu trang chủ là trang đăng nhập, ta để url_prefix của auth là '/'
 app.register_blueprint(auth_bp, url_prefix='/')
 app.register_blueprint(ai_bp, url_prefix='/ai')
+app.register_blueprint(api_bp, url_prefix='/api/v1')
 
 if __name__ == '__main__':
     print("🚀 Đồ án đang chạy tại: http://127.0.0.1:5000")

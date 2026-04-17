@@ -199,12 +199,31 @@
 </head>
 <body>
 
-    <nav class="navbar">
-        <div class="logo">
-            <h3 style="margin:0;"><i class="fas fa-brain" style="color: var(--primary);"></i> AI Agent <span style="font-weight: 300; color: #9ca3af;">AI</span></h3>
+    <nav class="navbar" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px;">
+    <div class="nav-brand">
+        <h3 style="margin:0; color: var(--primary);">AI Agent</h3>
+    </div>
+
+    <div class="user-profile-container">
+        <div class="user-trigger" onclick="toggleDropdown()">
+            <span class="user-name" style="font-weight: 500; margin-right: 10px;">{{ session['username'] }}</span>
+            <img src="{{ session['avatar'] if session['avatar'] else url_for('static', filename='image/default-avatar.png') }}" 
+                 alt="Avatar" class="avatar-circle">
         </div>
-        <a href="/" class="logout-link"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a>
-    </nav>
+
+        <div id="userDropdown" class="dropdown-content">
+            <div class="dropdown-header">
+                <p style="margin:0"><strong>{{ session['username'] }}</strong></p>
+                <p style="margin:0; font-size: 12px; color: #70757a;">{{ session['email'] }}</p>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #eee;">
+            <a href="#"><i class="fas fa-user-circle"></i> Tài khoản của tôi</a>
+            <a href="{{ url_for('auth.logout') }}" style="color: #d93025;">
+                <i class="fas fa-sign-out-alt"></i> Đăng xuất
+            </a>
+        </div>
+    </div>
+</nav>
 
     <div class="container">
         <div class="card">
@@ -330,5 +349,23 @@
             if (e.key === 'Enter') askAI();
         });
     </script>
+    <script>
+    function toggleDropdown() {
+        var dropdown = document.getElementById("userDropdown");
+        // Chuyển đổi trạng thái ẩn/hiện
+        if (dropdown.style.display === "block") {
+            dropdown.style.display = "none";
+        } else {
+            dropdown.style.display = "block";
+        }
+    }
+
+    // Nhấn ra ngoài menu thì tự đóng lại
+    window.onclick = function(event) {
+        if (!event.target.closest('.user-profile-container')) {
+            document.getElementById("userDropdown").style.display = "none";
+        }
+    }
+</script>
 </body>
 </html>

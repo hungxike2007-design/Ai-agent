@@ -9,7 +9,7 @@ from services.report_service import get_report_prompt
 ai_bp = Blueprint('ai', __name__)
 
 # Cấu hình Gemini [cite: 160]
-genai.configure(api_key="AIzaSyCOYbNAyyazkuRw_p_VJHam_MpaygKBo_0")
+genai.configure(api_key="AQ.Ab8RN6IIXu_L9VBElwSKbafO6R6DO4qA9rW-3orT9NGDGSFPtA")
 model = genai.GenerativeModel('gemini-flash-latest')
 
 # Cache lưu trữ phản hồi AI mới nhất để xuất báo cáo [cite: 9]

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Agent  - Đăng nhập hệ thống</title>
+    <title>AI Agent - Đăng nhập hệ thống</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -20,7 +20,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            /* Nền Gradient chuyển động cực chill */
             background: var(--bg-animate);
             background-size: 400% 400%;
             animation: gradientBG 15s ease infinite;
@@ -33,7 +32,69 @@
             100% { background-position: 0% 50%; }
         }
 
-        /* Hiệu ứng Glassmorphism cho Card */
+        /* --- CSS CHO PROFILE Ở GÓC (MỚI THÊM) --- */
+        .user-profile-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .user-trigger {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            padding: 6px 16px;
+            border-radius: 50px;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: 0.3s;
+        }
+
+        .user-trigger:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .avatar-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            margin-left: 10px;
+            object-fit: cover;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 55px;
+            background: white;
+            min-width: 220px;
+            border-radius: 16px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            overflow: hidden;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .dropdown-content a {
+            padding: 12px 20px;
+            display: block;
+            text-decoration: none;
+            color: #374151;
+            font-size: 0.9rem;
+            transition: 0.2s;
+        }
+
+        .dropdown-content a:hover { background: #f3f4f6; }
+
+        /* --- PHẦN CŨ CỦA HÙNG --- */
         .auth-container {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(15px);
@@ -57,7 +118,6 @@
         h2 { font-weight: 800; margin: 0; color: #1f2937; }
         p { color: #6b7280; font-size: 0.9rem; margin-top: 0.5rem; }
 
-        /* Tabs hiện đại */
         .tabs {
             display: flex;
             background: #f3f4f6;
@@ -82,7 +142,6 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }
 
-        /* Form styling */
         .form-group { margin-bottom: 1.2rem; position: relative; }
         
         input {
@@ -135,6 +194,7 @@
             font-weight: 600;
             color: #374151;
             transition: 0.3s;
+            text-decoration: none;
         }
 
         .btn-google:hover { background: #f9fafb; }
@@ -143,10 +203,28 @@
 </head>
 <body>
 
+{% if session['user_id'] %}
+<div class="user-profile-container">
+    <div class="user-trigger" onclick="toggleDropdown()">
+        <span style="color: white; font-weight: 600;">{{ session['username'] }}</span>
+        <img src="{{ session['avatar'] if session['avatar'] else 'https://ui-avatars.com/api/?name=' + session['username'] }}" alt="Avatar" class="avatar-circle">
+    </div>
+    <div id="userDropdown" class="dropdown-content">
+        <div style="padding: 15px; background: #f9fafb;">
+            <p style="margin:0; font-weight:800; color:#1f2937;">{{ session['username'] }}</p>
+            <p style="margin:0; font-size:11px; color:#6b7280;">{{ session['email'] }}</p>
+        </div>
+        <hr style="margin:0; border:0; border-top: 1px solid #eee;">
+        <a href="{{ url_for('ai.dashboard') }}"><i class="fas fa-rocket" style="margin-right:10px; color:#10a37f;"></i> Vào Dashboard</a>
+        <a href="{{ url_for('auth.logout') }}" style="color:#e11d48;"><i class="fas fa-power-off" style="margin-right:10px;"></i> Đăng xuất</a>
+    </div>
+</div>
+{% endif %}
+
 <div class="auth-container">
     <div class="logo-icon"><i class="fas fa-brain"></i></div>
     <h2>AI Agent Web</h2>
-    <p>Hệ thống phân tích dữ liệu thông minh [cite: 2]</p>
+    <p>Hệ thống phân tích dữ liệu thông minh</p>
 
     <div class="tabs">
         <div class="tab active" id="login-tab" onclick="switchTab('login')">Đăng nhập</div>
@@ -182,7 +260,7 @@
 
     <div style="text-align:center; margin: 1.5rem 0; color: #9ca3af; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Hoặc</div>
     
-    <a href="{{ url_for('auth.google_login') }}" class="btn-google" style="text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 10px;">
+    <a href="{{ url_for('auth.google_login') }}" class="btn-google">
         <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo" style="width: 20px;">
         Tiếp tục với Google
     </a>
@@ -205,6 +283,19 @@
             loginTab.classList.remove('active');
             registerForm.classList.remove('hidden');
             loginForm.classList.add('hidden');
+        }
+    }
+
+    // JS CHO DROPDOWN PROFILE
+    function toggleDropdown() {
+        const dropdown = document.getElementById('userDropdown');
+        dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+    }
+
+    window.onclick = function(event) {
+        if (!event.target.closest('.user-profile-container')) {
+            const dropdown = document.getElementById('userDropdown');
+            if (dropdown) dropdown.style.display = 'none';
         }
     }
 </script>
