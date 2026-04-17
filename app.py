@@ -3,7 +3,7 @@ import pandas as pd
 import google.generativeai as genai
 
 # 1. Cấu hình Gemini (Dán Key của bạn vào chỗ '...' nhé)
-genai.configure(api_key="AQ.Ab8RN6IIXu_L9VBElwSKbafO6R6DO4qA9rW-3orT9NGDGSFPtA") # THAY MÃ CỦA BẠN VÀO ĐÂY
+genai.configure(api_key="AQ.Ab8RN6KdpiL6uhDBziFvxmSKBTobtzicrQ7qTJXo7o1uX_BaCg") # THAY MÃ CỦA BẠN VÀO ĐÂY
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 # Thêm cấu hình này để AI không bị chặn trả lời

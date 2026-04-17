@@ -60,25 +60,29 @@ def google_callback():
         fullname = user_info.get('name')
         picture = user_info.get('picture')
 
-        user = db.get_user_by_google_id(google_id)
+        # 1. Tìm trong bảng Users trước (dựa trên email)
+        user = db.get_user_by_email(email)
         
         if not user:
+            # Nếu chưa có account trong bảng Users -> Đăng ký mới
             username = email.split('@')[0]
-            # Đăng ký user mới vào bảng Users
-            # Password Hùng để là 'GOOGLE' vì đăng nhập qua Google không cần pass
             db.register_user(username, 'GOOGLE', fullname, email)
+            # Lấy lại thông tin sau khi đăng ký để có UserID
+            user = db.get_user_by_email(email)
             
-            # Lấy lại UserID vừa tạo (Lúc này hàm get_user_by_email trả về 4 cột)
-            new_user = db.get_user_by_email(email)
-            new_user_id = new_user[0] # UserID
-            
-            # Lưu vào bảng GoogleAccounts (khớp với ảnh 2 của Hùng)
-            db.link_google_account(google_id, new_user_id, email, picture)
-            user = new_user
+            # Sau đó mới liên kết bảng GoogleAccounts
+            db.link_google_account(google_id, user[0], email, picture)
+        else:
+            # Nếu đã có account Users, kiểm tra xem đã link GoogleAccounts chưa
+            g_account = db.get_user_by_google_id(google_id)
+            if not g_account:
+                # Nếu chưa link thì link ngay để lần sau login nhanh hơn
+                db.link_google_account(google_id, user[0], email, picture)
 
-        # Lấy dữ liệu an toàn dựa trên hàm SELECT 4 cột ở trên:
-        session['user_id'] = user[0]   # UserID
-        session['username'] = user[3] # FullName (Cột thứ 4 trong lệnh SELECT)
+        # 2. Quan trọng nhất: Lưu UserID của bảng Users vào session
+        # Điều này giúp các bảng ExcelFiles, ChatSessions (hình 12, 13) không bị lỗi Foreign Key
+        session['user_id'] = user[0]   # ID từ bảng Users
+        session['username'] = user[3] # FullName từ bảng Users
         session['avatar'] = picture
         
         return redirect(url_for('ai.dashboard'))

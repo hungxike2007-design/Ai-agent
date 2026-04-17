@@ -9,9 +9,11 @@
     
     <style>
         :root {
-            --primary: #10a37f; /* Màu xanh chuẩn AI */
+            --primary: #10a37f;
             --primary-hover: #0e8c6d;
             --bg-body: #f7f7f8;
+            --bg-sidebar: #202123;
+            --text-sidebar: #ececf1;
             --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
             --text-main: #2d333a;
             --border-color: #e5e7eb;
@@ -24,9 +26,43 @@
             margin: 0;
             padding: 0;
             line-height: 1.6;
+            display: flex; /* Thêm để chứa Sidebar */
+            height: 100vh;
         }
 
-        /* Navbar Sang Trọng */
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 260px;
+            background-color: var(--bg-sidebar);
+            color: var(--text-sidebar);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+            z-index: 1001;
+            position: relative;
+        }
+
+        .sidebar.closed {
+            margin-left: -260px;
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #4d4d4f;
+        }
+
+        /* --- MAIN CONTENT --- */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            width: 100%;
+        }
+
         .navbar {
             background: rgba(255, 255, 255, 0.8);
             backdrop-filter: blur(10px);
@@ -46,7 +82,6 @@
             padding: 0 1.5rem;
         }
 
-        /* Nâng cấp Card */
         .card {
             background: #fff;
             border: 1px solid var(--border-color);
@@ -54,318 +89,304 @@
             box-shadow: var(--card-shadow);
             padding: 2rem;
             margin-bottom: 2rem;
-            transition: all 0.3s ease;
         }
 
-        h2, h3 {
-            font-weight: 700;
-            font-size: 1.5rem;
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        /* Form & Select hiện đại */
-        .report-options {
-            background: #f9fafb;
-            padding: 1.2rem;
+        .chat-container {
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
             border-radius: 12px;
-            margin-bottom: 1.5rem;
-            border: 1px solid var(--border-color);
+            padding: 20px;
+            background: #ffffff;
+            margin-bottom: 20px;
+            scroll-behavior: smooth;
         }
 
-        select, input[type="file"] {
-            padding: 0.75rem;
-            border-radius: 10px;
-            border: 1px solid var(--border-color);
-            font-size: 0.95rem;
-            background: white;
-            transition: 0.3s;
-        }
-
-        select:focus {
-            border-color: var(--primary);
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
-        }
-
-        /* Table đẹp hơn */
-        .data-preview {
+        .message-bubble {
+            margin-bottom: 20px;
+            padding: 12px 16px;
             border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+            max-width: 85%;
+            word-wrap: break-word;
         }
 
-        .data-preview table {
-            width: 100%;
-            border-collapse: collapse;
+        .user-message {
+            background: #f0fdf4;
+            border-left: 4px solid var(--primary);
+            margin-left: auto;
+            text-align: left;
         }
 
-        .data-preview th {
-            background: #f9fafb;
-            padding: 14px;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #6b7280;
-            border-bottom: 1px solid var(--border-color);
+        .ai-message {
+            background: #f3f4f6;
+            border-left: 4px solid #3b82f6;
+            margin-right: auto;
         }
 
-        .data-preview td {
-            padding: 12px 14px;
-            border-bottom: 1px solid #f3f4f6;
-            font-size: 0.95rem;
-        }
-
-        /* AI Chat Section bóng bẩy */
-        .chat-section {
-            background: #fff;
-            border-radius: 20px;
-            border: 1px solid var(--border-color);
-            padding: 2rem;
-            box-shadow: var(--card-shadow);
-        }
-
-        #userQuestion {
-            width: 100%;
-            padding: 1rem;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            font-size: 1rem;
-            background: #fff;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
-            transition: 0.3s;
-        }
-
-        #userQuestion:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(16, 163, 127, 0.1);
-            outline: none;
-        }
-
-        .ai-response {
-            background: #f7f7f8;
-            border: 1px solid #e5e7eb;
-            border-left: 5px solid var(--primary);
-            border-radius: 14px;
-            padding: 1.5rem;
-            margin-top: 1.5rem;
-            color: #374151;
-            font-size: 1rem;
-            line-height: 1.7;
-        }
-
-        /* Nút bấm hiệu ứng Gradient */
-        .btn-custom {
-            padding: 12px 24px;
-            border-radius: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .btn-primary { 
-            background: var(--primary); 
-            color: #fff;
-            box-shadow: 0 4px 12px rgba(16, 163, 127, 0.2);
-        }
-        
-        .btn-primary:hover { 
-            background: var(--primary-hover);
-            transform: translateY(-1px);
-        }
-
+        .btn-custom { padding: 10px 20px; border-radius: 10px; font-weight: 600; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; text-decoration: none; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
         .btn-word { background: #2b579a; color: white; }
-        .btn-pdf { background: #b91d1d; color: white; }
-        .btn-hint { background: #ff9800; color: white; }
+        .btn-pdf { background: #e06666; color: white; }
 
-        .logout-link {
-            color: #ef4444;
-            text-decoration: none;
-            font-weight: 600;
-            padding: 8px 18px;
-            border-radius: 10px;
-            transition: 0.3s;
+        .history-list-container { flex: 1; overflow-y: auto; padding: 10px; }
+        .history-item { padding: 10px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; margin-bottom: 5px; position: relative; transition: background 0.2s; }
+        .history-item:hover { background: #2b2c2f; }
+        
+        /* Menu 3 chấm */
+        .history-options { position: absolute; right: 10px; display: none; padding: 0 5px; }
+        .history-item:hover .history-options { display: inline; }
+        .dropdown-menu { 
+            position: absolute; right: 0; top: 25px; background: white; color: black; 
+            border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none; z-index: 10;
+            min-width: 120px;
         }
+        .dropdown-menu div { padding: 8px 12px; font-size: 0.8rem; }
+        .dropdown-menu div:hover { background: #f5f5f5; }
 
-        .logout-link:hover { background: #fef2f2; }
+        .toggle-btn { background: none; border: none; color: inherit; cursor: pointer; font-size: 1.2rem; }
+
+        /* Tùy chỉnh thanh cuộn Sidebar */
+        .history-list-container::-webkit-scrollbar { width: 4px; }
+        .history-list-container::-webkit-scrollbar-thumb { background: #4d4d4f; border-radius: 10px; }
     </style>
 </head>
 <body>
 
-    <nav class="navbar" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px;">
-    <div class="nav-brand">
-        <h3 style="margin:0; color: var(--primary);">AI Agent</h3>
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <span style="font-weight: 600;">Lịch sử Chat</span>
+        <button class="toggle-btn" onclick="toggleSidebar()"><i class="fas fa-angle-left"></i></button>
     </div>
+    <div class="history-list-container" id="historyList"></div>
+</div>
 
-    <div class="user-profile-container">
-        <div class="user-trigger" onclick="toggleDropdown()">
-            <span class="user-name" style="font-weight: 500; margin-right: 10px;">{{ session['username'] }}</span>
-            <img src="{{ session['avatar'] if session['avatar'] else url_for('static', filename='image/default-avatar.png') }}" 
-                 alt="Avatar" class="avatar-circle">
+<div class="main-content">
+    <nav class="navbar">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <button class="toggle-btn" onclick="toggleSidebar()" style="color: var(--text-main);"><i class="fas fa-bars"></i></button>
+            <div class="nav-brand"><h3 style="margin:0; color: var(--primary);">AI Agent Analytics</h3></div>
         </div>
-
-        <div id="userDropdown" class="dropdown-content">
-            <div class="dropdown-header">
-                <p style="margin:0"><strong>{{ session['username'] }}</strong></p>
-                <p style="margin:0; font-size: 12px; color: #70757a;">{{ session['email'] }}</p>
-            </div>
-            <hr style="border: 0; border-top: 1px solid #eee;">
-            <a href="#"><i class="fas fa-user-circle"></i> Tài khoản của tôi</a>
-            <a href="{{ url_for('auth.logout') }}" style="color: #d93025;">
-                <i class="fas fa-sign-out-alt"></i> Đăng xuất
-            </a>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <span style="font-weight: 500;">{{ session['username'] }}</span>
+            <a href="{{ url_for('auth.logout') }}" style="color: #ef4444; text-decoration: none; font-size: 0.9rem;"><i class="fas fa-sign-out-alt"></i> Thoát</a>
         </div>
-    </div>
-</nav>
+    </nav>
 
     <div class="container">
         <div class="card">
             <h2><i class="fas fa-file-import" style="color: var(--primary);"></i> Nạp dữ liệu hệ thống</h2>
-            <p style="color: #6b7280; margin-bottom: 20px;">Chào <b>Bạn</b>! Hãy tải file Excel để AI bắt đầu phân tích báo cáo cho bạn.</p>
-            
             <form action="{{ url_for('ai.upload_file') }}" method="POST" enctype="multipart/form-data">
-                <div class="report-options">
-                    <label style="font-weight: 600;"><i class="fas fa-user-graduate"></i> Đối tượng báo cáo:</label>
-                    <select name="style_preference" style="margin-left: 10px; width: 250px;">
-                        <option value="Giám đốc">Giám đốc (Súc tích)</option>
-                        <option value="Kỹ thuật" selected>Kỹ thuật (Chi tiết)</option>
-                    </select>
-                </div>
-
                 <div style="display: flex; gap: 1rem; align-items: center;">
+                    <select name="style_preference" style="padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
+                        <option value="Giám đốc">Ngắn gọn (Giám đốc)</option>
+                        <option value="Kỹ thuật" selected>Chi tiết (Kỹ thuật)</option>
+                    </select>
                     <input type="file" name="file" accept=".xlsx, .xls" required style="flex: 1;">
-                    <button type="submit" class="btn-custom btn-primary">
-                        <i class="fas fa-magic"></i> Bắt đầu phân tích
-                    </button>
+                    <button type="submit" class="btn-custom btn-primary"><i class="fas fa-magic"></i> Phân tích file</button>
                 </div>
             </form>
         </div>
 
-        {% if cleaning_hints %}
-        <div class="card" style="background: #fff9f2; border-color: #ffe0b2;">
-            <button onclick="toggleHints()" class="btn-custom btn-hint">
-                <i class="fas fa-stethoscope"></i> Chẩn đoán sức khỏe dữ liệu ({{ cleaning_hints|length }})
-            </button>
-            
-            <div id="cleaning-box" class="ai-response" style="background: white; display:none; margin-top: 1.5rem; border-color: #ff9800;">
-                <h4 style="color: #e65100;"><i class="fas fa-lightbulb"></i> Gợi ý Data Processor:</h4>
-                <ul style="padding-left: 1.5rem; color: #5d4037;">
-                    {% for hint in cleaning_hints %}
-                    <li style="margin-bottom: 8px;"><b>{{ hint.column }}</b>: {{ hint.issue }} → <span style="color: #2e7d32;">{{ hint.action }}</span></li>
-                    {% endfor %}
-                </ul>
+        <div id="data-section" class="card" style="display: {% if table_html %}block{% else %}none{% endif %};">
+            <h3><i class="fas fa-table"></i> Dữ liệu trích xuất</h3>
+            <div id="excel-table-content" class="data-preview" style="overflow-x: auto;">
+                {% if table_html %}{{ table_html | safe }}{% endif %}
             </div>
-        </div>
-        {% endif %}
 
-        {% if table_html %}
-        <div class="card">
-            <h3><i class="fas fa-database" style="color: #3b82f6;"></i> Cấu trúc dữ liệu trích xuất</h3>
-            <div class="data-preview">
-                {{ table_html | safe }}
-            </div>
-            
             <div style="margin-top: 2rem; display: flex; gap: 15px; align-items: center;">
                 <span style="font-weight: 600; color: #4b5563;">Xuất bản báo cáo:</span>
-                <a href="/export/word" class="btn-custom btn-word"><i class="fas fa-file-word"></i> Word (.docx)</a>
-                <a href="/export/pdf" class="btn-custom btn-pdf"><i class="fas fa-file-code"></i> PDF (.html)</a>
+                <a href="{{ url_for('ai.export_report', format='word') }}" class="btn-custom btn-word">
+                    <i class="fas fa-file-word"></i> Word (.docx)
+                </a>
+                <a href="{{ url_for('ai.export_report', format='pdf') }}" class="btn-custom btn-pdf">
+                    <i class="fas fa-file-code"></i> PDF (.html)
+                </a>
             </div>
         </div>
 
-        <div class="chat-section">
-            <h3><i class="fas fa-comment-alt" style="color: var(--primary);"></i> AI Agent Trợ Lý</h3>
-            <p style="font-size: 0.9rem; color: #6b7280; margin-bottom: 1.5rem;">
-                Bạn có thể yêu cầu AI tính toán, so sánh hoặc tìm lỗi bất thường trong bảng.
-            </p>
-            
-            <input type="text" id="userQuestion" placeholder="Nhập câu hỏi tại đây (Ví dụ: Tìm top 5 sinh viên có điểm cao nhất)...">
-            
-            <div style="margin-top: 1rem;">
+        <div id="chat-section" class="card" style="display: {% if table_html %}block{% else %}none{% endif %}; padding: 1.5rem;">
+            <h3><i class="fas fa-robot" style="color: var(--primary);"></i> Trợ lý AI Phân Tích</h3>
+            <div id="chat-container" class="chat-container">
+                <div id="chat-content">
+                    {% if ai_response %}
+                    <div class="message-bubble ai-message">
+                        <strong style="color: #3b82f6;"><i class="fas fa-robot"></i> AI Agent:</strong> 
+                        <div style="margin-top: 8px;">{{ ai_response | replace('\n', '<br>') | safe }}</div>
+                    </div>
+                    {% else %}
+                    <div class="message-bubble ai-message">
+                        <strong style="color: #3b82f6;"><i class="fas fa-robot"></i> AI Agent:</strong> 
+                        <p>Chào bạn! Tôi đã nạp lại dữ liệu cũ. Bạn muốn hỏi gì thêm không?</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="userQuestion" style="flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #ddd;" placeholder="Nhập câu hỏi...">
                 <button id="btnAsk" onclick="askAI()" class="btn-custom btn-primary">
-                    <i class="fas fa-paper-plane"></i> Gửi yêu cầu cho AI
+                    <i class="fas fa-paper-plane"></i> Gửi
                 </button>
             </div>
-            
-            <div id="ai-loading" style="display:none; margin-top: 1rem; color: var(--primary);">
-                <i class="fas fa-spinner fa-spin"></i> AI đang suy luận dữ liệu, Bạn chờ tí nhé...
+            <div id="ai-loading" style="display:none; margin-top: 10px; color: var(--primary); font-size: 0.9rem;">
+                <i class="fas fa-spinner fa-spin"></i> AI đang suy nghĩ...
             </div>
-            <div id="ai-response" class="ai-response"></div>
         </div>
-        {% endif %}
-
     </div>
+</div>
 
-    <script>
-        function toggleHints() {
-            const box = document.getElementById('cleaning-box');
-            box.style.display = (box.style.display === 'none' || box.style.display === '') ? 'block' : 'none';
-        }
+<script>
+    const chatContainer = document.getElementById('chat-container');
+    const chatContent = document.getElementById('chat-content');
+    const questionInput = document.getElementById('userQuestion');
+    const loading = document.getElementById('ai-loading');
+    const btnAsk = document.getElementById('btnAsk');
 
-        async function askAI() {
-            const questionInput = document.getElementById('userQuestion');
-            const question = questionInput.value.trim();
-            const responseDiv = document.getElementById('ai-response');
-            const loading = document.getElementById('ai-loading');
-            const btnAsk = document.getElementById('btnAsk');
+    // 1. Hàm chính: Tải phiên chat và hiển thị lại bảng Excel
+    async function loadChatSession(sessionId) {
+        // Khai báo các biến DOM để tránh lỗi "undefined"
+        const chatContent = document.getElementById('chat-content');
+        const chatContainer = document.getElementById('chat-container');
+        const dataSection = document.getElementById('data-section');
+        const chatSection = document.getElementById('chat-section');
 
-            if (!question) {
-                alert("Bạn ơi, hãy nhập câu hỏi đã nhé!");
+        // Hiệu ứng chờ
+        dataSection.style.display = 'block';
+        chatSection.style.display = 'block';
+        chatContent.innerHTML = '<div class="text-center p-3"><i class="fas fa-spinner fa-spin"></i> Đang nạp lại dữ liệu...</div>';
+        
+        try {
+            const response = await fetch(`/ai/get_session/${sessionId}`);
+            const data = await response.json();
+
+            if (data.error) {
+                alert(data.error);
                 return;
             }
 
-            loading.style.display = 'block';
-            responseDiv.style.display = 'none';
-            btnAsk.disabled = true;
+            // --- BƯỚC QUAN TRỌNG: CẬP NHẬT LINK XUẤT FILE ---
+            // Tìm các nút xuất file dựa trên class bạn đã đặt trong HTML
+            const btnWord = document.querySelector('.btn-word');
+            const btnPdf = document.querySelector('.btn-pdf');
+            
+            if (btnWord) btnWord.href = `/ai/export_report?format=word&session_id=${sessionId}`;
+            if (btnPdf) btnPdf.href = `/ai/export_report?format=pdf&session_id=${sessionId}`;
+            // ------------------------------------------------
 
-            try {
-                const response = await fetch("{{ url_for('ai.ask') }}", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ question: question })
-                });
-                
-                const data = await response.json();
-                loading.style.display = 'none';
-                responseDiv.style.display = 'block';
-                btnAsk.disabled = false;
-                
-                responseDiv.innerHTML = `<h4 style="margin-top: 0; color: var(--primary);"><i class="fas fa-robot"></i> Kết quả phân tích:</h4><div>${data.answer.replace(/\n/g, '<br>')}</div>`;
-                responseDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            } catch (error) {
-                alert("Lỗi kết nối AI!");
-                loading.style.display = 'none';
-                btnAsk.disabled = false;
+            // A. Hiển thị lại bảng Excel
+            const tableDiv = document.getElementById('excel-table-content');
+            if (tableDiv && data.table_html) {
+                tableDiv.innerHTML = data.table_html;
+                // Cuộn nhẹ tới phần dữ liệu
+                dataSection.scrollIntoView({ behavior: 'smooth' });
             }
-        }
 
-        document.getElementById('userQuestion').addEventListener('keypress', (e) => {
+            // B. Hiển thị lại lịch sử tin nhắn
+            chatContent.innerHTML = ''; 
+            if (data.messages && data.messages.length > 0) {
+                data.messages.forEach(msg => {
+                    const isAI = msg.role.toLowerCase() === 'assistant' || msg.role.toLowerCase() === 'ai';
+                    chatContent.innerHTML += `
+                        <div class="message-bubble ${isAI ? 'ai-message' : 'user-message'}">
+                            <strong>${isAI ? '<i class="fas fa-robot"></i> AI Agent:' : 'Bạn:'}</strong>
+                            <div style="margin-top: 8px;">${msg.content.replace(/\n/g, '<br>')}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                chatContent.innerHTML = '<p class="text-center text-muted">Phiên chat này chưa có tin nhắn.</p>';
+            }
+            
+            // Cuộn xuống cuối khung chat
+            if (chatContainer) {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+
+        } catch (error) {
+            console.error("Lỗi:", error);
+            alert("Không thể kết nối server để nạp lịch sử!");
+        }
+    }
+
+    // 2. Hàm gửi câu hỏi mới (Giữ lại và tối ưu)
+    async function askAI() {
+        const question = questionInput.value.trim();
+        if (!question) return;
+
+        chatContent.innerHTML += `
+            <div class="message-bubble user-message">
+                <strong>Bạn:</strong>
+                <p>${question}</p>
+            </div>
+        `;
+        
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        questionInput.value = '';
+        loading.style.display = 'block';
+        btnAsk.disabled = true;
+
+        try {
+            const response = await fetch("{{ url_for('ai.ask') }}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: question })
+            });
+            
+            const data = await response.json();
+            loading.style.display = 'none';
+            btnAsk.disabled = false;
+            
+            chatContent.innerHTML += `
+                <div class="message-bubble ai-message">
+                    <strong style="color: #3b82f6;"><i class="fas fa-robot"></i> AI Agent:</strong>
+                    <div style="margin-top: 8px;">${data.answer.replace(/\n/g, '<br>')}</div>
+                </div>
+            `;
+            
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            loadSidebarHistory(); // Cập nhật lại danh sách bên trái
+
+        } catch (error) {
+            loading.style.display = 'none';
+            btnAsk.disabled = false;
+            alert("Lỗi kết nối server!");
+        }
+    }
+
+    // 3. Hàm load danh sách lịch sử ở Sidebar (Quan trọng: Đổi onclick thành loadChatSession)
+    async function loadSidebarHistory() {
+        const list = document.getElementById('historyList');
+        if (!list) return;
+        try {
+            const res = await fetch("{{ url_for('ai.history') }}");
+            const data = await res.json();
+            list.innerHTML = data.map(item => `
+                <div class="history-item" onclick="loadChatSession(${item.id})">
+                    <i class="far fa-comment-dots" style="color: #888; margin-right: 8px;"></i> 
+                    <span title="${item.title}" style="display: inline-block; width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;">
+                        ${item.title}
+                    </span>
+                </div>
+            `).join('');
+        } catch (e) {
+            console.error("Lỗi tải lịch sử:", e);
+        }
+    }
+
+    // Các hàm bổ trợ giao diện
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('closed');
+    }
+
+    if (questionInput) {
+        questionInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') askAI();
         });
-    </script>
-    <script>
-    function toggleDropdown() {
-        var dropdown = document.getElementById("userDropdown");
-        // Chuyển đổi trạng thái ẩn/hiện
-        if (dropdown.style.display === "block") {
-            dropdown.style.display = "none";
-        } else {
-            dropdown.style.display = "block";
-        }
     }
 
-    // Nhấn ra ngoài menu thì tự đóng lại
-    window.onclick = function(event) {
-        if (!event.target.closest('.user-profile-container')) {
-            document.getElementById("userDropdown").style.display = "none";
-        }
-    }
+    document.addEventListener("DOMContentLoaded", loadSidebarHistory);
 </script>
+
 </body>
 </html>
