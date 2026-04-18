@@ -123,6 +123,67 @@
             margin-right: auto;
         }
 
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .history-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            overflow: hidden;
+            flex: 1;
+        }
+
+        .session-title {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .options-btn {
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            padding: 5px;
+            opacity: 0; /* Chỉ hiện khi hover vào history-item */
+            transition: 0.2s;
+        }
+
+        .history-item:hover .options-btn { opacity: 1; }
+
+        .dropdown-menu-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 30px;
+            background: white;
+            min-width: 150px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            z-index: 1000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .dropdown-menu-content.show { display: block; }
+
+        .dropdown-menu-content a {
+            color: #333;
+            padding: 10px 15px;
+            text-decoration: none;
+            display: block;
+            font-size: 0.9rem;
+        }
+
+        .dropdown-menu-content a:hover { background: #f1f1f1; }
+        .text-danger { color: #dc3545 !important; }
+
         .btn-custom { padding: 10px 20px; border-radius: 10px; font-weight: 600; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; text-decoration: none; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-primary:hover { background: var(--primary-hover); }
@@ -387,16 +448,25 @@
             const res = await fetch("{{ url_for('ai.history') }}");
             const data = await res.json();
             list.innerHTML = data.map(item => `
-                <div class="history-item" onclick="loadChatSession(${item.id})">
-                    <i class="far fa-comment-dots" style="color: #888; margin-right: 8px;"></i> 
-                    <span title="${item.title}" style="display: inline-block; width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;">
-                        ${item.title}
-                    </span>
+                <div class="history-item" id="item-${item.id}" onclick="loadChatSession(${item.id})">
+                    <div class="history-info">
+                        <i class="far fa-comment-dots"></i>
+                        <span class="session-title" id="title-${item.id}">${item.title}</span>
+                    </div>
+                    
+                    <div class="dropdown">
+                        <button class="options-btn" onclick="toggleMenu(event, ${item.id})">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <div id="dropdown-${item.id}" class="dropdown-menu-content">
+                            <a href="javascript:void(0)" onclick="handleRename(event, ${item.id})"><i class="fas fa-edit"></i> Đổi tên</a>
+                            <a href="javascript:void(0)" onclick="handleShare(event, ${item.id})"><i class="fas fa-share-alt"></i> Chia sẻ</a>
+                            <a href="javascript:void(0)" onclick="handleDelete(event, ${item.id})" class="text-danger"><i class="fas fa-trash-alt"></i> Xóa</a>
+                        </div>
+                    </div>
                 </div>
             `).join('');
-        } catch (e) {
-            console.error("Lỗi tải lịch sử:", e);
-        }
+        } catch (e) { console.error(e); }
     }
 
     // Các hàm bổ trợ giao diện
@@ -411,6 +481,61 @@
     }
 
     document.addEventListener("DOMContentLoaded", loadSidebarHistory);
+
+    async function handleRename(event, id) {
+        event.stopPropagation();
+        const oldTitle = document.getElementById(`title-${id}`).innerText;
+        const newTitle = prompt("Nhập tên mới cho phiên này:", oldTitle);
+        
+        if (newTitle && newTitle !== oldTitle) {
+            const res = await fetch(`/ai/rename_session/${id}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ new_title: newTitle })
+            });
+            if ((await res.json()).success) {
+                document.getElementById(`title-${id}`).innerText = newTitle;
+            }
+        }
+    }
+
+    // 3. Logic Chia sẻ (Tạo link random)
+    async function handleShare(event, id) {
+        event.stopPropagation();
+        const res = await fetch(`/ai/share_session/${id}`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.share_url) {
+            const fullUrl = window.location.origin + data.share_url;
+            const copyBtn = confirm(`Link chia sẻ của bạn:\n${fullUrl}\n\nNhấn OK để copy link!`);
+            if (copyBtn) {
+                navigator.clipboard.writeText(fullUrl);
+                alert("Đã lưu vào bộ nhớ tạm!");
+            }
+        }
+    }
+
+    // 4. Logic Xóa sạch dữ liệu
+    async function handleDelete(event, id) {
+        event.stopPropagation();
+        if (confirm("Bạn có chắc chắn muốn xóa? Thao tác này sẽ xóa toàn bộ file Excel và tin nhắn liên quan.")) {
+            const res = await fetch(`/ai/delete_session/${id}`, { method: 'DELETE' });
+            if ((await res.json()).success) {
+                document.getElementById(`item-${id}`).remove();
+                // Nếu đang xem chính session đó thì reload trang
+                location.reload();
+            }
+        }
+    }
+
+    // Hàm đóng/mở menu
+    function toggleMenu(event, id) {
+        event.stopPropagation();
+        document.querySelectorAll('.dropdown-menu-content').forEach(el => {
+            if (el.id !== `dropdown-${id}`) el.classList.remove('show');
+        });
+        document.getElementById(`dropdown-${id}`).classList.toggle('show');
+    }
 </script>
 
 <script>

@@ -3,6 +3,7 @@ import google.generativeai as genai
 import pandas as pd
 import io
 import os
+import uuid
 from docx import Document
 from services.data_processor import get_cleaning_suggestions
 from services.report_service import get_report_prompt
@@ -11,7 +12,7 @@ from database import get_connection
 ai_bp = Blueprint('ai', __name__)
 
 # --- CẤU HÌNH GEMINI --- 
-API_KEY = "AIzaSyAUWrg0ng-XrHRqf-BWbyG4-PFYIv6ar1Q"
+API_KEY = "AQ.Ab8RN6LlYOyrJwj0J_NdqytUZOd2e7IJ0h0pYAQDxRCQohm2Bw"
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-flash-latest')
 
@@ -290,3 +291,152 @@ def get_session(session_id):
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+# --- API ĐỔI TÊN PHIÊN CHAT ---
+@ai_bp.route('/rename_session/<int:session_id>', methods=['POST'])
+def rename_session(session_id):
+    data = request.json
+    new_title = data.get('new_title')
+    user_id = session.get('user_id')
+
+    if not new_title:
+        return jsonify({"error": "Tiêu đề không được để trống"}), 400
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        # Chỉ cho phép đổi tên nếu phiên chat đó thuộc về user đang đăng nhập
+        cursor.execute("UPDATE ChatSessions SET SessionTitle = ? WHERE SessionID = ? AND UserID = ?", 
+                       (new_title, session_id, user_id))
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "message": "Đã đổi tên thành công"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# --- API CHIA SẺ PHIÊN CHAT ---
+@ai_bp.route('/share_session/<int:session_id>', methods=['POST'])
+def share_session(session_id):
+    user_id = session.get('user_id')
+    share_token = str(uuid.uuid4()) # Tạo chuỗi định danh duy nhất
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # 1. Lấy FileID từ ChatSession
+        cursor.execute("SELECT FileID FROM ChatSessions WHERE SessionID = ? AND UserID = ?", (session_id, user_id))
+        row = cursor.fetchone()
+        
+        if not row or not row[0]:
+            return jsonify({"error": "Không tìm thấy báo cáo để chia sẻ"}), 404
+        
+        file_id = row[0]
+
+        # 2. Cập nhật ShareToken vào bảng Reports (hoặc tạo mới nếu chưa có)
+        # Theo ERD của bạn, ShareToken nằm ở bảng Reports
+        cursor.execute("UPDATE Reports SET ShareToken = ?, IsPublic = 1 WHERE FileID = ?", (share_token, file_id))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({"share_url": f"/ai/view_shared/{share_token}"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# --- API XÓA SẠCH SESSION ---
+@ai_bp.route('/delete_session/<int:session_id>', methods=['DELETE'])
+def delete_session(session_id):
+    user_id = session.get('user_id')
+    
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # 1. Lấy FilePath và FileID trước khi xóa để xử lý file vật lý
+        sql_info = """
+            SELECT f.FilePath, f.FileID 
+            FROM ChatSessions s
+            JOIN ExcelFiles f ON s.FileID = f.FileID
+            WHERE s.SessionID = ? AND s.UserID = ?
+        """
+        cursor.execute(sql_info, (session_id, user_id))
+        info = cursor.fetchone()
+
+        if info:
+            file_path = info[0]
+            file_id = info[1]
+
+            # 2. Xóa tin nhắn trong ChatMessages (Ràng buộc khóa ngoại)
+            cursor.execute("DELETE FROM ChatMessages WHERE SessionID = ?", (session_id,))
+            
+            # 3. Xóa báo cáo trong Reports
+            cursor.execute("DELETE FROM Reports WHERE FileID = ?", (file_id,))
+
+            # 4. Xóa phiên chat trong ChatSessions
+            cursor.execute("DELETE FROM ChatSessions WHERE SessionID = ?", (session_id,))
+
+            # 5. Xóa file trong ExcelFiles
+            cursor.execute("DELETE FROM ExcelFiles WHERE FileID = ?", (file_id,))
+
+            # 6. Xóa file vật lý trên ổ cứng (nếu tồn tại)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+            conn.commit()
+            return jsonify({"success": True, "message": "Đã xóa sạch toàn bộ dữ liệu liên quan"})
+        else:
+            return jsonify({"error": "Không tìm thấy phiên chat hoặc bạn không có quyền xóa"}), 404
+
+    except Exception as e:
+        if conn: conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if conn: conn.close()
+
+@ai_bp.route('/view_shared/<token>')
+def view_shared(token):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # Truy vấn nội dung báo cáo và thông tin file dựa trên ShareToken
+        # IsPublic = 1 để đảm bảo báo cáo này đã được người dùng cho phép chia sẻ
+        sql = """
+            SELECT r.[Content], f.FileName, r.CreatedDate, f.FilePath
+            FROM Reports r
+            JOIN ExcelFiles f ON r.FileID = f.FileID
+            WHERE r.ShareToken = ? AND r.IsPublic = 1
+        """
+        cursor.execute(sql, (token,))
+        row = cursor.fetchone()
+        
+        if not row:
+            conn.close()
+            return "<h3>Link chia sẻ không tồn tại hoặc đã bị gỡ bỏ.</h3>", 404
+
+        report_content = row[0]
+        filename = row[1]
+        created_date = row[2]
+        file_path = row[3]
+
+        # Đọc dữ liệu Excel để hiển thị bảng xem trước (preview) cho người xem
+        table_html = ""
+        if os.path.exists(file_path):
+            try:
+                df = pd.read_excel(file_path)
+                table_html = df.head(15).to_html(classes='table table-bordered table-striped', index=False)
+            except Exception as e:
+                table_html = f"<p>Không thể hiển thị bản xem trước dữ liệu: {e}</p>"
+
+        conn.close()
+
+        # Render ra một template riêng cho người xem (ví dụ: shared_report.html)
+        # Nếu chưa có file html riêng, bạn có thể tạo nhanh hoặc dùng render_template
+        return render_template('shared_view.html', 
+                               content=report_content, 
+                               filename=filename, 
+                               date=created_date, 
+                               table_preview=table_html)
+
+    except Exception as e:
+        return f"Lỗi hệ thống khi tải báo cáo: {str(e)}", 500
