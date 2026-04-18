@@ -2,6 +2,9 @@ from flask import Flask
 from controllers.auth_controller import auth_bp, oauth  
 from controllers.ai_controller import ai_bp
 from controllers.api_controller import api_bp
+from controllers.admin_controller import admin_bp
+
+
 app = Flask(__name__)
 
 
@@ -16,6 +19,7 @@ oauth.init_app(app)
 app.register_blueprint(auth_bp, url_prefix='/')
 app.register_blueprint(ai_bp, url_prefix='/ai')
 app.register_blueprint(api_bp, url_prefix='/api/v1')
+app.register_blueprint(admin_bp, url_prefix='/admin')
 
 if __name__ == '__main__':
     print("🚀 Đồ án đang chạy tại: http://127.0.0.1:5000")

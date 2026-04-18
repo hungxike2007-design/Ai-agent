@@ -39,6 +39,7 @@ def login():
     if user:
         session['user_id'] = user[0] 
         session['username'] = user[3] # Cột Fullname trong SQL
+        session['role'] = user.Role if hasattr(user, 'Role') else 'User' # Đảm bảo có Role trong session
         return redirect(url_for('ai.dashboard'))
     return "<h1>Sai tài khoản!</h1><a href='/'>Thử lại</a>"
 

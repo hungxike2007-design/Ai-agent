@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <title>Admin Dashboard - AI Agent</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <style>
+        :root { --admin-primary: #1a202c; --admin-accent: #10a37f; }
+        body { background: #f7fafc; font-family: 'Plus Jakarta Sans', sans-serif; }
+        .sidebar-admin { height: 100vh; background: var(--admin-primary); color: white; position: fixed; width: 240px; }
+        .main-content { margin-left: 240px; padding: 30px; }
+        .stat-card { border: none; border-radius: 15px; transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-5px); }
+        .nav-pills .nav-link.active { background-color: var(--admin-accent); }
+    </style>
+</head>
+<body>
+
+<div class="sidebar-admin p-3">
+    <h4><i class="fas fa-robot"></i> AI ADMIN</h4>
+    <hr style="background: #4a5568;">
+    <div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+        <a class="nav-link active" data-toggle="pill" href="#tab-users"><i class="fas fa-users"></i> Quản lý Người dùng</a>
+        <a class="nav-link" data-toggle="pill" href="#tab-data"><i class="fas fa-database"></i> Quản lý Dữ liệu</a>
+        <a class="nav-link" data-toggle="pill" href="#tab-resource"><i class="fas fa-microchip"></i> Quản lý Tài nguyên</a>
+    </div>
+    <div style="position: absolute; bottom: 20px; width: 200px;">
+        <a href="{{ url_for('ai.dashboard') }}" class="btn btn-outline-light btn-block">Về Client</a>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card bg-white shadow-sm p-3">
+                <small class="text-muted">Tổng User</small>
+                <h2 class="text-dark">{{ total_users }}</h2>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card bg-white shadow-sm p-3">
+                <small class="text-muted">Token sử dụng</small>
+                <h2 class="text-success">{{ "{:,}".format(total_tokens) }}</h2>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card bg-white shadow-sm p-3">
+                <small class="text-muted">Yêu cầu phân tích</small>
+                <h2 class="text-primary">{{ total_requests }}</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-content bg-white p-4 shadow-sm" style="border-radius: 15px;">
+        <div class="tab-pane fade show active" id="tab-users">
+            <h4 class="mb-4">Danh sách người dùng</h4>
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th><th>Họ Tên</th><th>Email</th><th>Quyền</th><th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.UserID }}</td>
+                        <td>{{ user.FullName }}</td>
+                        <td>{{ user.Email }}</td>
+                        <td><span class="badge badge-info">{{ user.Role }}</span></td>
+                        <td>
+                            <button onclick="updateRole('{{ user.UserID }}', 'Admin')" class="btn btn-sm btn-outline-danger">Admin</button>
+                            <button onclick="updateRole('{{ user.UserID }}', 'User')" class="btn btn-sm btn-outline-secondary">User</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="tab-pane fade" id="tab-data">
+            <h4>Tệp tin hệ thống</h4>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th><th>Tên File</th><th>Người tải</th><th>Ngày tải</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for file in files %}
+                    <tr>
+                        <td>{{ file.FileID }}</td>
+                        <td>{{ file.FileName }}</td>
+                        <td>{{ file.FullName }}</td>
+                        <td>{{ file.UploadDate.strftime('%d/%m/%Y') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    function updateRole(userId, newRole) {
+        if(confirm('Xác nhận thay đổi quyền cho User ID: ' + userId + '?')) {
+            fetch('/admin/update_role', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({user_id: userId, new_role: new_role})
+            }).then(() => location.reload());
+        }
+    }
+</script>
+</body>
+</html>
