@@ -22,7 +22,7 @@
     <div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist" aria-orientation="vertical">
         <a class="nav-link active" data-toggle="pill" href="#tab-users"><i class="fas fa-users"></i> Quản lý Người dùng</a>
         <a class="nav-link" data-toggle="pill" href="#tab-data"><i class="fas fa-database"></i> Quản lý Dữ liệu</a>
-        <a class="nav-link" data-toggle="pill" href="#tab-resource"><i class="fas fa-microchip"></i> Quản lý Tài nguyên</a>
+        <a class="nav-link" data-toggle="pill" href="#tab-sessions"><i class="fas fa-comments mr-2"></i> Phiên phân tích</a>
     </div>
     <div style="position: absolute; bottom: 20px; width: 200px;">
         <a href="{{ url_for('ai.dashboard') }}" class="btn btn-outline-light btn-block">Về Client</a>
@@ -97,6 +97,45 @@
                 </tbody>
             </table>
         </div>
+
+        <div class="tab-pane fade" id="tab-sessions">
+            <h4 class="mb-4">Lịch sử phiên phân tích</h4>
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th><th>Tiêu đề</th><th>Người dùng</th><th>File</th><th>Thời gian</th><th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sess in sessions %}
+                    <tr>
+                        <td>{{ sess[0] }}</td>
+                        <td><strong>{{ sess[1] or 'Chưa đặt tên' }}</strong></td>
+                        <td>{{ sess[2] }}</td>
+                        <td><span class="text-success"><i class="fas fa-file-excel"></i> {{ sess[3] or 'N/A' }}</span></td>
+                        <td>{{ sess[4].strftime('%H:%M %d/%m/%Y') }}</td>
+                        <td>
+                            <button onclick="viewChat('{{ sess[0] }}')" class="btn btn-sm btn-info">Xem nội dung</button>
+                            <button onclick="deleteSession('{{ sess[0] }}')" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i> Xóa</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="modal fade" id="chatModal" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content" style="border-radius: 15px;">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Chi tiết hội thoại</h5>
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    </div>
+                    <div class="modal-body" id="chatContent" style="background: #f8f9fa; max-height: 500px; overflow-y: auto;">
+                        </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -110,6 +149,66 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({user_id: userId, new_role: new_role})
             }).then(() => location.reload());
+        }
+    }
+
+    function viewChat(sessionId) {
+        // Hiện Modal và thông báo đang tải
+        $('#chatModal').modal('show');
+        $('#chatContent').html('<div class="text-center p-5"><i class="fas fa-spinner fa-spin fa-2x"></i><br>Đang tải dữ liệu...</div>');
+
+        // Gọi API (Đảm bảo URL này khớp với cấu trúc Blueprint của bạn)
+        fetch('/admin/get_session_chat/' + sessionId)
+            .then(res => {
+                if (!res.ok) throw new Error('Không thể kết nối đến máy chủ');
+                return res.json();
+            })
+            .then(data => {
+                let html = '';
+                if (!data || data.length === 0) {
+                    html = '<div class="text-center p-5 text-muted"><i class="fas fa-comment-slash fa-3x mb-3"></i><p>Phiên này chưa có nội dung tin nhắn.</p></div>';
+                } else {
+                    data.forEach(msg => {
+                        // Kiểm tra dựa trên giá trị thực tế trong database
+                        let isUser = msg.role.toLowerCase() === 'user';
+                        
+                        html += `
+                            <div class="d-flex ${isUser ? 'justify-content-end' : 'justify-content-start'} mb-4">
+                                <div class="p-3 shadow-sm" 
+                                    style="max-width: 80%; border-radius: 15px; 
+                                            ${isUser ? 'background-color: #007bff; color: white;' : 'background-color: #ffffff; border: 1px solid #dee2e6;'}">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <i class="fas ${isUser ? 'fa-user-circle' : 'fa-robot'} mr-2"></i>
+                                        <small class="font-weight-bold" style="text-transform: uppercase; font-size: 0.7rem;">
+                                            ${isUser ? 'Người dùng' : 'AI Trợ lý'}
+                                        </small>
+                                    </div>
+                                    <div style="white-space: pre-wrap; word-wrap: break-word;">${msg.content}</div>
+                                    <div class="text-right mt-2" style="font-size: 0.65rem; opacity: 0.8;">
+                                        ${msg.time}
+                                    </div>
+                                </div>
+                            </div>`;
+                    });
+                }
+                $('#chatContent').html(html);
+            })
+            .catch(err => {
+                $('#chatContent').html(`
+                    <div class="alert alert-danger m-3">
+                        <i class="fas fa-exclamation-triangle"></i> Lỗi: ${err.message}
+                    </div>`);
+            });
+    }
+
+    function deleteSession(sessionId) {
+        if(confirm('Bạn có chắc chắn muốn xóa phiên này và toàn bộ tin nhắn liên quan?')) {
+            fetch(`/admin/delete_session/${sessionId}`, { method: 'DELETE' })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'success') location.reload();
+                else alert('Lỗi: ' + data.message);
+            });
         }
     }
 </script>
