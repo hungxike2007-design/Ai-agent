@@ -4,8 +4,7 @@ import pyodbc
 admin_bp = Blueprint('admin', __name__)
 
 def get_db_connection():
-    # Hùng dùng chuỗi kết nối của máy Hùng nhé
-    conn_str = 'DRIVER={SQL Server};SERVER=LAPTOP-FOEQL0GL;DATABASE=QuanLyAIAgent;Trusted_Connection=yes;'
+    conn_str = 'DRIVER={SQL Server};SERVER=TOM\SQLEXPRESS;DATABASE=QuanLyAIAgent;Trusted_Connection=yes;'
     return pyodbc.connect(conn_str)
 
 @admin_bp.route('/dashboard') 
@@ -17,18 +16,18 @@ def dashboard():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 1. Quản lý người dùng: Lấy danh sách user
+    # 1. Danh sách người dùng
     cursor.execute("SELECT UserID, Username, FullName, Email, Role FROM Users")
     users = cursor.fetchall()
 
-    # 2. Quản lý dữ liệu: Lấy danh sách file đã upload
+    # 2. Danh sách file
     cursor.execute("""
         SELECT f.FileID, f.FileName, u.FullName, f.UploadDate 
         FROM ExcelFiles f JOIN Users u ON f.UserID = u.UserID
     """)
     files = cursor.fetchall()
 
-    # 3. Quản lý phiên: Lấy danh sách lịch sử phân tích
+    # 3. Danh sách phiên chat
     cursor.execute("""
         SELECT s.SessionID, s.SessionTitle, u.FullName, f.FileName, s.StartTime
         FROM ChatSessions s
@@ -38,79 +37,88 @@ def dashboard():
     """)
     sessions = cursor.fetchall()
 
-    # 4. Quản lý tài nguyên: Thống kê Token (Giữ nguyên để theo dõi chi phí)
+    # 4. Thống kê
     cursor.execute("SELECT SUM(TokensUsed) FROM TokenLogs")
     total_tokens = cursor.fetchone()[0] or 0
-
-    # 5. CẬP NHẬT: Đếm số yêu cầu dựa trên số lượng Phiên phân tích (ChatSessions)
-    # Điều này giúp con số trên Stats Card khớp với số dòng trong bảng Lịch sử
+    
     cursor.execute("SELECT COUNT(*) FROM ChatSessions")
     total_requests = cursor.fetchone()[0] or 0
 
     conn.close()
     return render_template('admin_dashboard.html', 
-                            users=users, 
-                            files=files, 
-                            sessions=sessions,
-                            total_tokens=total_tokens,
-                            total_requests=total_requests,
+                            users=users, files=files, sessions=sessions,
+                            total_tokens=total_tokens, total_requests=total_requests,
                             total_users=len(users))
 
-# API MỚI: Lấy chi tiết đoạn chat để hiển thị trên Modal
-@admin_bp.route('/get_session_chat/<int:session_id>')
-def get_session_chat(session_id):
+# --- CHỨC NĂNG MỚI: CẬP NHẬT QUYỀN USER ---
+@admin_bp.route('/update_role', methods=['POST'])
+def update_role():
     if session.get('role') != 'Admin':
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        return jsonify({"error": "Forbidden"}), 403
+    
+    try:
+        data = request.json
+        user_id = int(data.get('user_id'))
+        new_role = data.get('new_role')
+
+        if not user_id or not new_role or new_role not in ['Admin', 'User']:
+            return jsonify({"status": "error", "message": "Dữ liệu không hợp lệ"}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Chú ý: Cột là [Role], bảng là [Users]
+        cursor.execute("UPDATE Users SET Role = ? WHERE UserID = ?", (new_role, user_id))
+        conn.commit()
+        conn.close()
+
+        return jsonify({"status": "success"})
+    except Exception as e:
+        print(f"Lỗi update_role: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+# --- CHỨC NĂNG MỚI: CẤU HÌNH PROMPT HỆ THỐNG ---
+@admin_bp.route('/settings', methods=['GET', 'POST'])
+def settings():
+    if session.get('role') != 'Admin': return redirect(url_for('auth.index'))
     
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    # Truy vấn lấy nội dung tin nhắn dựa trên SessionID từ bảng ChatMessages
-    cursor.execute("""
-        SELECT Role, [Content], CreatedAt 
-        FROM ChatMessages 
-        WHERE SessionID = ? 
-        ORDER BY CreatedAt ASC
-    """, (session_id,))
-    
-    messages = []
-    for row in cursor.fetchall():
-        messages.append({
-            "role": row[0],
-            "content": row[1],
-            "time": row[2].strftime('%H:%M:%S') if row[2] else "" # Định dạng giờ để hiển thị
-        })
-    conn.close()
-    return jsonify(messages)
 
+    if request.method == 'POST':
+        new_prompt = request.form.get('system_prompt')
+        cursor.execute("UPDATE SystemConfigs SET ConfigValue = ? WHERE ConfigKey = 'DefaultPrompt'", (new_prompt,))
+        conn.commit()
+        flash("Cập nhật cấu hình thành công!", "success")
+
+    cursor.execute("SELECT ConfigValue FROM SystemConfigs WHERE ConfigKey = 'DefaultPrompt'")
+    current_prompt = cursor.fetchone()[0]
+    conn.close()
+    return render_template('admin_settings.html', current_prompt=current_prompt)
+
+# --- CHỨC NĂNG XÓA (Đã có ON DELETE CASCADE nên code rất ngắn gọn) ---
 @admin_bp.route('/delete_session/<int:session_id>', methods=['DELETE'])
 def delete_session(session_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    if session.get('role') != 'Admin': return jsonify({"error": "Forbidden"}), 403
     try:
-        # Bước 1: Lấy FileID liên quan đến phiên này trước khi xóa phiên
-        cursor.execute("SELECT FileID FROM ChatSessions WHERE SessionID = ?", (session_id,))
-        row = cursor.fetchone()
-        file_id = row[0] if row else None
-
-        # Bước 2: Xóa tin nhắn (ChatMessages)
-        cursor.execute("DELETE FROM ChatMessages WHERE SessionID = ?", (session_id,))
-        
-        # Bước 3: Xóa phiên chat (ChatSessions)
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Vì có ON DELETE CASCADE, chỉ cần xóa SessionID là ChatMessages tự mất
         cursor.execute("DELETE FROM ChatSessions WHERE SessionID = ?", (session_id,))
-
-        if file_id:
-            # Bước 4: Xóa các báo cáo (Reports) liên quan đến file này
-            cursor.execute("DELETE FROM Reports WHERE FileID = ?", (file_id,))
-            
-            # Bước 5: Xóa thông tin file trong DB (ExcelFiles)
-            # Lưu ý: Bạn nên lấy FilePath để xóa file vật lý trên ổ cứng nếu cần
-            cursor.execute("DELETE FROM ExcelFiles WHERE FileID = ?", (file_id,))
-
         conn.commit()
-        return jsonify({"status": "success", "message": "Đã xóa sạch phiên, báo cáo và file liên quan"})
-    except Exception as e:
-        conn.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 500
-    finally:
         conn.close()
+        return jsonify({"status": "success", "message": "Xóa thành công!"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# --- CHỨC NĂNG XEM CHI TIẾT PHIÊN CHAT ---
+@admin_bp.route('/get_session_chat/<int:session_id>')
+def get_session_chat(session_id):
+    if session.get('role') != 'Admin': return jsonify({"error": "Forbidden"}), 403
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT Role, [Content], CreatedAt FROM ChatMessages WHERE SessionID = ? ORDER BY CreatedAt ASC", (session_id,))
+        messages = cursor.fetchall()
+        conn.close()
+        return jsonify([{"role": row[0], "content": row[1], "time": str(row[2])} for row in messages])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

@@ -1,7 +1,7 @@
 import pyodbc
 
 # Chuỗi kết nối đến SQL Server của Hùng
-CONN_STR = r"Driver={SQL Server};Server=LAPTOP-FOEQL0GL;Database=QuanLyAIAgent;Trusted_Connection=yes;"
+CONN_STR = r"Driver={SQL Server};Server=TOM\SQLEXPRESS;Database=QuanLyAIAgent;Trusted_Connection=yes;"
 
 def get_connection():
     """Hàm tạo kết nối đến Database"""
@@ -63,7 +63,7 @@ def get_user_by_google_id(google_id):
     cursor.execute(query, (google_id,))
     user = cursor.fetchone()
     conn.close()
-    return 
+    return user
 
 def update_user_password(email, new_password):
     conn = get_connection()

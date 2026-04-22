@@ -14,6 +14,16 @@ google = oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 
+# --- CẤU HÌNH GITHUB OAUTH ---
+github = oauth.register(
+    name='github',
+    client_id='your_github_client_id',  # Replace with your GitHub OAuth App Client ID
+    client_secret='your_github_client_secret',  # Replace with your GitHub OAuth App Client Secret
+    authorize_url='https://github.com/login/oauth/authorize',
+    access_token_url='https://github.com/login/oauth/access_token',
+    client_kwargs={'scope': 'user:email'}
+)
+
 @auth_bp.route('/')
 def index():
     return render_template('index.html')
@@ -87,6 +97,7 @@ def google_callback():
         session['avatar'] = picture
         
         return redirect(url_for('ai.dashboard'))
+    
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
@@ -94,7 +105,7 @@ def forgot_password():
         user = db.get_user_by_email(email)
         
         if user:
-            # Ở đây Hùng có thể gửi email, nhưng đơn giản nhất là 
+            # Ở đây   có thể gửi email, nhưng đơn giản nhất là 
             # cho họ chuyển hướng đến trang đặt lại mật khẩu với token là email
             return redirect(url_for('auth.reset_password', email=email))
         else:
@@ -106,6 +117,12 @@ def forgot_password():
 def reset_password(email):
     if request.method == 'POST':
         new_password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if new_password != confirm_password:
+            flash("Mật khẩu xác nhận không khớp!", "danger")
+            return render_template('reset_password.html', email=email)
+        
         # Gọi hàm cập nhật pass trong database.py
         db.update_user_password(email, new_password)
         flash("Đổi mật khẩu thành công! Vui lòng đăng nhập lại.", "success")

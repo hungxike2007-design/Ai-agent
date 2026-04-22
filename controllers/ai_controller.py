@@ -12,7 +12,7 @@ from database import get_connection
 ai_bp = Blueprint('ai', __name__)
 
 # --- CẤU HÌNH GEMINI --- 
-API_KEY = "AIzaSyAXrWkDGQkPX9p0vnfuM1ye9jPu23bnzIE"
+API_KEY = "AIzaSyDzcZSNAAc3ynPNMSlIPcM9p_UkQ3_4zhU"
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-flash-latest')
 

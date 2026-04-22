@@ -147,8 +147,19 @@
             fetch('/admin/update_role', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({user_id: userId, new_role: new_role})
-            }).then(() => location.reload());
+                body: JSON.stringify({user_id: userId, new_role: newRole})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                } else {
+                    alert('Lỗi: ' + (data.message || 'Không thể cập nhật quyền'));
+                }
+            })
+            .catch(error => {
+                alert('Lỗi kết nối: ' + error.message);
+            });
         }
     }
 
