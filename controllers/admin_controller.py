@@ -4,7 +4,7 @@ import pyodbc
 admin_bp = Blueprint('admin', __name__)
 
 def get_db_connection():
-    conn_str = 'DRIVER={SQL Server};SERVER=TOM\SQLEXPRESS;DATABASE=QuanLyAIAgent;Trusted_Connection=yes;'
+    conn_str = 'DRIVER={SQL Server};SERVER=LAPTOP-355TS2QT\HUY_DEV;DATABASE=QuanLyAIAgent;Trusted_Connection=yes;'
     return pyodbc.connect(conn_str)
 
 @admin_bp.route('/dashboard') 
@@ -80,19 +80,24 @@ def update_role():
 def settings():
     if session.get('role') != 'Admin': return redirect(url_for('auth.index'))
     
+    from database import get_all_system_configs
     conn = get_db_connection()
     cursor = conn.cursor()
 
     if request.method == 'POST':
-        new_prompt = request.form.get('system_prompt')
+        new_prompt = request.form.get('system_prompt', '')
+        temperature = request.form.get('temperature', '0.7')
+        max_tokens = request.form.get('max_tokens', '2048')
+        
         cursor.execute("UPDATE SystemConfigs SET ConfigValue = ? WHERE ConfigKey = 'DefaultPrompt'", (new_prompt,))
+        cursor.execute("UPDATE SystemConfigs SET ConfigValue = ? WHERE ConfigKey = 'Temperature'", (temperature,))
+        cursor.execute("UPDATE SystemConfigs SET ConfigValue = ? WHERE ConfigKey = 'MaxTokens'", (max_tokens,))
         conn.commit()
         flash("Cập nhật cấu hình thành công!", "success")
 
-    cursor.execute("SELECT ConfigValue FROM SystemConfigs WHERE ConfigKey = 'DefaultPrompt'")
-    current_prompt = cursor.fetchone()[0]
     conn.close()
-    return render_template('admin_settings.html', current_prompt=current_prompt)
+    configs = get_all_system_configs()
+    return render_template('admin_settings.html', configs=configs)
 
 # --- CHỨC NĂNG XÓA (Đã có ON DELETE CASCADE nên code rất ngắn gọn) ---
 @admin_bp.route('/delete_session/<int:session_id>', methods=['DELETE'])

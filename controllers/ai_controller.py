@@ -7,12 +7,12 @@ import uuid
 from docx import Document
 from services.data_processor import get_cleaning_suggestions
 from services.report_service import get_report_prompt
-from database import get_connection
+from database import get_connection, get_all_system_configs
 
 ai_bp = Blueprint('ai', __name__)
 
 # --- CẤU HÌNH GEMINI --- 
-API_KEY = "AIzaSyDzcZSNAAc3ynPNMSlIPcM9p_UkQ3_4zhU"
+API_KEY = "AIzaSyAiF-kYI1RXzYjX5Ag0BQD0l_-fAy988dw"
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-flash-latest')
 
@@ -69,8 +69,16 @@ def upload_file():
         conn.commit()
 
         # 4. GỌI AI TẠO BÁO CÁO BAN ĐẦU
-        prompt = get_report_prompt(session['excel_data'], style)
-        response = model.generate_content(prompt)
+        configs = get_all_system_configs()
+        base_prompt = get_report_prompt(session['excel_data'], style)
+        prompt = f"{configs.get('DefaultPrompt', '')}\n\n{base_prompt}" if configs.get('DefaultPrompt') else base_prompt
+        
+        generation_config = {
+            "temperature": configs.get("Temperature", 0.7),
+            "max_output_tokens": configs.get("MaxTokens", 2048)
+        }
+        
+        response = model.generate_content(prompt, generation_config=generation_config)
         report_content = response.text
         report_cache["last_response"] = report_content
 
@@ -130,8 +138,16 @@ def ask():
             title = question[:50]
 
         # 2. Gọi AI phân tích dữ liệu
-        full_prompt = f"Dữ liệu: {excel_data}\n\nCâu hỏi: {question}\n\nTrả lời ngắn gọn, chính xác."
-        response = model.generate_content(full_prompt)
+        configs = get_all_system_configs()
+        base_prompt = f"Dữ liệu: {excel_data}\n\nCâu hỏi: {question}\n\nTrả lời ngắn gọn, chính xác."
+        full_prompt = f"{configs.get('DefaultPrompt', '')}\n\n{base_prompt}" if configs.get('DefaultPrompt') else base_prompt
+        
+        generation_config = {
+            "temperature": configs.get("Temperature", 0.7),
+            "max_output_tokens": configs.get("MaxTokens", 2048)
+        }
+        
+        response = model.generate_content(full_prompt, generation_config=generation_config)
         answer = response.text
         
         # 3. LƯU VÀO DATABASE (Cả SessionTitle và ChatMessages)

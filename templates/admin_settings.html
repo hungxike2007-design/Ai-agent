@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cấu Hình Hệ Thống AI - Admin</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        :root {
+            --admin-primary: #1e293b;
+            --admin-accent: #3b82f6;
+            --admin-bg: #f1f5f9;
+        }
+        body { background-color: var(--admin-bg); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .sidebar-admin { height: 100vh; background: var(--admin-primary); color: white; position: fixed; width: 240px; }
+        .main-content { margin-left: 240px; padding: 30px; }
+        .nav-link { color: #cbd5e1; margin-bottom: 5px; border-radius: 5px; }
+        .nav-link:hover, .nav-link.active { background-color: var(--admin-accent); color: white; }
+        .config-card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar-admin p-3">
+    <h4><i class="fas fa-robot"></i> AI ADMIN</h4>
+    <hr style="background: #4a5568;">
+    <div class="nav flex-column">
+        <a class="nav-link" href="/admin/dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+        <a class="nav-link active" href="/admin/settings"><i class="fas fa-cogs"></i> Cấu hình AI</a>
+        <a class="nav-link text-danger mt-5" href="/auth/logout"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a>
+    </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main-content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-sliders-h text-primary"></i> Cấu Hình Tham Số AI</h2>
+        <a href="/admin/dashboard" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> Quay lại Dashboard</a>
+    </div>
+
+    <!-- Hiển thị thông báo flash -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="config-card">
+                <form action="/admin/settings" method="POST">
+                    
+                    <div class="form-group mb-4">
+                        <label class="font-weight-bold text-dark"><i class="fas fa-brain text-info"></i> Prompt Mẫu (System Prompt)</label>
+                        <p class="text-muted small mb-2">Định hướng phong cách trả lời cho AI. Ví dụ: "Bạn là chuyên gia dữ liệu, hãy trả lời ngắn gọn..."</p>
+                        <textarea name="system_prompt" class="form-control" rows="5" placeholder="Nhập prompt định hướng ở đây...">{{ configs.get('DefaultPrompt', '') }}</textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 form-group mb-4">
+                            <label class="font-weight-bold text-dark"><i class="fas fa-thermometer-half text-warning"></i> Độ sáng tạo (Temperature)</label>
+                            <p class="text-muted small mb-2">Giá trị từ 0.0 đến 1.0. Càng cao AI càng sáng tạo, càng thấp AI càng chính xác/ổn định.</p>
+                            <div class="d-flex align-items-center">
+                                <input type="range" class="custom-range w-75 mr-3" name="temperature" id="tempRange" min="0" max="1" step="0.1" value="{{ configs.get('Temperature', 0.7) }}" oninput="document.getElementById('tempVal').innerText = this.value">
+                                <span id="tempVal" class="badge badge-primary" style="font-size: 1.1em;">{{ configs.get('Temperature', 0.7) }}</span>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 form-group mb-4">
+                            <label class="font-weight-bold text-dark"><i class="fas fa-text-width text-success"></i> Độ dài tối đa (Max Tokens)</label>
+                            <p class="text-muted small mb-2">Số lượng từ/ký tự tối đa cho mỗi câu trả lời. Khuyên dùng: 1024 hoặc 2048.</p>
+                            <input type="number" name="max_tokens" class="form-control" min="256" max="8192" step="256" value="{{ configs.get('MaxTokens', 2048) }}">
+                        </div>
+                    </div>
+
+                    <hr>
+                    <div class="text-right">
+                        <button type="submit" class="btn btn-primary px-4 py-2"><i class="fas fa-save"></i> Lưu Cấu Hình</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JS -->
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

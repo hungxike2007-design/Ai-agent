@@ -1,7 +1,7 @@
 import pyodbc
 
 # Chuỗi kết nối đến SQL Server của Hùng
-CONN_STR = r"Driver={SQL Server};Server=TOM\SQLEXPRESS;Database=QuanLyAIAgent;Trusted_Connection=yes;"
+CONN_STR = r"Driver={SQL Server};Server=LAPTOP-355TS2QT\HUY_DEV;Database=QuanLyAIAgent;Trusted_Connection=yes;"
 
 def get_connection():
     """Hàm tạo kết nối đến Database"""
@@ -113,3 +113,31 @@ def get_user_reports(user_id):
     reports = cursor.fetchall()
     conn.close()
     return reports
+
+# --- PHẦN 4: CẤU HÌNH HỆ THỐNG ---
+
+def get_all_system_configs():
+    """Lấy toàn bộ cấu hình hệ thống từ DB"""
+    configs = {
+        "DefaultPrompt": "",
+        "Temperature": 0.7,
+        "MaxTokens": 2048
+    }
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT ConfigKey, ConfigValue FROM SystemConfigs")
+        rows = cursor.fetchall()
+        for row in rows:
+            key = row[0]
+            val = row[1]
+            if key == 'Temperature':
+                configs[key] = float(val) if val else 0.7
+            elif key == 'MaxTokens':
+                configs[key] = int(val) if val else 2048
+            else:
+                configs[key] = val
+        conn.close()
+    except Exception as e:
+        print(f"Lỗi lấy cấu hình hệ thống: {e}")
+    return configs
