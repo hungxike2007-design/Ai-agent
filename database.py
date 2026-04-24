@@ -5,7 +5,7 @@ CONN_STR = r"Driver={SQL Server};Server=TOM\SQLEXPRESS;Database=QuanLyAIAgent;Tr
 
 # --- CẤU HÌNH GEMINI TẬP TRUNG ---
 # Bạn chỉ cần thay đổi Key ở đây, tất cả các file khác sẽ tự cập nhật theo
-GEMINI_API_KEY = "AIzaSyD-8vHSlO8ck2yjqnaASSbt64HnkopmqiI"
+GEMINI_API_KEY = "AIzaSyBluRZiICeQSpaWc3xcZ_1SYeEifIqU1kg"
 GEMINI_MODEL_NAME = "gemini-flash-latest" 
 
 def configure_ai():

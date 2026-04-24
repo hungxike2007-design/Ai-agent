@@ -5,6 +5,9 @@ _STYLES = {
     "Học thuật": "Báo cáo nghiên cứu: Giới thiệu → Phương pháp → Kết quả (bảng N/Mean±SD/Min-Max) → Bàn luận → Kết luận.",
     "Kinh doanh":"Phân tích KPI: bảng KPI (chỉ số/giá trị/đánh giá 🟢🟡🔴), hiệu suất top/bottom, rủi ro, cơ hội tăng trưởng, action items.",
     "Phổ thông": "Ngôn ngữ dễ hiểu: tóm tắt 1 câu, 3-5 con số đáng chú ý, giải thích ý nghĩa, gợi ý thực tế.",
+    "Tài chính": "Báo cáo Tài chính: phân tích dòng tiền, chi phí, doanh thu, biên lợi nhuận, đưa ra các chỉ số tài chính và đề xuất tối ưu.",
+    "Marketing": "Báo cáo Marketing: phân khúc khách hàng, tỷ lệ chuyển đổi, xu hướng, đánh giá hiệu quả và khuyến nghị tăng trưởng.",
+    "Nhân sự": "Báo cáo Nhân sự (HR): phân tích biến động nhân sự, hiệu suất làm việc, phân bổ nguồn lực và đề xuất cải thiện.",
 }
 
 # ── QUY TẮC CHUNG (chỉ cần 1 lần, ngắn gọn) ─────────────────────────────────

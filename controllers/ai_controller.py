@@ -266,7 +266,7 @@ def upload_file():
         conn.close()
 
         return render_template('dashboard.html',
-                               table_html=df_display.head(10).to_html(classes='table table-hover', index=False),
+                               table_html=df_display.head(30).to_html(classes='table table-hover', index=False),
                                ai_response=report_content,
                                cleaning_hints=cleaning_hints,
                                selected_style=style,
@@ -757,7 +757,7 @@ def get_session(session_id):
         chart_path = None
         if file_data and os.path.exists(file_data[0]):
             df = pd.read_excel(file_data[0])
-            table_html = df.head(10).to_html(classes='table table-hover', index=False)
+            table_html = df.head(30).to_html(classes='table table-hover', index=False)
             # Cập nhật lại dữ liệu vào session để người dùng có thể chat tiếp với file này
             session['excel_data'] = df.fillna("").to_string()
             
