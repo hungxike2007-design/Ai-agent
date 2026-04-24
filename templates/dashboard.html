@@ -570,7 +570,10 @@
         }
 
         /* HINTS */
-        .hints-container { margin-bottom: 20px; }
+        .hints-container {
+            margin-bottom: 20px;
+        }
+
         .hints-toggle {
             width: 100%;
             padding: 16px 20px;
@@ -601,7 +604,7 @@
         .hints-toggle.open i.chevron {
             transform: rotate(180deg);
         }
-        
+
         .hints-toggle.open {
             border-bottom-left-radius: 0;
             border-bottom-right-radius: 0;
@@ -628,7 +631,7 @@
         .hints-body ul li {
             margin-bottom: 8px;
         }
-        
+
         .hints-body ul li:last-child {
             margin-bottom: 0;
         }
@@ -637,7 +640,7 @@
             display: block;
             animation: fadeIn .3s ease;
         }
-        
+
         .hints-success {
             padding: 16px 20px;
             background: #f0fdf4;
@@ -651,15 +654,22 @@
             gap: 10px;
             box-shadow: var(--shadow-sm);
         }
-        
+
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-5px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         /* CHAT */
         .chat-box {
-            height: 600px;
+            height: 700px;
             max-height: 75vh;
             overflow-y: auto;
             display: flex;
@@ -1086,14 +1096,14 @@
                 <form action="{{ url_for('ai.upload_file') }}" method="POST" enctype="multipart/form-data">
                     <div class="upload-row">
                         <select name="style_preference" class="style-select">
-                            <option value="Kỹ thuật" selected>📊 Chi tiết kỹ thuật (Mean, Median...)</option>
-                            <option value="Quản lý">📋 Executive Summary (Quản lý)</option>
-                            <option value="Học thuật">🎓 Nghiên cứu học thuật</option>
-                            <option value="Kinh doanh">💼 Phân tích KPI kinh doanh</option>
-                            <option value="Phổ thông">💬 Đơn giản, dễ hiểu</option>
-                            <option value="Tài chính">💰 Phân tích Tài chính</option>
-                            <option value="Marketing">📈 Marketing & Bán hàng</option>
-                            <option value="Nhân sự">👥 Báo cáo Nhân sự (HR)</option>
+                            <option value="Kỹ thuật" selected>📊 Phân tích Thống kê (Chi tiết)</option>
+                            <option value="Quản lý">📋 Tóm tắt cho Lãnh đạo (Ngắn gọn)</option>
+                            <option value="Học thuật">🎓 Nghiên cứu Chuyên sâu (Hàn lâm)</option>
+                            <option value="Kinh doanh">💼 Hiệu suất & Chỉ số (KPI)</option>
+                            <option value="Phổ thông">💬 Ngôn ngữ Đại chúng (Dễ hiểu)</option>
+                            <option value="Xu hướng">📈 Xu hướng & Biến động (Dự báo)</option>
+                            <option value="So sánh">🔍 So sánh & Đối chiếu (Đa chiều)</option>
+                            <option value="Giải pháp">💡 Giải pháp & Khuyến nghị (Hành động)</option>
                         </select>
                         <div class="file-input-wrap">
                             <input type="file" name="file" accept=".xlsx,.xls" required>
@@ -1396,7 +1406,7 @@
                 const data = await res.json();
                 if (data.success) {
                     if (item) item.remove();
-                    
+
                     // Nếu đang mở phiên vừa bị xóa, dọn dẹp màn hình chính
                     if (currentSessionId == id) {
                         currentSessionId = "";

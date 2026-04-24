@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request, jsonify
 import pyodbc
+from datetime import datetime, timedelta
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -129,7 +130,7 @@ def delete_session(session_id):
                 cursor.execute("DELETE FROM Reports WHERE FileID = ?", (file_id,))
                 cursor.execute("DELETE FROM ExcelFiles WHERE FileID = ?", (file_id,))
                 
-                # 4. Xóa file vật lý
+                # 4. Xóa file vật lý trên server
                 if file_path and os.path.exists(file_path):
                     try: os.remove(file_path)
                     except: pass
@@ -159,3 +160,102 @@ def get_session_chat(session_id):
         return jsonify([{"role": row[0], "content": row[1], "time": str(row[2])} for row in messages])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# --- CHỨC NĂNG THỐNG KÊ (API) ---
+@admin_bp.route('/stats_data')
+def stats_data():
+    if session.get('role') != 'Admin':
+        return jsonify({"error": "Forbidden"}), 403
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # 1. Thống kê người dùng mới trong 7 ngày qua
+        user_stats = []
+        for i in range(6, -1, -1):
+            date_obj = datetime.now() - timedelta(days=i)
+            date_str = date_obj.strftime('%Y-%m-%d')
+            try:
+                # Group by date of CreatedAt (giả định có cột CreatedAt)
+                cursor.execute("""
+                    SELECT COUNT(*) FROM Users 
+                    WHERE CAST(CreatedAt AS DATE) = ?
+                """, (date_str,))
+                count = cursor.fetchone()[0]
+            except:
+                count = 0
+            user_stats.append({"date": date_obj.strftime('%d/%m'), "count": count})
+
+        # 2. Thống kê trạng thái xử lý file Excel (Success vs Failed)
+        cursor.execute("SELECT Status, COUNT(*) FROM ExcelFiles GROUP BY Status")
+        file_rows = cursor.fetchall()
+        file_stats = [{"status": str(row[0]), "count": row[1]} for row in file_rows]
+
+        conn.close()
+        return jsonify({
+            "users": user_stats,
+            "files": file_stats
+        })
+    except Exception as e:
+        print(f"Lỗi stats_data: {e}")
+        return jsonify({"error": str(e)}), 500
+
+def _internal_delete_file(cursor, file_id):
+    """Hàm nội bộ để xóa file và dữ liệu liên quan, dùng cho cả xóa đơn và xóa nhiều"""
+    import os
+    cursor.execute("SELECT FilePath FROM ExcelFiles WHERE FileID = ?", (file_id,))
+    row = cursor.fetchone()
+    if row:
+        file_path = row[0]
+        cursor.execute("DELETE FROM Reports WHERE FileID = ?", (file_id,))
+        cursor.execute("DELETE FROM ChatSessions WHERE FileID = ?", (file_id,))
+        cursor.execute("DELETE FROM ExcelFiles WHERE FileID = ?", (file_id,))
+        if file_path and os.path.exists(file_path):
+            try: os.remove(file_path)
+            except: pass
+        chart_file = os.path.join(os.getcwd(), 'static', 'charts', f"chart_{file_id}.png")
+        if os.path.exists(chart_file):
+            try: os.remove(chart_file)
+            except: pass
+        return True
+    return False
+
+# --- CHỨC NĂNG XÓA FILE HỆ THỐNG ---
+@admin_bp.route('/delete_file/<int:file_id>', methods=['DELETE'])
+def delete_file(file_id):
+    if session.get('role') != 'Admin': return jsonify({"error": "Forbidden"}), 403
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        if _internal_delete_file(cursor, file_id):
+            conn.commit()
+            conn.close()
+            return jsonify({"status": "success", "message": "Đã xóa file thành công!"})
+        conn.close()
+        return jsonify({"status": "error", "message": "Không tìm thấy file!"}), 404
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# --- CHỨC NĂNG XÓA NHIỀU FILE ---
+@admin_bp.route('/bulk_delete_files', methods=['POST'])
+def bulk_delete_files():
+    if session.get('role') != 'Admin': return jsonify({"error": "Forbidden"}), 403
+    try:
+        data = request.json
+        file_ids = data.get('file_ids', [])
+        if not file_ids:
+            return jsonify({"status": "error", "message": "Không có file nào được chọn!"}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        success_count = 0
+        for fid in file_ids:
+            if _internal_delete_file(cursor, int(fid)):
+                success_count += 1
+        
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success", "message": f"Đã xóa thành công {success_count} tệp tin!"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
