@@ -3,96 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cấu Hình Hệ Thống AI - Admin</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <title>Cấu hình AI — Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        :root {
-            --admin-primary: #1e293b;
-            --admin-accent: #3b82f6;
-            --admin-bg: #f1f5f9;
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root { 
+            --bg: #f8fafc; --sidebar: #ffffff; --surface: #ffffff; 
+            --border: #e2e8f0; --text: #0f172a; --muted: #64748b; 
+            --green: #059669; 
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
-        body { background-color: var(--admin-bg); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .sidebar-admin { height: 100vh; background: var(--admin-primary); color: white; position: fixed; width: 240px; }
-        .main-content { margin-left: 240px; padding: 30px; }
-        .nav-link { color: #cbd5e1; margin-bottom: 5px; border-radius: 5px; }
-        .nav-link:hover, .nav-link.active { background-color: var(--admin-accent); color: white; }
-        .config-card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+        .sidebar { width: 240px; background: var(--sidebar); position: fixed; height: 100vh; display: flex; flex-direction: column; border-right: 1px solid var(--border); box-shadow: var(--shadow-sm); z-index:100; }
+        .sb-brand { padding: 22px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+        .sb-icon { width: 36px; height: 36px; background: linear-gradient(135deg,var(--green),#047857); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; color:#fff; box-shadow: var(--shadow-sm); }
+        .sb-brand span { font-size: 1.05rem; font-weight: 800; color:var(--text); }
+        .sb-nav { flex: 1; padding: 14px 10px; }
+        .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; color: #475569; font-size: .87rem; font-weight: 600; cursor: pointer; text-decoration: none; margin-bottom: 4px; transition: all .2s; }
+        .nav-item:hover { background: #f1f5f9; color: var(--text); }
+        .nav-item.active { background: #ecfdf5; color: var(--green); }
+        .nav-item i { width: 18px; text-align: center; font-size: .9rem; }
+        .sb-footer { padding: 16px 20px; border-top: 1px solid var(--border); background: #f8fafc; }
+        .back-btn { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 10px; background: #ffffff; border: 1px solid var(--border); color: #334155; font-size: .85rem; font-weight: 600; text-decoration: none; transition: .2s; box-shadow: var(--shadow-sm); }
+        .back-btn:hover { background: #f1f5f9; color: var(--text); }
+        .main { margin-left: 240px; flex: 1; padding: 32px; }
+        .page-header { margin-bottom: 28px; }
+        .page-header h1 { font-size: 1.6rem; font-weight: 800; display: flex; align-items: center; gap: 10px; color:var(--text); }
+        .page-header h1 i { color: var(--green); }
+        .page-header p { color: var(--muted); font-size: .9rem; margin-top: 6px; }
+        .flash { padding: 14px 18px; border-radius: 12px; margin-bottom: 20px; font-size: .9rem; font-weight: 600; display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow-sm); }
+        .flash.success { background: #ecfdf5; border: 1px solid #a7f3d0; color: #059669; }
+        .flash.danger { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+        .config-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 28px; max-width: 760px; box-shadow: var(--shadow-sm); }
+        .field-group { margin-bottom: 28px; }
+        .field-label { font-size: .85rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; display: flex; align-items: center; gap: 7px; }
+        .field-label i { font-size: .9rem; }
+        .field-desc { font-size: .85rem; color: #64748b; margin-bottom: 12px; font-weight:500; }
+        textarea, input[type=number] { width: 100%; background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-family: inherit; font-size: .95rem; padding: 14px 16px; transition: .2s; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02); }
+        textarea:focus, input[type=number]:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 4px var(--green-glow); background: #ffffff; }
+        textarea::placeholder, input::placeholder { color: #94a3b8; }
+        textarea { resize: vertical; min-height: 120px; line-height: 1.5; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .range-row { display: flex; align-items: center; gap: 14px; }
+        input[type=range] { flex: 1; accent-color: var(--green); cursor: pointer; }
+        .range-val { background: #f0fdf4; color: var(--green); border: 1px solid #bbf7d0; padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: .9rem; min-width: 52px; text-align: center; }
+        .divider { height: 1px; background: var(--border); margin: 28px 0; }
+        .btn-save { padding: 13px 28px; background: linear-gradient(135deg,var(--green),#047857); color: white; border: none; border-radius: 12px; font-weight: 700; font-size: .95rem; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(5,150,105,0.25); transition: .2s; }
+        .btn-save:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(5,150,105,0.3); }
     </style>
 </head>
 <body>
-
-<!-- SIDEBAR -->
-<div class="sidebar-admin p-3">
-    <h4><i class="fas fa-robot"></i> AI ADMIN</h4>
-    <hr style="background: #4a5568;">
-    <div class="nav flex-column">
-        <a class="nav-link" href="/admin/dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-        <a class="nav-link active" href="/admin/settings"><i class="fas fa-cogs"></i> Cấu hình AI</a>
-        <a class="nav-link text-danger mt-5" href="/auth/logout"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a>
+<div class="sidebar">
+    <div class="sb-brand">
+        <div class="sb-icon"><i class="fas fa-brain" style="color:#fff;"></i></div>
+        <span>AI ADMIN</span>
+    </div>
+    <nav class="sb-nav">
+        <a href="/admin/dashboard" class="nav-item"><i class="fas fa-gauge"></i> Dashboard</a>
+        <a href="/admin/settings" class="nav-item active"><i class="fas fa-sliders"></i> Cấu hình AI</a>
+    </nav>
+    <div class="sb-footer">
+        <a href="{{ url_for('ai.dashboard') }}" class="back-btn"><i class="fas fa-arrow-left"></i> Về Dashboard</a>
     </div>
 </div>
 
-<!-- MAIN CONTENT -->
-<div class="main-content">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fas fa-sliders-h text-primary"></i> Cấu Hình Tham Số AI</h2>
-        <a href="/admin/dashboard" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> Quay lại Dashboard</a>
+<div class="main">
+    <div class="page-header">
+        <h1><i class="fas fa-sliders"></i> Cấu hình tham số AI</h1>
+        <p>Tùy chỉnh hành vi và phong cách phản hồi của AI Agent</p>
     </div>
 
-    <!-- Hiển thị thông báo flash -->
     {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show">
-            {{ message }}
-            <button type="button" class="close" data-dismiss="alert">&times;</button>
-          </div>
-        {% endfor %}
-      {% endif %}
+    {% if messages %}{% for cat, msg in messages %}
+    <div class="flash {{ cat }}"><i class="fas fa-{% if cat == 'success' %}check-circle{% else %}exclamation-circle{% endif %}"></i> {{ msg }}</div>
+    {% endfor %}{% endif %}
     {% endwith %}
 
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
-            <div class="config-card">
-                <form action="/admin/settings" method="POST">
-                    
-                    <div class="form-group mb-4">
-                        <label class="font-weight-bold text-dark"><i class="fas fa-brain text-info"></i> Prompt Mẫu (System Prompt)</label>
-                        <p class="text-muted small mb-2">Định hướng phong cách trả lời cho AI. Ví dụ: "Bạn là chuyên gia dữ liệu, hãy trả lời ngắn gọn..."</p>
-                        <textarea name="system_prompt" class="form-control" rows="5" placeholder="Nhập prompt định hướng ở đây...">{{ configs.get('DefaultPrompt', '') }}</textarea>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 form-group mb-4">
-                            <label class="font-weight-bold text-dark"><i class="fas fa-thermometer-half text-warning"></i> Độ sáng tạo (Temperature)</label>
-                            <p class="text-muted small mb-2">Giá trị từ 0.0 đến 1.0. Càng cao AI càng sáng tạo, càng thấp AI càng chính xác/ổn định.</p>
-                            <div class="d-flex align-items-center">
-                                <input type="range" class="custom-range w-75 mr-3" name="temperature" id="tempRange" min="0" max="1" step="0.1" value="{{ configs.get('Temperature', 0.7) }}" oninput="document.getElementById('tempVal').innerText = this.value">
-                                <span id="tempVal" class="badge badge-primary" style="font-size: 1.1em;">{{ configs.get('Temperature', 0.7) }}</span>
-                            </div>
-                        </div>
-
-                        <div class="col-md-6 form-group mb-4">
-                            <label class="font-weight-bold text-dark"><i class="fas fa-text-width text-success"></i> Độ dài tối đa (Max Tokens)</label>
-                            <p class="text-muted small mb-2">Số lượng từ/ký tự tối đa cho mỗi câu trả lời. Khuyên dùng: 1024 hoặc 2048.</p>
-                            <input type="number" name="max_tokens" class="form-control" min="256" max="8192" step="256" value="{{ configs.get('MaxTokens', 2048) }}">
-                        </div>
-                    </div>
-
-                    <hr>
-                    <div class="text-right">
-                        <button type="submit" class="btn btn-primary px-4 py-2"><i class="fas fa-save"></i> Lưu Cấu Hình</button>
-                    </div>
-                </form>
+    <div class="config-card">
+        <form action="/admin/settings" method="POST">
+            <div class="field-group">
+                <div class="field-label"><i class="fas fa-brain" style="color:#60a5fa;"></i> Prompt Mẫu (System Prompt)</div>
+                <div class="field-desc">Định hướng phong cách trả lời cho AI. Ví dụ: "Bạn là chuyên gia phân tích dữ liệu, hãy trả lời bằng tiếng Việt, ngắn gọn và chuyên nghiệp."</div>
+                <textarea name="system_prompt" rows="5" placeholder="Nhập prompt định hướng...">{{ configs.get('DefaultPrompt', '') }}</textarea>
             </div>
-        </div>
+
+            <div class="two-col">
+                <div class="field-group">
+                    <div class="field-label"><i class="fas fa-thermometer-half" style="color:#fb923c;"></i> Độ sáng tạo (Temperature)</div>
+                    <div class="field-desc">0.0 = chính xác / 1.0 = sáng tạo hơn</div>
+                    <div class="range-row">
+                        <input type="range" name="temperature" id="tempRange" min="0" max="1" step="0.1"
+                            value="{{ configs.get('Temperature', 0.7) }}"
+                            oninput="document.getElementById('tempVal').innerText = this.value">
+                        <div class="range-val" id="tempVal">{{ configs.get('Temperature', 0.7) }}</div>
+                    </div>
+                </div>
+                <div class="field-group">
+                    <div class="field-label"><i class="fas fa-text-width" style="color:#a78bfa;"></i> Độ dài tối đa (Max Tokens)</div>
+                    <div class="field-desc">Số token tối đa mỗi câu trả lời (256–8192)</div>
+                    <input type="number" name="max_tokens" min="256" max="8192" step="256" value="{{ configs.get('MaxTokens', 2048) }}">
+                </div>
+            </div>
+
+            <div class="divider"></div>
+            <button type="submit" class="btn-save"><i class="fas fa-floppy-disk"></i> Lưu cấu hình</button>
+        </form>
     </div>
 </div>
-
-<!-- JS -->
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

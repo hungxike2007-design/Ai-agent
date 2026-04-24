@@ -4,7 +4,7 @@ import pyodbc
 admin_bp = Blueprint('admin', __name__)
 
 def get_db_connection():
-    conn_str = 'DRIVER={SQL Server};SERVER=LAPTOP-355TS2QT\HUY_DEV;DATABASE=QuanLyAIAgent;Trusted_Connection=yes;'
+    conn_str = 'DRIVER={SQL Server};SERVER=TOM\\SQLEXPRESS;DATABASE=QuanLyAIAgent;Trusted_Connection=yes;'
     return pyodbc.connect(conn_str)
 
 @admin_bp.route('/dashboard') 
@@ -104,13 +104,45 @@ def settings():
 def delete_session(session_id):
     if session.get('role') != 'Admin': return jsonify({"error": "Forbidden"}), 403
     try:
+        import os
         conn = get_db_connection()
         cursor = conn.cursor()
-        # Vì có ON DELETE CASCADE, chỉ cần xóa SessionID là ChatMessages tự mất
+        
+        # 1. Lấy thông tin file trước khi xóa session
+        cursor.execute("""
+            SELECT f.FilePath, f.FileID 
+            FROM ChatSessions s
+            LEFT JOIN ExcelFiles f ON s.FileID = f.FileID
+            WHERE s.SessionID = ?
+        """, (session_id,))
+        info = cursor.fetchone()
+        
+        # 2. Xóa Session (ChatMessages sẽ tự xóa nhờ ON DELETE CASCADE)
         cursor.execute("DELETE FROM ChatSessions WHERE SessionID = ?", (session_id,))
+        
+        if info:
+            file_path = info[0]
+            file_id = info[1]
+            
+            if file_id:
+                # 3. Xóa bản ghi trong Reports và ExcelFiles
+                cursor.execute("DELETE FROM Reports WHERE FileID = ?", (file_id,))
+                cursor.execute("DELETE FROM ExcelFiles WHERE FileID = ?", (file_id,))
+                
+                # 4. Xóa file vật lý
+                if file_path and os.path.exists(file_path):
+                    try: os.remove(file_path)
+                    except: pass
+                
+                # 5. Xóa biểu đồ
+                chart_file = os.path.join(os.getcwd(), 'static', 'charts', f"chart_{file_id}.png")
+                if os.path.exists(chart_file):
+                    try: os.remove(chart_file)
+                    except: pass
+
         conn.commit()
         conn.close()
-        return jsonify({"status": "success", "message": "Xóa thành công!"})
+        return jsonify({"status": "success", "message": "Đã xóa sạch phiên chat và các tệp liên quan!"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 

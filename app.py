@@ -1,10 +1,9 @@
 import streamlit as st
 import pandas as pd
-import google.generativeai as genai
 
-# 1. Cấu hình Gemini (Dán Key của bạn vào chỗ '...' nhé)
-genai.configure(api_key="AIzaSyAiF-kYI1RXzYjX5Ag0BQD0l_-fAy988dw") # THAY MÃ CỦA BẠN VÀO ĐÂY
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
+# 1. Cấu hình Gemini (Lấy tập trung từ database.py)
+from database import configure_ai
+model = configure_ai()
 
 # Thêm cấu hình này để AI không bị chặn trả lời
 generation_config = {
@@ -51,8 +50,7 @@ if uploaded_file:
                 Trả lời ngắn gọn, chính xác bằng tiếng Việt.
                 """
                 
-                # Gọi bộ não Gemini Pro
-                model = genai.GenerativeModel('gemini-flash-latest')
+                # Sử dụng model đã được cấu hình
                 response = model.generate_content(prompt)
                 
                 # Hiển thị câu trả lời của AI
