@@ -1,11 +1,11 @@
 import pyodbc
 
 # Chuỗi kết nối đến SQL Server của Hùng
-CONN_STR = r"Driver={SQL Server};Server=TOM\SQLEXPRESS;Database=QuanLyAIAgent;Trusted_Connection=yes;"
+CONN_STR = r"Driver={SQL Server};Server=LAPTOP-FOEQL0GL;Database=QuanLyAIAgent;Trusted_Connection=yes;"
 
 # --- CẤU HÌNH GEMINI TẬP TRUNG ---
 # Bạn chỉ cần thay đổi Key ở đây, tất cả các file khác sẽ tự cập nhật theo
-GEMINI_API_KEY = "AIzaSyAKgDK7bTZzx5XR4EoUw12ASUQafW9g0ys"
+GEMINI_API_KEY = "AIzaSyDVXNQEMIs4rpXBNWRbhQO2zs5dhl7nwK4"
 GEMINI_MODEL_NAME = "gemini-flash-latest" 
 
 def configure_ai():
