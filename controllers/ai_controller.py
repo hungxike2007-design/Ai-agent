@@ -10,15 +10,13 @@ from database import get_connection, get_all_system_configs
 
 ai_bp = Blueprint('ai', __name__)
 
-# --- CẤU HÌNH GEMINI (Lấy từ database.py) ---
-from database import configure_ai
+from database import configure_ai, get_key_rotator
 
 def get_model():
     """
-    Luôn tạo mới model mỗi lần gọi để đảm bảo dùng đúng API Key hiện tại
-    trong database.py mà không cần restart server.
+    Trả về model hiện tại của rotator.
     """
-    return configure_ai()
+    return get_key_rotator().get_model()
 
 report_cache = {"last_response": ""}
 
@@ -221,37 +219,50 @@ def upload_file():
 
         try:
             import google.generativeai as genai
-            _model = get_model()
             _gen_cfg = genai.types.GenerationConfig(
                 temperature=configs.get("Temperature", 0.5),
                 max_output_tokens=min(int(configs.get("MaxTokens", 1024)), 1500)
             )
-            response = _model.generate_content(prompt, generation_config=_gen_cfg)
+            # Dùng rotator.generate() — tự xoay key khi gặp quota
+            response = get_key_rotator().generate(prompt, generation_config=_gen_cfg)
             report_content = clean_ai_response(response.text)
         except Exception as ai_err:
             err_str = str(ai_err).lower()
-            if 'quota' in err_str or 'resource exhausted' in err_str or '429' in err_str:
+            # Trường hợp TẤT CẢ key đã hết quota (rotator đã thử hết vòng)
+            if 'tất cả' in str(ai_err) and 'api key' in err_str:
                 report_content = (
-                    "## ⚠️ Hết hạn mức API (Quota Exceeded)\n\n"
-                    "Quota miễn phí hết rồi. Thử lại sau 7:00 sáng hoặc dùng account Google khác.\n"
-                    "- Tạo account mới → [aistudio.google.com](https://aistudio.google.com) → Get API Key\n"
-                    "- Dán key vào dòng 8 của `database.py` (biến `GEMINI_API_KEY`)"
+                    "## ⚠️ Tất Cả API Key Đã Hết Quota\n\n"
+                    f"{ai_err}\n\n"
+                    "**Gợi ý:**\n"
+                    "- Thêm key mới từ account Google khác vào `GEMINI_API_KEYS` trong `database.py`\n"
+                    "- Hoặc đợi đến 07:00 sáng hôm sau để quota tự reset\n"
+                    "- Key miễn phí tại: [aistudio.google.com](https://aistudio.google.com)"
+                )
+            elif 'quota' in err_str or 'resource exhausted' in err_str or '429' in err_str:
+                report_content = (
+                    "## ⚠️ Hết Hạn Mức API (Quota Exceeded)\n\n"
+                    "Hệ thống đã tự động thử xoay vòng qua tất cả key nhưng đều hết quota.\n\n"
+                    "**Giải pháp:**\n"
+                    "- Thêm key mới vào danh sách `GEMINI_API_KEYS` trong `database.py`\n"
+                    "- Key miễn phí: [aistudio.google.com](https://aistudio.google.com) → Get API Key\n"
+                    "- Hoặc đợi reset lúc 07:00 sáng"
                 )
             elif any(k in err_str for k in ['api_key', 'invalid', 'api key not valid', '400', 'unauthenticated']):
                 report_content = (
                     "## 🔑 API Key Không Hợp Lệ\n\n"
-                    "Key bạn nhập sai hoặc chưa được kích hoạt.\n\n"
+                    "Một hoặc nhiều key trong `GEMINI_API_KEYS` bị sai hoặc chưa kích hoạt.\n\n"
                     "**Cách lấy key đúng:**\n"
                     "1. Vào **aistudio.google.com** (đăng nhập Google)\n"
                     "2. Click **Get API Key** → **Create API key in new project**\n"
-                    "3. Copy key → dán vào **dòng 8** của `database.py` (biến `GEMINI_API_KEY`)\n\n"
+                    "3. Copy key → dán vào danh sách `GEMINI_API_KEYS` trong `database.py`\n\n"
                     f"> Lỗi gốc: `{ai_err}`"
                 )
             elif 'not found' in err_str or 'model' in err_str:
                 report_content = (
                     "## 🚫 Lỗi Tên Model\n\n"
-                    "Tên model sai. Đảm bảo dòng 9 trong `database.py` là:\n"
-                    "```\nGEMINI_MODEL_NAME = 'gemini-1.5-flash'\n```"
+                    "Tên model sai. Đảm bảo `GEMINI_MODEL_NAME` trong `database.py` là:\n"
+                    "```\nGEMINI_MODEL_NAME = 'gemini-2.0-flash'\n```\n"
+                    f"> Lỗi gốc: `{ai_err}`"
                 )
             else:
                 report_content = f"## ❌ Lỗi AI\n\n```\n{ai_err}\n```"
@@ -308,23 +319,22 @@ def ask():
         # 1. Tạo tiêu đề bằng AI
         try:
             title_prompt = f"Tóm tắt ngắn gọn câu hỏi này làm tiêu đề lịch sử (max 5 từ): '{question}'"
-            title_response = get_model().generate_content(title_prompt)
+            title_response = get_key_rotator().generate(title_prompt)
             title = title_response.text.strip().replace("*", "").replace('"', '')
         except:
             title = question[:50]
 
-        # 2. Gọi AI phân tích dữ liệu
         import google.generativeai as genai
         configs = get_all_system_configs()
         base_prompt = f"Dữ liệu: {excel_data}\n\nCâu hỏi: {question}\n\nTrả lời ngắn gọn, chính xác."
         full_prompt = f"{configs.get('DefaultPrompt', '')}\n\n{base_prompt}" if configs.get('DefaultPrompt') else base_prompt
         
-        _model = get_model()
         _gen_cfg = genai.types.GenerationConfig(
             temperature=configs.get("Temperature", 0.7),
             max_output_tokens=int(configs.get("MaxTokens", 2048))
         )
-        response = _model.generate_content(full_prompt, generation_config=_gen_cfg)
+        # Dùng rotator.generate() — tự xoay key khi gặp quota
+        response = get_key_rotator().generate(full_prompt, generation_config=_gen_cfg)
         answer = clean_ai_response(response.text)
         
         # 3. LƯU VÀO DATABASE (Cả SessionTitle và ChatMessages)
@@ -758,6 +768,15 @@ def get_session(session_id):
         # 2. Lấy danh sách tin nhắn
         cursor.execute("SELECT Role, [Content] FROM ChatMessages WHERE SessionID = ? ORDER BY CreatedAt ASC", (session_id,))
         messages = [{"role": row[0], "content": row[1]} for row in cursor.fetchall()]
+
+        # 2.5 Lấy báo cáo phân tích ban đầu (từ bảng Reports) và chèn vào đầu danh sách
+        if file_data and file_data[2]:
+            file_id = file_data[2]
+            cursor.execute("SELECT [Content] FROM Reports WHERE FileID = ?", (file_id,))
+            report_row = cursor.fetchone()
+            if report_row:
+                # Chèn báo cáo phân tích ban đầu vào đầu danh sách tin nhắn
+                messages.insert(0, {"role": "assistant", "content": report_row[0]})
 
         # 3. Đọc dữ liệu Excel để hiển thị lại bảng
         table_html = ""

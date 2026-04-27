@@ -243,7 +243,6 @@
                     <td style="color:var(--muted);white-space:nowrap;">{{ sess[4].strftime('%H:%M %d/%m/%Y') }}</td>
                     <td style="display:flex;gap:6px;">
                         <button onclick="viewChat('{{ sess[0] }}')" class="btn-sm btn-info"><i class="fas fa-eye"></i> Xem</button>
-                        <button onclick="deleteSession('{{ sess[0] }}')" class="btn-sm btn-danger"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>
                 {% endfor %}
