@@ -1,3 +1,20 @@
+import sys
+import io
+import os
+
+# ── BẮT BUỘC UTF-8 CHO TOÀN BỘ OUTPUT (fix lỗi charmap trên Windows) ────────
+# Windows mặc định dùng cp1252 cho stdout/stderr → crash khi print tiếng Việt.
+# Phải đặt TRƯỚC tất cả các import khác.
+os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+# Fallback cho môi trường không hỗ trợ reconfigure
+else:
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 from flask import Flask
 from controllers.auth_controller import auth_bp, oauth  
 from controllers.ai_controller import ai_bp

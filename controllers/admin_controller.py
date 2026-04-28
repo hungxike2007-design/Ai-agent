@@ -4,7 +4,7 @@ import pyodbc
 admin_bp = Blueprint('admin', __name__)
 
 def get_db_connection():
-    conn_str = 'DRIVER={SQL Server};SERVER=TOM\\SQLEXPRESS;DATABASE=QuanLyAIAgent;Trusted_Connection=yes;'
+    conn_str = 'DRIVER={SQL Server};SERVER=LAPTOP-355TS2QT\HUY_DEV;DATABASE=QuanLyAIAgent;Trusted_Connection=yes;'
     return pyodbc.connect(conn_str)
 
 @admin_bp.route('/dashboard') 

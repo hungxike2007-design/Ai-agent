@@ -4,7 +4,7 @@ import io
 import os
 import uuid
 from docx import Document
-from services.data_processor import get_cleaning_suggestions, generate_auto_chart
+from services.data_processor import get_cleaning_suggestions, generate_auto_chart, generate_multi_charts, _analyze_dataframe
 from services.report_service import get_report_prompt, get_available_styles
 from database import get_connection, get_all_system_configs
 
@@ -167,7 +167,7 @@ def upload_file():
 
     try:
         # 1. Đọc và xử lý Excel
-        df = pd.read_excel(file)
+        df = pd.read_excel(file, dtype=str)
         filename = file.filename
         cleaning_hints = get_cleaning_suggestions(df)
         df_display = df.fillna("")
@@ -197,9 +197,14 @@ def upload_file():
             (user_id, file_id, short_title))
         session_id = cursor.fetchone()[0]
         session['current_session_id'] = session_id 
+        session['current_file_id'] = file_id
         conn.commit()
 
-        # 3.5. Tạo biểu đồ tự động
+        # 3.5. Phân tích và tạo biểu đồ thông minh (1 biểu đồ duy nhất)
+        chart_info = _analyze_dataframe(df)
+        chart_type_chosen = chart_info.get('chart_type', 'none')
+        chart_reason = chart_info.get('reason', '')
+        print(f"[SMART CHART] Chon: {chart_type_chosen} | {chart_reason}")
         chart_path = generate_auto_chart(df, file_id)
 
         # 4. GỌI AI TẠO BÁO CÁO — dùng smart_summary (tiết kiệm 70-90% token)
@@ -261,18 +266,22 @@ def upload_file():
             cursor.execute(sql_report, (file_id, report_content, summary_text))
             conn.commit()
         except Exception as db_err:
-            print(f"Lỗi khi lưu vào bảng Reports: {db_err}")
+            print(f"Loi khi luu vao bang Reports: {db_err}")
 
         conn.close()
 
         return render_template('dashboard.html',
-                               table_html=df_display.head(10).to_html(classes='table table-hover', index=False),
+                               table_html=df_display.to_html(classes='table table-hover', index=False),
                                ai_response=report_content,
                                cleaning_hints=cleaning_hints,
                                selected_style=style,
-                               chart_path=chart_path)
+                               chart_path=chart_path,
+                               extra_charts=[],
+                               chart_type_chosen=chart_type_chosen,
+                               chart_reason=chart_reason)
     except Exception as e:
-        return f"Lỗi hệ thống: {e}"
+        return f"Loi he thong: {e}"
+
 
 @ai_bp.route('/ask', methods=['POST'])
 def ask():
@@ -370,32 +379,36 @@ def history():
 def export_report():
     format_type = request.args.get('format', 'word')
     session_id = request.args.get('session_id')
+    if not session_id:
+        session_id = session.get('current_session_id')
     
     content = ""
     file_id = None
 
-    # 1. Nếu có session_id (từ lịch sử), ưu tiên lấy nội dung từ Database
+    # 1. Nếu có session_id (từ lịch sử), lấy FileID và nội dung từ Database
     if session_id:
         try:
             conn = get_connection()
             cursor = conn.cursor()
-            # Join bảng ChatSessions và Reports để lấy đúng nội dung báo cáo của file đó
-            sql = """
-                SELECT r.[Content], s.FileID 
-                FROM Reports r
-                JOIN ChatSessions s ON r.FileID = s.FileID
-                WHERE s.SessionID = ?
-            """
-            cursor.execute(sql, (session_id,))
-            row = cursor.fetchone()
-            if row:
-                content = row[0]
-                file_id = row[1]
+            # Lấy FileID trước
+            cursor.execute("SELECT FileID FROM ChatSessions WHERE SessionID = ?", (session_id,))
+            s_row = cursor.fetchone()
+            if s_row:
+                file_id = s_row[0]
+                # Lấy Content
+                cursor.execute("SELECT [Content] FROM Reports WHERE FileID = ? ORDER BY CreatedDate DESC", (file_id,))
+                r_row = cursor.fetchone()
+                if r_row:
+                    content = r_row[0]
             conn.close()
         except Exception as e:
             print(f"Lỗi DB khi xuất file: {e}")
 
-    # 2. Nếu không tìm thấy trong DB (hoặc không có session_id), mới dùng cache
+    # 1.5. Fallback lấy file_id từ session nếu DB không tìm thấy
+    if not file_id:
+        file_id = session.get('current_file_id')
+
+    # 2. Nếu không tìm thấy nội dung, dùng cache
     if not content:
         content = report_cache.get("last_response", "")
 
@@ -403,10 +416,24 @@ def export_report():
     if not content: 
         return "Không có dữ liệu để xuất! Hãy chọn một phiên chat có dữ liệu."
 
-    # Xử lý đường dẫn biểu đồ
-    chart_path = f"static/charts/chart_{file_id}.png" if file_id else None
-    if chart_path and not os.path.exists(os.path.join(os.getcwd(), chart_path)):
-        chart_path = None
+    # Làm sạch content: bỏ ký tự NUL và các ký tự điều khiển không in được
+    if content:
+        content = content.replace('\x00', '')  # NUL character
+        content = ''.join(ch for ch in content if ch == '\n' or ch == '\t' or ord(ch) >= 32)
+
+    # Xử lý đường dẫn biểu đồ - normalize để tránh lỗi not found
+    chart_path = None
+    if file_id:
+        # Thử các tên file có thể có
+        for candidate in [
+            f"static/charts/chart_{file_id}.png",
+            f"static/charts/chart_{file_id}.0.png",
+        ]:
+            full = os.path.join(os.getcwd(), candidate)
+            if os.path.exists(full):
+                chart_path = candidate
+                break
+    print(f"[EXPORT] chart_path={chart_path}, file_id={file_id}")
 
     # --- TIẾN HÀNH XUẤT FILE ---
     from datetime import datetime
@@ -756,10 +783,11 @@ def get_session(session_id):
         table_html = ""
         chart_path = None
         if file_data and os.path.exists(file_data[0]):
-            df = pd.read_excel(file_data[0])
-            table_html = df.head(10).to_html(classes='table table-hover', index=False)
+            df = pd.read_excel(file_data[0], dtype=str)  # Đọc ALL cột là string để tránh Mã SV bị 2.36e+09
+            df = df.fillna("")
+            table_html = df.to_html(classes='table table-hover', index=False)
             # Cập nhật lại dữ liệu vào session để người dùng có thể chat tiếp với file này
-            session['excel_data'] = df.fillna("").to_string()
+            session['excel_data'] = df.to_string()
             
             # Kiểm tra biểu đồ
             file_id = file_data[2]
@@ -1020,8 +1048,8 @@ def view_shared(token):
         table_html = ""
         if os.path.exists(file_path):
             try:
-                df = pd.read_excel(file_path)
-                table_html = df.head(15).to_html(classes='table table-bordered table-striped', index=False)
+                df = pd.read_excel(file_path, dtype=str)
+                table_html = df.fillna("").to_html(classes='table table-bordered table-striped', index=False)
             except Exception as e:
                 table_html = f"<p>Không thể hiển thị bản xem trước dữ liệu: {e}</p>"
 

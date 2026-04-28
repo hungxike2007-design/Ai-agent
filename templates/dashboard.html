@@ -534,20 +534,36 @@
         /* TABLE */
         .table-wrap {
             overflow-x: auto;
+            overflow-y: auto;
+            max-height: 480px;          /* Cuộn dọc nếu nhiều dòng */
             border-radius: 10px;
             border: 1px solid var(--border);
             box-shadow: var(--shadow-sm);
         }
 
         .table-wrap table {
-            width: 100%;
+            width: max-content;         /* Không ép co cột */
+            min-width: 100%;
             border-collapse: collapse;
-            font-size: .85rem;
+            font-size: .82rem;
+        }
+
+        .table-wrap thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #1e293b;        /* Header tối nổi bật */
+            color: #f1f5f9;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+            border-bottom: 2px solid var(--green);
         }
 
         .table-wrap th {
             background: #f8fafc;
-            padding: 12px 14px;
+            padding: 10px 12px;
             text-align: left;
             font-weight: 600;
             color: #334155;
@@ -556,9 +572,10 @@
         }
 
         .table-wrap td {
-            padding: 10px 14px;
+            padding: 8px 12px;
             border-bottom: 1px solid var(--border);
             color: #475569;
+            white-space: nowrap;        /* Không xuống dòng trong ô */
         }
 
         .table-wrap tr:last-child td {
@@ -567,6 +584,14 @@
 
         .table-wrap tr:hover td {
             background: #f1f5f9;
+        }
+
+        /* Số dòng hiển thị */
+        .table-info {
+            font-size: .78rem;
+            color: var(--muted);
+            margin-top: 8px;
+            text-align: right;
         }
 
         /* HINTS */
@@ -996,7 +1021,6 @@
             border-color: var(--green);
         }
 
-        /* CHART */
         .chart-box {
             margin-top: 20px;
             padding: 20px;
@@ -1012,6 +1036,69 @@
             height: auto;
             border-radius: 8px;
             box-shadow: var(--shadow-sm);
+        }
+
+        /* CHART GRID - MULTI CHARTS */
+        .charts-section {
+            margin-top: 20px;
+        }
+
+        .charts-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+
+        .chart-type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: .78rem;
+            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #059669, #047857);
+            color: white;
+            letter-spacing: .03em;
+            box-shadow: 0 2px 8px rgba(5,150,105,0.3);
+        }
+
+        .chart-reason-tag {
+            font-size: .78rem;
+            color: #64748b;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-style: italic;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 16px;
+        }
+
+        .chart-card {
+            background: #0f172a;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid #1e293b;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            transition: transform .2s, box-shadow .2s;
+        }
+
+        .chart-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+        }
+
+        .chart-card img {
+            width: 100%;
+            height: auto;
+            display: block;
         }
 
         @keyframes spin {
@@ -1113,10 +1200,47 @@
                 <div id="excel-table-content" class="table-wrap">
                     {% if table_html %}{{ table_html | safe }}{% endif %}
                 </div>
+                <div class="table-info" id="tableInfo" style="display:{% if table_html %}block{% else %}none{% endif %};">
+                    <i class="fas fa-circle-info" style="color:var(--green);"></i>
+                    <span id="rowCountLabel">Đang tải...</span>
+                </div>
 
-                <div id="chart-content" class="chart-box"
-                    style="display:{% if chart_path %}block{% else %}none{% endif %};">
-                    {% if chart_path %}<img src="{{ chart_path }}" alt="Biểu đồ phân tích">{% endif %}
+                <!-- SMART CHART SECTION -->
+                <div id="chart-content" class="charts-section"
+                    style="display:{% if chart_path or extra_charts %}block{% else %}none{% endif %};">
+
+                    <!-- Badge loại biểu đồ -->
+                    {% if chart_type_chosen and chart_type_chosen != 'none' %}
+                    <div class="charts-header">
+                        <span class="chart-type-badge">
+                            {% if chart_type_chosen == 'pie' %}🥧 Pie Chart
+                            {% elif chart_type_chosen in ['bar_count','bar_agg'] %}📊 Bar Chart
+                            {% elif chart_type_chosen == 'line' %}📈 Line Chart
+                            {% elif chart_type_chosen == 'hist' %}📉 Histogram
+                            {% elif chart_type_chosen == 'multi_bar' %}📊 Multi-Bar
+                            {% else %}📊 Auto Chart{% endif %}
+                        </span>
+                        {% if chart_reason %}
+                        <span class="chart-reason-tag">💡 {{ chart_reason }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Grid biểu đồ -->
+                    <div class="charts-grid">
+                        {% if chart_path %}
+                        <div class="chart-card">
+                            <img src="{{ chart_path }}" alt="Biểu đồ chính">
+                        </div>
+                        {% endif %}
+                        {% if extra_charts %}
+                        {% for ec in extra_charts %}
+                        <div class="chart-card">
+                            <img src="{{ ec }}" alt="Biểu đồ bổ sung">
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
                 </div>
 
                 <div class="export-row">
@@ -1235,6 +1359,22 @@
             document.getElementById('sidebar').classList.toggle('closed');
         }
 
+        // Đếm và hiển thị số dòng / cột của bảng
+        function updateRowCount() {
+            const wrap = document.getElementById('excel-table-content');
+            const label = document.getElementById('rowCountLabel');
+            const info = document.getElementById('tableInfo');
+            if (!wrap || !label) return;
+            const rows = wrap.querySelectorAll('tbody tr');
+            const cols = wrap.querySelectorAll('thead th, tr:first-child th');
+            if (rows.length > 0) {
+                label.textContent = `Hiển thị ${rows.length} dòng · ${cols.length} cột`;
+                if (info) info.style.display = 'block';
+            }
+        }
+        // Chạy ngay khi trang load (nếu có bảng sẵn)
+        document.addEventListener('DOMContentLoaded', updateRowCount);
+
         function toggleHints() {
             const btn = document.getElementById('hintsToggle');
             const body = document.getElementById('hintsBody');
@@ -1261,13 +1401,26 @@
             if (btnPdf) btnPdf.href = `/ai/export_report?format=pdf&session_id=${sessionId}`;
 
             const tableDiv = document.getElementById('excel-table-content');
-            if (tableDiv && data.table_html) tableDiv.innerHTML = data.table_html;
+            if (tableDiv && data.table_html) {
+                tableDiv.innerHTML = data.table_html;
+                document.getElementById('tableInfo').style.display = 'block';
+                updateRowCount();
+            }
 
             const chartBoxEl = document.getElementById('chart-content');
             if (chartBoxEl) {
                 if (data.chart_path) {
                     chartBoxEl.style.display = 'block';
-                    chartBoxEl.innerHTML = `<img src="${data.chart_path}" alt="Biểu đồ phân tích">`;
+                    // Hiển thị biểu đồ chính trong charts-grid
+                    chartBoxEl.innerHTML = `
+                        <div class="charts-header">
+                            <span class="chart-type-badge">📊 Biểu đồ phân tích</span>
+                        </div>
+                        <div class="charts-grid">
+                            <div class="chart-card">
+                                <img src="${data.chart_path}" alt="Biểu đồ chính">
+                            </div>
+                        </div>`;
                 } else {
                     chartBoxEl.style.display = 'none';
                     chartBoxEl.innerHTML = '';
