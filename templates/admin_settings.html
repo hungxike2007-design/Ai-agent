@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,110 +8,403 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        :root { 
-            --bg: #f8fafc; --sidebar: #ffffff; --surface: #ffffff; 
-            --border: #e2e8f0; --text: #0f172a; --muted: #64748b; 
-            --green: #059669; 
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
-        .sidebar { width: 240px; background: var(--sidebar); position: fixed; height: 100vh; display: flex; flex-direction: column; border-right: 1px solid var(--border); box-shadow: var(--shadow-sm); z-index:100; }
-        .sb-brand { padding: 22px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
-        .sb-icon { width: 36px; height: 36px; background: linear-gradient(135deg,var(--green),#047857); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; color:#fff; box-shadow: var(--shadow-sm); }
-        .sb-brand span { font-size: 1.05rem; font-weight: 800; color:var(--text); }
-        .sb-nav { flex: 1; padding: 14px 10px; }
-        .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; color: #475569; font-size: .87rem; font-weight: 600; cursor: pointer; text-decoration: none; margin-bottom: 4px; transition: all .2s; }
-        .nav-item:hover { background: #f1f5f9; color: var(--text); }
-        .nav-item.active { background: #ecfdf5; color: var(--green); }
-        .nav-item i { width: 18px; text-align: center; font-size: .9rem; }
-        .sb-footer { padding: 16px 20px; border-top: 1px solid var(--border); background: #f8fafc; }
-        .back-btn { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 10px; background: #ffffff; border: 1px solid var(--border); color: #334155; font-size: .85rem; font-weight: 600; text-decoration: none; transition: .2s; box-shadow: var(--shadow-sm); }
-        .back-btn:hover { background: #f1f5f9; color: var(--text); }
-        .main { margin-left: 240px; flex: 1; padding: 32px; }
-        .page-header { margin-bottom: 28px; }
-        .page-header h1 { font-size: 1.6rem; font-weight: 800; display: flex; align-items: center; gap: 10px; color:var(--text); }
-        .page-header h1 i { color: var(--green); }
-        .page-header p { color: var(--muted); font-size: .9rem; margin-top: 6px; }
-        .flash { padding: 14px 18px; border-radius: 12px; margin-bottom: 20px; font-size: .9rem; font-weight: 600; display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow-sm); }
-        .flash.success { background: #ecfdf5; border: 1px solid #a7f3d0; color: #059669; }
-        .flash.danger { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
-        .config-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 28px; max-width: 760px; box-shadow: var(--shadow-sm); }
-        .field-group { margin-bottom: 28px; }
-        .field-label { font-size: .85rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; display: flex; align-items: center; gap: 7px; }
-        .field-label i { font-size: .9rem; }
-        .field-desc { font-size: .85rem; color: #64748b; margin-bottom: 12px; font-weight:500; }
-        textarea, input[type=number] { width: 100%; background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-family: inherit; font-size: .95rem; padding: 14px 16px; transition: .2s; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02); }
-        textarea:focus, input[type=number]:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 4px var(--green-glow); background: #ffffff; }
-        textarea::placeholder, input::placeholder { color: #94a3b8; }
-        textarea { resize: vertical; min-height: 120px; line-height: 1.5; }
-        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-        .range-row { display: flex; align-items: center; gap: 14px; }
-        input[type=range] { flex: 1; accent-color: var(--green); cursor: pointer; }
-        .range-val { background: #f0fdf4; color: var(--green); border: 1px solid #bbf7d0; padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: .9rem; min-width: 52px; text-align: center; }
-        .divider { height: 1px; background: var(--border); margin: 28px 0; }
-        .btn-save { padding: 13px 28px; background: linear-gradient(135deg,var(--green),#047857); color: white; border: none; border-radius: 12px; font-weight: 700; font-size: .95rem; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(5,150,105,0.25); transition: .2s; }
-        .btn-save:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(5,150,105,0.3); }
+
+        :root {
+            --bg: #f8fafc;
+            --sidebar: rgba(255, 255, 255, 0.85);
+            --surface: rgba(255, 255, 255, 0.75);
+            --border: rgba(255, 255, 255, 0.6);
+            --text: #0f172a;
+            --muted: #64748b;
+            --green: #6366f1;
+            --green-glow: rgba(99, 102, 241, 0.3);
+            --shadow-sm: 0 4px 15px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 8px 25px rgba(0, 0, 0, 0.08);
+            --blur: blur(15px);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 240px;
+            background: var(--sidebar);
+            backdrop-filter: var(--blur);
+            -webkit-backdrop-filter: var(--blur);
+            position: fixed;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+            z-index: 100;
+        }
+
+        .sb-brand {
+            padding: 22px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sb-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--green), #047857);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: #fff;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .sb-brand span {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--text);
+        }
+
+        .sb-nav {
+            flex: 1;
+            padding: 14px 10px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            color: #475569;
+            font-size: .87rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            margin-bottom: 4px;
+            transition: all .2s;
+        }
+
+        .nav-item:hover {
+            background: #f1f5f9;
+            color: var(--text);
+        }
+
+        .nav-item.active {
+            background: #ecfdf5;
+            color: var(--green);
+        }
+
+        .nav-item i {
+            width: 18px;
+            text-align: center;
+            font-size: .9rem;
+        }
+
+        .sb-footer {
+            padding: 16px 20px;
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            color: #334155;
+            font-size: .85rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: .2s;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .back-btn:hover {
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--green);
+        }
+
+        .main {
+            margin-left: 240px;
+            flex: 1;
+            padding: 32px;
+        }
+
+        .page-header {
+            margin-bottom: 28px;
+        }
+
+        .page-header h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text);
+        }
+
+        .page-header h1 i {
+            color: var(--green);
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: .9rem;
+            margin-top: 6px;
+        }
+
+        .flash {
+            padding: 14px 18px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: .9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .flash.success {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            color: #059669;
+        }
+
+        .flash.danger {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+        }
+
+        .config-card {
+            background: var(--surface);
+            backdrop-filter: var(--blur);
+            -webkit-backdrop-filter: var(--blur);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 36px 32px;
+            max-width: 760px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .config-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 20px 40px rgba(99, 102, 241, 0.15);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .field-group {
+            margin-bottom: 28px;
+        }
+
+        .field-label {
+            font-size: .85rem;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .field-label i {
+            font-size: .9rem;
+        }
+
+        .field-desc {
+            font-size: .85rem;
+            color: #64748b;
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+
+        textarea,
+        input[type=number] {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 12px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: .95rem;
+            padding: 14px 16px;
+            transition: .2s;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+        }
+
+        textarea:focus,
+        input[type=number]:focus {
+            outline: none;
+            border-color: var(--green);
+            box-shadow: 0 0 0 4px var(--green-glow);
+            background: #ffffff;
+        }
+
+        textarea::placeholder,
+        input::placeholder {
+            color: #94a3b8;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+            line-height: 1.5;
+        }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .range-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        input[type=range] {
+            flex: 1;
+            accent-color: var(--green);
+            cursor: pointer;
+        }
+
+        .range-val {
+            background: rgba(168, 85, 247, 0.2);
+            color: #ffffff;
+            border: 1px solid rgba(168, 85, 247, 0.5);
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: .9rem;
+            min-width: 52px;
+            text-align: center;
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 28px 0;
+        }
+
+        .btn-save {
+            padding: 13px 28px;
+            background: linear-gradient(135deg, var(--green), #047857);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: .95rem;
+            cursor: pointer;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+            transition: .2s;
+        }
+
+        .btn-save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(5, 150, 105, 0.3);
+        }
     </style>
 </head>
+
 <body>
-<div class="sidebar">
-    <div class="sb-brand">
-        <div class="sb-icon"><i class="fas fa-brain" style="color:#fff;"></i></div>
-        <span>AI ADMIN</span>
-    </div>
-    <nav class="sb-nav">
-        <a href="/admin/dashboard" class="nav-item"><i class="fas fa-gauge"></i> Dashboard</a>
-        <a href="/admin/settings" class="nav-item active"><i class="fas fa-sliders"></i> Cấu hình AI</a>
-    </nav>
-    <div class="sb-footer">
-        <a href="{{ url_for('ai.dashboard') }}" class="back-btn"><i class="fas fa-arrow-left"></i> Về Dashboard</a>
-    </div>
-</div>
-
-<div class="main">
-    <div class="page-header">
-        <h1><i class="fas fa-sliders"></i> Cấu hình tham số AI</h1>
-        <p>Tùy chỉnh hành vi và phong cách phản hồi của AI Agent</p>
+    <div class="sidebar">
+        <div class="sb-brand">
+            <div class="sb-icon"><i class="fas fa-brain" style="color:#fff;"></i></div>
+            <span>AI ADMIN</span>
+        </div>
+        <nav class="sb-nav">
+            <a href="/admin/dashboard" class="nav-item"><i class="fas fa-gauge"></i> Dashboard</a>
+            <a href="/admin/settings" class="nav-item active"><i class="fas fa-sliders"></i> Cấu hình AI</a>
+        </nav>
+        <div class="sb-footer">
+            <a href="{{ url_for('ai.dashboard') }}" class="back-btn"><i class="fas fa-arrow-left"></i> Về Dashboard</a>
+        </div>
     </div>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}{% for cat, msg in messages %}
-    <div class="flash {{ cat }}"><i class="fas fa-{% if cat == 'success' %}check-circle{% else %}exclamation-circle{% endif %}"></i> {{ msg }}</div>
-    {% endfor %}{% endif %}
-    {% endwith %}
+    <div class="main">
+        <div class="page-header">
+            <h1><i class="fas fa-sliders"></i> Cấu hình tham số AI</h1>
+            <p>Tùy chỉnh hành vi và phong cách phản hồi của AI Agent</p>
+        </div>
 
-    <div class="config-card">
-        <form action="/admin/settings" method="POST">
-            <div class="field-group">
-                <div class="field-label"><i class="fas fa-brain" style="color:#60a5fa;"></i> Prompt Mẫu (System Prompt)</div>
-                <div class="field-desc">Định hướng phong cách trả lời cho AI. Ví dụ: "Bạn là chuyên gia phân tích dữ liệu, hãy trả lời bằng tiếng Việt, ngắn gọn và chuyên nghiệp."</div>
-                <textarea name="system_prompt" rows="5" placeholder="Nhập prompt định hướng...">{{ configs.get('DefaultPrompt', '') }}</textarea>
-            </div>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for cat, msg in messages %}
+        <div class="flash {{ cat }}"><i
+                class="fas fa-{% if cat == 'success' %}check-circle{% else %}exclamation-circle{% endif %}"></i> {{ msg
+            }}</div>
+        {% endfor %}{% endif %}
+        {% endwith %}
 
-            <div class="two-col">
+        <div class="config-card">
+            <form action="/admin/settings" method="POST">
                 <div class="field-group">
-                    <div class="field-label"><i class="fas fa-thermometer-half" style="color:#fb923c;"></i> Độ sáng tạo (Temperature)</div>
-                    <div class="field-desc">0.0 = chính xác / 1.0 = sáng tạo hơn</div>
-                    <div class="range-row">
-                        <input type="range" name="temperature" id="tempRange" min="0" max="1" step="0.1"
-                            value="{{ configs.get('Temperature', 0.7) }}"
-                            oninput="document.getElementById('tempVal').innerText = this.value">
-                        <div class="range-val" id="tempVal">{{ configs.get('Temperature', 0.7) }}</div>
+                    <div class="field-label"><i class="fas fa-brain" style="color:#60a5fa;"></i> Prompt Mẫu (System
+                        Prompt)</div>
+                    <div class="field-desc">Định hướng phong cách trả lời cho AI. Ví dụ: "Bạn là chuyên gia phân tích dữ
+                        liệu, hãy trả lời bằng tiếng Việt, ngắn gọn và chuyên nghiệp."</div>
+                    <textarea name="system_prompt" rows="5"
+                        placeholder="Nhập prompt định hướng...">{{ configs.get('DefaultPrompt', '') }}</textarea>
+                </div>
+
+                <div class="two-col">
+                    <div class="field-group">
+                        <div class="field-label"><i class="fas fa-thermometer-half" style="color:#fb923c;"></i> Độ sáng
+                            tạo (Temperature)</div>
+                        <div class="field-desc">0.0 = chính xác / 1.0 = sáng tạo hơn</div>
+                        <div class="range-row">
+                            <input type="range" name="temperature" id="tempRange" min="0" max="1" step="0.1"
+                                value="{{ configs.get('Temperature', 0.7) }}"
+                                oninput="document.getElementById('tempVal').innerText = this.value">
+                            <div class="range-val" id="tempVal">{{ configs.get('Temperature', 0.7) }}</div>
+                        </div>
+                    </div>
+                    <div class="field-group">
+                        <div class="field-label"><i class="fas fa-text-width" style="color:#a78bfa;"></i> Độ dài tối đa
+                            (Max Tokens)</div>
+                        <div class="field-desc">Số token tối đa mỗi câu trả lời (256–8192)</div>
+                        <input type="number" name="max_tokens" min="256" max="8192" step="256"
+                            value="{{ configs.get('MaxTokens', 2048) }}">
                     </div>
                 </div>
-                <div class="field-group">
-                    <div class="field-label"><i class="fas fa-text-width" style="color:#a78bfa;"></i> Độ dài tối đa (Max Tokens)</div>
-                    <div class="field-desc">Số token tối đa mỗi câu trả lời (256–8192)</div>
-                    <input type="number" name="max_tokens" min="256" max="8192" step="256" value="{{ configs.get('MaxTokens', 2048) }}">
-                </div>
-            </div>
 
-            <div class="divider"></div>
-            <button type="submit" class="btn-save"><i class="fas fa-floppy-disk"></i> Lưu cấu hình</button>
-        </form>
+                <div class="divider"></div>
+                <button type="submit" class="btn-save"><i class="fas fa-floppy-disk"></i> Lưu cấu hình</button>
+            </form>
+        </div>
     </div>
-</div>
 </body>
+
 </html>
