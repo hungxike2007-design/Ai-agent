@@ -259,3 +259,51 @@ def bulk_delete_files():
         return jsonify({"status": "success", "message": f"Đã xóa thành công {success_count} tệp tin!"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+# --- CHỨC NĂNG QUẢN LÝ PHẢN HỒI ---
+@admin_bp.route('/feedbacks')
+def feedbacks():
+    """Trang quản lý phản hồi của người dùng"""
+    if session.get('role') != 'Admin':
+        return redirect(url_for('auth.index'))
+    from database import get_all_feedbacks, get_feedback_stats
+    status_filter = request.args.get('status', '')
+    all_feedbacks = get_all_feedbacks(status_filter if status_filter else None)
+    stats = get_feedback_stats()
+    return render_template('admin_feedbacks.html',
+                           feedbacks=all_feedbacks,
+                           stats=stats,
+                           current_filter=status_filter)
+
+@admin_bp.route('/feedback/update/<int:feedback_id>', methods=['POST'])
+def update_feedback(feedback_id):
+    """Admin cập nhật trạng thái phản hồi"""
+    if session.get('role') != 'Admin':
+        return jsonify({"error": "Forbidden"}), 403
+    data = request.json
+    status = data.get('status', 'DaXem')
+    admin_note = data.get('admin_note', '')
+    from database import update_feedback_status
+    ok = update_feedback_status(feedback_id, status, admin_note)
+    if ok:
+        return jsonify({"status": "success"})
+    return jsonify({"status": "error", "message": "Cập nhật thất bại"}), 500
+
+@admin_bp.route('/feedback/delete/<int:feedback_id>', methods=['DELETE'])
+def delete_feedback_route(feedback_id):
+    """Admin xóa một phản hồi"""
+    if session.get('role') != 'Admin':
+        return jsonify({"error": "Forbidden"}), 403
+    from database import delete_feedback
+    ok = delete_feedback(feedback_id)
+    if ok:
+        return jsonify({"status": "success"})
+    return jsonify({"status": "error", "message": "Xóa thất bại"}), 500
+
+@admin_bp.route('/feedback/stats_api')
+def feedback_stats_api():
+    """API trả về thống kê phản hồi dạng JSON"""
+    if session.get('role') != 'Admin':
+        return jsonify({"error": "Forbidden"}), 403
+    from database import get_feedback_stats
+    return jsonify(get_feedback_stats())

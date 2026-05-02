@@ -1034,6 +1034,20 @@
         .fa-spin {
             animation: spin 1s linear infinite;
         }
+
+        /* FEEDBACK STARS */
+        .fb-star {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            cursor: pointer;
+            color: #e2e8f0;
+            transition: color .15s, transform .15s;
+            line-height: 1;
+            padding: 0 2px;
+        }
+        .fb-star:hover, .fb-star.active { color: #f59e0b; transform: scale(1.15); }
+        .fb-star.active { text-shadow: 0 0 8px rgba(245,158,11,.4); }
     </style>
 </head>
 
@@ -1081,6 +1095,10 @@
                         style="color:var(--green);">Analytics</span></span>
             </div>
             <div class="nav-right">
+                <!-- Nút phản hồi trải nghiệm -->
+                <button onclick="openFeedbackModal()" id="feedbackNavBtn" style="font-size:.82rem;color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;cursor:pointer;font-weight:600;font-family:inherit;transition:.2s;" title="Gửi phản hồi trải nghiệm">
+                    <i class="fas fa-star"></i> Phản hồi
+                </button>
                 <a href="{{ url_for('admin.dashboard') }}" class="admin-badge"><i class="fas fa-shield-halved"></i> Quản
                     trị</a>
                 <span class="username-tag">{{ session['username'] }}</span>
@@ -1196,6 +1214,59 @@
                 </div>
                 <div class="loading-msg" id="ai-loading"><i class="fas fa-spinner fa-spin"></i> AI đang phân tích...
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FEEDBACK MODAL -->
+    <div class="modal-overlay" id="feedbackModal">
+        <div class="modal" style="max-width:500px;">
+            <div class="modal-header" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:20px 20px 0 0;">
+                <i class="fas fa-star" style="color:#7c3aed;font-size:1.1rem;"></i>
+                <span style="color:#4c1d95;font-weight:700;">Phản hồi Trải nghiệm</span>
+            </div>
+            <div class="modal-body" style="padding:28px 28px 16px;">
+                <p style="color:var(--muted);font-size:.88rem;margin-bottom:20px;line-height:1.6;">
+                    Đánh giá của bạn giúp chúng tôi <strong>cải thiện mô hình AI</strong> tốt hơn mỗi ngày! 🚀
+                </p>
+
+                <!-- STAR RATING -->
+                <div style="margin-bottom:20px;">
+                    <div style="font-size:.85rem;font-weight:600;color:#334155;margin-bottom:10px;">Mức độ hài lòng <span style="color:#ef4444;">*</span></div>
+                    <div id="starRating" style="display:flex;gap:6px;">
+                        <button type="button" class="fb-star" data-star="1" onclick="setStar(1)" title="1 sao - Rất tệ"><i class="fas fa-star"></i></button>
+                        <button type="button" class="fb-star" data-star="2" onclick="setStar(2)" title="2 sao - Tệ"><i class="fas fa-star"></i></button>
+                        <button type="button" class="fb-star" data-star="3" onclick="setStar(3)" title="3 sao - Bình thường"><i class="fas fa-star"></i></button>
+                        <button type="button" class="fb-star" data-star="4" onclick="setStar(4)" title="4 sao - Tốt"><i class="fas fa-star"></i></button>
+                        <button type="button" class="fb-star" data-star="5" onclick="setStar(5)" title="5 sao - Xuất sắc"><i class="fas fa-star"></i></button>
+                    </div>
+                    <div id="starLabel" style="font-size:.82rem;color:#7c3aed;font-weight:600;margin-top:8px;height:18px;"></div>
+                </div>
+
+                <!-- CATEGORY -->
+                <div style="margin-bottom:16px;">
+                    <div style="font-size:.85rem;font-weight:600;color:#334155;margin-bottom:8px;">Danh mục phản hồi</div>
+                    <select id="feedbackCategory" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:inherit;font-size:.88rem;color:var(--text);background:#fff;outline:none;transition:.2s;" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor=''">
+                        <option value="Chất lượng phân tích">🧠 Chất lượng phân tích AI</option>
+                        <option value="Tốc độ">⚡ Tốc độ phản hồi</option>
+                        <option value="Giao diện">🎨 Giao diện người dùng</option>
+                        <option value="Báo cáo">📄 Chất lượng báo cáo</option>
+                        <option value="Chức năng">🔧 Chức năng / Tính năng</option>
+                        <option value="Chung">💬 Chung</option>
+                    </select>
+                </div>
+
+                <!-- COMMENT -->
+                <div style="margin-bottom:8px;">
+                    <div style="font-size:.85rem;font-weight:600;color:#334155;margin-bottom:8px;">Nhận xét chi tiết <span style="color:var(--muted);font-weight:400;">(tuỳ chọn)</span></div>
+                    <textarea id="feedbackComment" rows="3" placeholder="Mô tả trải nghiệm của bạn, gợi ý cải thiện AI hoặc báo cáo lỗi..." style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:inherit;font-size:.88rem;color:var(--text);background:#fff;resize:vertical;outline:none;transition:.2s;" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor=''"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer" style="background:#f5f3ff;border-radius:0 0 20px 20px;">
+                <button class="btn btn-cancel" onclick="closeFeedbackModal()">Hủy</button>
+                <button class="btn" id="btnSubmitFeedback" onclick="submitFeedback()" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;box-shadow:0 4px 12px rgba(124,58,237,.3);">
+                    <i class="fas fa-paper-plane"></i> Gửi phản hồi
+                </button>
             </div>
         </div>
     </div>
@@ -1504,6 +1575,76 @@
 
         if (questionInput) questionInput.addEventListener('keypress', e => { if (e.key === 'Enter') askAI(); });
         document.addEventListener('DOMContentLoaded', loadSidebarHistory);
+
+        // ── FEEDBACK FUNCTIONS ──────────────────────────────────────────────
+        let selectedStar = 0;
+        const starLabels = ['', 'Rất tệ 😞', 'Tệ 😕', 'Bình thường 😐', 'Tốt 😊', 'Xuất sắc 🤩'];
+
+        function setStar(n) {
+            selectedStar = n;
+            document.querySelectorAll('.fb-star').forEach((btn, i) => {
+                btn.classList.toggle('active', i < n);
+                btn.style.color = i < n ? '#f59e0b' : '#e2e8f0';
+            });
+            document.getElementById('starLabel').textContent = starLabels[n] || '';
+        }
+
+        function openFeedbackModal() {
+            selectedStar = 0;
+            document.querySelectorAll('.fb-star').forEach(btn => {
+                btn.classList.remove('active');
+                btn.style.color = '#e2e8f0';
+            });
+            document.getElementById('starLabel').textContent = '';
+            document.getElementById('feedbackComment').value = '';
+            document.getElementById('feedbackCategory').value = 'Chất lượng phân tích';
+            document.getElementById('feedbackModal').classList.add('active');
+        }
+
+        function closeFeedbackModal() {
+            document.getElementById('feedbackModal').classList.remove('active');
+        }
+
+        async function submitFeedback() {
+            if (!selectedStar) {
+                document.getElementById('starLabel').textContent = '⚠️ Vui lòng chọn số sao!';
+                document.getElementById('starLabel').style.color = '#ef4444';
+                return;
+            }
+            const btn = document.getElementById('btnSubmitFeedback');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang gửi...';
+
+            try {
+                const res = await fetch('/ai/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        rating: selectedStar,
+                        comment: document.getElementById('feedbackComment').value.trim(),
+                        category: document.getElementById('feedbackCategory').value,
+                        session_id: currentSessionId || null
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeFeedbackModal();
+                    // Toast success
+                    const toast = document.createElement('div');
+                    toast.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
+                    toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:linear-gradient(135deg,#059669,#047857);color:#fff;padding:14px 22px;border-radius:14px;font-weight:600;font-size:.9rem;z-index:9999;box-shadow:0 8px 24px rgba(5,150,105,.3);display:flex;align-items:center;gap:10px;animation:slideUp .3s ease';
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 4000);
+                } else {
+                    alert('Lỗi: ' + data.error);
+                }
+            } catch (e) {
+                alert('Lỗi kết nối server!');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Gửi phản hồi';
+            }
+        }
     </script>
 </body>
 

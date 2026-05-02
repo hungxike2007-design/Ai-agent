@@ -1063,3 +1063,32 @@ def view_shared(token):
 
     except Exception as e:
         return f"Lỗi hệ thống khi tải báo cáo: {str(e)}", 500
+
+# --- API GỬI PHẢN HỒI / ĐÁNH GIÁ ---
+@ai_bp.route('/feedback', methods=['POST'])
+def submit_feedback():
+    """Người dùng gửi phản hồi trải nghiệm về admin."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Vui lòng đăng nhập!"}), 401
+
+    data = request.json
+    rating = data.get('rating')
+    comment = data.get('comment', '').strip()
+    category = data.get('category', 'Chung')
+    session_id = data.get('session_id') or session.get('current_session_id')
+
+    if not rating or not (1 <= int(rating) <= 5):
+        return jsonify({"error": "Điểm đánh giá không hợp lệ (1-5 sao)!"}), 400
+
+    from database import save_feedback
+    ok = save_feedback(
+        user_id=user_id,
+        rating=int(rating),
+        comment=comment,
+        category=category,
+        session_id=session_id or None
+    )
+    if ok:
+        return jsonify({"success": True, "message": "Cảm ơn bạn đã gửi phản hồi! 🎉"})
+    return jsonify({"error": "Lưu phản hồi thất bại, vui lòng thử lại!"}), 500
