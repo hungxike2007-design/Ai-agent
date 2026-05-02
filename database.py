@@ -7,9 +7,9 @@ CONN_STR = r"Driver={SQL Server};Server=LAPTOP-FOEQL0GL;Database=QuanLyAIAgent;T
 # Thêm tất cả API Keys vào danh sách bên dưới.
 # Hệ thống sẽ tự động xoay vòng sang key tiếp theo khi key hiện tại hết quota.
 GEMINI_API_KEYS = [
-    "",  # Key 1
-    "",  # Key 2
-    "",  # Key 3
+    "[ENCRYPTION_KEY]",  # Key 1
+    "[ENCRYPTION_KEY]",  # Key 2
+    "[ENCRYPTION_KEY]",  # Key 3
 ]
 GEMINI_MODEL_NAME = "gemini-flash-latest"  # quota miễn phí cao hơn gemini-2.0-flash
 
