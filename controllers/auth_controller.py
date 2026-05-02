@@ -37,9 +37,11 @@ def register():
     username = email.split('@')[0]
     try:
         db.register_user(username, password, fullname, email)
-        return "<h1>Đăng ký thành công!</h1><a href='/'>Quay lại</a>"
+        flash("Đăng ký thành công! Vui lòng đăng nhập.", "success")
+        return redirect(url_for('auth.index'))
     except Exception as e:
-        return f"<h1>Lỗi đăng ký:</h1><p>{e}</p>"
+        flash(f"Lỗi đăng ký: {str(e)}", "danger")
+        return redirect(url_for('auth.index'))
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
@@ -51,7 +53,9 @@ def login():
         session['username'] = user[3] # Cột Fullname trong SQL
         session['role'] = user.Role if hasattr(user, 'Role') else 'User' # Đảm bảo có Role trong session
         return redirect(url_for('ai.dashboard'))
-    return "<h1>Sai tài khoản!</h1><a href='/'>Thử lại</a>"
+    
+    flash("Sai tài khoản hoặc mật khẩu!", "danger")
+    return redirect(url_for('auth.index'))
 
 # --- LOGIC ĐĂNG NHẬP GOOGLE & KẾT NỐI SQL ---
 

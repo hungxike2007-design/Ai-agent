@@ -5,13 +5,126 @@ CONN_STR = r"Driver={SQL Server};Server=LAPTOP-355TS2QT\HUY_DEV;Database=QuanLyA
 
 # --- CẤU HÌNH GEMINI TẬP TRUNG ---
 # Bạn chỉ cần thay đổi Key ở đây, tất cả các file khác sẽ tự cập nhật theo
-GEMINI_API_KEY = "AIzaSyBt-N6U34E9mgdhRH9qA0N-Fb-ppPLUddk"
+GEMINI_API_KEY = "AIzaSyACFwEfJ2Bko4WXfMqmg51zp7PrUgz7LtE"
 GEMINI_MODEL_NAME = "gemini-flash-latest" 
+# --- CẤU HÌNH GEMINI TẬP TRUNG ---
+# Thêm tất cả API Keys vào danh sách bên dưới.
+# Hệ thống sẽ tự động xoay vòng sang key tiếp theo khi key hiện tại hết quota.
+GEMINI_API_KEYS = [
+    "",  # Key 1
+    "",               # Key 2
+    "",               # Key 3
+]
+GEMINI_MODEL_NAME = "gemini-flash-latest"  # quota miễn phí cao hơn gemini-2.0-flash
+
+# Danh sách lỗi cho biết key đã hết hạn mức hoặc bị giới hạn tốc độ
+_QUOTA_ERROR_KEYWORDS = [
+    'quota', 'resource exhausted', '429',
+    'rate limit', 'rateLimitExceeded', 'too many requests',
+]
+
+
+class GeminiKeyRotator:
+    """
+    Quản lý danh sách Gemini API keys và tự động xoay vòng (round-robin)
+    khi key hiện tại gặp lỗi quota / rate-limit.
+
+    Cách dùng:
+        rotator = GeminiKeyRotator()          # dùng singleton toàn cục
+        response = rotator.generate(prompt)   # tự xoay key nếu cần
+    """
+
+    def __init__(self, keys: list = None, model_name: str = None):
+        import google.generativeai as genai
+        self._genai = genai
+        self._keys = [k for k in (keys or GEMINI_API_KEYS) if k and 'REPLACE_WITH' not in k]
+        if not self._keys:
+            raise ValueError(
+                "Chưa cấu hình Gemini API Key! "
+                "Hãy thêm ít nhất 1 key hợp lệ vào danh sách GEMINI_API_KEYS trong database.py"
+            )
+        self._model_name = model_name or GEMINI_MODEL_NAME
+        self._index = 0          # index key đang dùng
+        self._model = None
+        self._apply_current_key()
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    def _apply_current_key(self):
+        """Cấu hình genai với key tại vị trí _index hiện tại."""
+        key = self._keys[self._index]
+        self._genai.configure(api_key=key)
+        self._model = self._genai.GenerativeModel(self._model_name)
+        print(f"[KeyRotator] Đang dùng Key #{self._index + 1} "
+              f"({'*' * 8}{key[-6:]})")
+
+    def _rotate(self):
+        """Chuyển sang key kế tiếp theo vòng tròn."""
+        self._index = (self._index + 1) % len(self._keys)
+        self._apply_current_key()
+
+    @staticmethod
+    def _is_quota_error(err: Exception) -> bool:
+        err_str = str(err).lower()
+        return any(kw in err_str for kw in _QUOTA_ERROR_KEYWORDS)
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+    def get_model(self):
+        """Trả về GenerativeModel đang dùng."""
+        return self._model
+
+    def generate(self, prompt: str, generation_config=None):
+        """
+        Gọi model.generate_content(). Nếu gặp lỗi quota thì tự xoay sang key
+        tiếp theo và thử lại (tối đa quay hết 1 vòng tất cả keys).
+        """
+        start_index = self._index
+        attempts = 0
+        last_err = None
+
+        while attempts < len(self._keys):
+            try:
+                if generation_config:
+                    return self._model.generate_content(prompt, generation_config=generation_config)
+                return self._model.generate_content(prompt)
+            except Exception as e:
+                if self._is_quota_error(e):
+                    print(f"[KeyRotator] Key #{self._index + 1} hết quota → thử key tiếp theo…")
+                    last_err = e
+                    self._rotate()
+                    attempts += 1
+                    # Nếu đã quay đủ 1 vòng về đúng điểm xuất phát, dừng
+                    if self._index == start_index:
+                        break
+                else:
+                    raise  # lỗi khác (invalid key, network, ...) → ném ra ngay
+
+        raise Exception(
+            f"Tất cả {len(self._keys)} API key đều đã hết quota.\n"
+            "Hãy thêm key mới hoặc đợi đến 07:00 sáng hôm sau để quota reset.\n"
+            f"Lỗi gốc: {last_err}"
+        )
+
+
+# Singleton toàn cục — tất cả controller chỉ cần import biến này
+_key_rotator: GeminiKeyRotator | None = None
+
+
+def get_key_rotator() -> GeminiKeyRotator:
+    """Trả về singleton GeminiKeyRotator (lazy-init)."""
+    global _key_rotator
+    if _key_rotator is None:
+        _key_rotator = GeminiKeyRotator()
+    return _key_rotator
+
+
 
 def configure_ai():
-    import google.generativeai as genai
-    genai.configure(api_key=GEMINI_API_KEY)
-    return genai.GenerativeModel(GEMINI_MODEL_NAME)
+    """Backward-compatible: trả về model hiện tại của rotator."""
+    return get_key_rotator().get_model()
 
 def get_connection():
     """Hàm tạo kết nối đến Database"""

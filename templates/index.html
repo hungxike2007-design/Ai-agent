@@ -6,6 +6,7 @@
     <title>AI Agent — Đăng nhập hệ thống</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -311,5 +312,25 @@
             document.getElementById('register-form').classList.toggle('hidden', isLogin);
         }
     </script>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    {% for category, message in messages %}
+                        Swal.fire({
+                            icon: '{{ "success" if category == "success" else "error" if category == "danger" else "info" }}',
+                            title: '{{ "Thành công!" if category == "success" else "Lỗi!" if category == "danger" else "Thông báo" }}',
+                            text: '{{ message }}',
+                            confirmButtonColor: '#059669',
+                            background: '#ffffff',
+                            color: '#0f172a',
+                            borderRadius: '16px'
+                        });
+                    {% endfor %}
+                });
+            </script>
+        {% endif %}
+    {% endwith %}
 </body>
 </html>
