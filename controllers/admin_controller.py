@@ -22,14 +22,14 @@ def dashboard():
     cursor.execute("SELECT UserID, Username, FullName, Email, Role FROM Users")
     users = cursor.fetchall()
 
-    # 2. Danh s\xc3\xa1ch file
+    # 2. Danh sách xuất file
     cursor.execute("""
         SELECT f.FileID, f.FileName, u.FullName, f.UploadDate 
         FROM ExcelFiles f JOIN Users u ON f.UserID = u.UserID
     """)
     files = cursor.fetchall()
 
-    # 3. Danh s\xc3\xa1ch phi\xc3\xaan chat
+    # 3. Danh sách phiên chat
     cursor.execute("""
         SELECT s.SessionID, s.SessionTitle, u.FullName, f.FileName, s.StartTime
         FROM ChatSessions s
@@ -63,11 +63,10 @@ def update_role():
         new_role = data.get('new_role')
 
         if not user_id or not new_role or new_role not in ['Admin', 'User']:
-            return jsonify({"status": "error", "message": "D\u1eef li\u1ec7u kh\xf4ng h\u1ee3p l\u1ec7"}), 400
+            return jsonify({"status": "error", "message": "Dữ liệu không hợp lệ"}), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        # Ch\xc3\xba \xc3\xbd: C\xe1\xbb\u2122t l\xc3\xa0 [Role], b\xe1\xba\xa3ng l\xc3\xa0 [Users]
         cursor.execute("UPDATE Users SET Role = ? WHERE UserID = ?", (new_role, user_id))
         conn.commit()
         conn.close()
@@ -76,7 +75,6 @@ def update_role():
     except Exception as e:
         print(f"L\xe1\xbb\u2014i update_role: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
-# --- CH\xe1\xbb\xa8C N\xc4\u201aNG M\xe1\xbb\u0161I: C\xe1\xba\xa4U H\xc3\u0152NH PROMPT H\xe1\xbb\u2020 TH\xe1\xbb\x90NG ---
 @admin_bp.route('/settings', methods=['GET', 'POST'])
 def settings():
     if session.get('role') != 'Admin': return redirect(url_for('auth.index'))
@@ -94,13 +92,12 @@ def settings():
         cursor.execute("UPDATE SystemConfigs SET ConfigValue = ? WHERE ConfigKey = 'Temperature'", (temperature,))
         cursor.execute("UPDATE SystemConfigs SET ConfigValue = ? WHERE ConfigKey = 'MaxTokens'", (max_tokens,))
         conn.commit()
-        flash("C\u1eadp nh\u1eadt c\u1ea5u h\xecnh th\xe0nh c\xf4ng!", "success")
+        flash("Cập nhật thành công!", "success")
 
     conn.close()
     configs = get_all_system_configs()
     return render_template('admin_settings.html', configs=configs)
 
-# --- CH\xe1\xbb\xa8C N\xc4\u201aNG X\xc3\u201cA (\xc4\x90\xc3\xa3 c\xc3\xb3 ON DELETE CASCADE n\xc3\xaan code r\xe1\xba\xa5t ng\xe1\xba\xafn g\xe1\xbb\x8dn) ---
 @admin_bp.route('/delete_session/<int:session_id>', methods=['DELETE'])
 def delete_session(session_id):
     if session.get('role') != 'Admin': return jsonify({"error": "Forbidden"}), 403
@@ -260,10 +257,10 @@ def bulk_delete_files():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# --- CH\u1ee8C N\u0102NG QU\u1ea2N L\xdd PH\u1ea2N H\u1ed2I ---
+# --- Trang quản lý phản hồi của người dùng ---
 @admin_bp.route('/feedbacks')
 def feedbacks():
-    """Trang qu\u1ea3n l\xfd ph\u1ea3n h\u1ed3i c\u1ee7a ng\u01b0\u1eddi d\xf9ng"""
+    """Trang quản lý phản hồi của người dùng"""
     if session.get('role') != 'Admin':
         return redirect(url_for('auth.index'))
     from database import get_all_feedbacks, get_feedback_stats
@@ -277,7 +274,7 @@ def feedbacks():
 
 @admin_bp.route('/feedback/update/<int:feedback_id>', methods=['POST'])
 def update_feedback(feedback_id):
-    """Admin c\u1eadp nh\u1eadt tr\u1ea1ng th\xe1i ph\u1ea3n h\u1ed3i"""
+    """Admin cập nhật trạng thái phản hồi"""
     if session.get('role') != 'Admin':
         return jsonify({"error": "Forbidden"}), 403
     data = request.json
@@ -287,22 +284,22 @@ def update_feedback(feedback_id):
     ok = update_feedback_status(feedback_id, status, admin_note)
     if ok:
         return jsonify({"status": "success"})
-    return jsonify({"status": "error", "message": "C\u1eadp nh\u1eadt th\u1ea5t b\u1ea1i"}), 500
+    return jsonify({"status": "error", "message": "Cập nhật thất bại"}), 500
 
 @admin_bp.route('/feedback/delete/<int:feedback_id>', methods=['DELETE'])
 def delete_feedback_route(feedback_id):
-    """Admin x\xf3a m\u1ed9t ph\u1ea3n h\u1ed3i"""
+    """Admin xóa một phản hồi"""
     if session.get('role') != 'Admin':
         return jsonify({"error": "Forbidden"}), 403
     from database import delete_feedback
     ok = delete_feedback(feedback_id)
     if ok:
         return jsonify({"status": "success"})
-    return jsonify({"status": "error", "message": "X\xf3a th\u1ea5t b\u1ea1i"}), 500
+    return jsonify({"status": "error", "message": "Xuất thất bại"}), 500
 
 @admin_bp.route('/feedback/stats_api')
 def feedback_stats_api():
-    """API tr\u1ea3 v\u1ec1 th\u1ed1ng k\xea ph\u1ea3n h\u1ed3i d\u1ea1ng JSON"""
+    """API trả về thống kê phản hồi dạng JSON"""
     if session.get('role') != 'Admin':
         return jsonify({"error": "Forbidden"}), 403
     from database import get_feedback_stats
