@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Phản hồi — AI Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/impeccable-theme.css') }}?v=2.1">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        :root{
+            --sidebar-w:260px;--tr:180ms cubic-bezier(.22,1,.36,1);
+            --as:oklch(100% .004 168);--am:oklch(.965 .022 168);
+            --aa:var(--brand);--aas:var(--brand-subtle);
+            --danger:oklch(.52 .2 25);--danger-s:oklch(.97 .03 25);
+            --amber:oklch(.62 .16 75);--amber-s:oklch(.97 .05 85);
+            --purple:oklch(.52 .18 285);--purple-s:oklch(.96 .04 285);
+            --info:oklch(.52 .14 250);--info-s:oklch(.96 .04 250);
+        }
+        body.admin-shell{font-size:.9375rem;line-height:1.5;background:var(--bg);color:var(--text);min-height:100vh;display:grid;grid-template-columns:var(--sidebar-w) minmax(0,1fr)}
+        /* Sidebar */
+        .app-sidebar{background:var(--sidebar);border-right:1px solid var(--border-dark);display:flex;flex-direction:column;min-height:100vh;position:sticky;top:0;align-self:start;z-index:40}
+        .sb-brand{padding:1.25rem;display:flex;align-items:center;gap:.75rem;border-bottom:1px solid var(--border-dark)}
+        .sb-mark{width:2.25rem;height:2.25rem;border-radius:8px;background:var(--aa);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1rem;box-shadow:var(--shadow-sm)}
+        .sb-brand-text strong{font-size:.8125rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);display:block}
+        .sb-brand-text span{font-size:1rem;font-weight:600;color:var(--text)}
+        .sb-nav{flex:1;padding:.75rem .625rem;display:flex;flex-direction:column;gap:.125rem}
+        .nav-item{display:flex;align-items:center;gap:.625rem;padding:.625rem .75rem;border-radius:8px;color:var(--muted);font-size:.875rem;font-weight:500;text-decoration:none;transition:background var(--tr),color var(--tr)}
+        .nav-item:hover{background:var(--am);color:var(--text)}
+        .nav-item.active{background:var(--aas);color:var(--aa);font-weight:600}
+        .nav-item i{width:1.125rem;text-align:center}
+        .sb-footer{padding:1rem 1.25rem;border-top:1px solid var(--border-dark);background:var(--am)}
+        .back-btn{display:flex;align-items:center;justify-content:center;gap:.5rem;padding:.625rem .875rem;border-radius:8px;background:var(--as);border:1px solid var(--border-dark);color:var(--text);font-size:.8125rem;font-weight:600;text-decoration:none;transition:background var(--tr)}
+        .back-btn:hover{background:var(--bg)}
+        /* Main */
+        .app-main{min-width:0;display:flex;flex-direction:column}
+        .main-inner{flex:1;padding:clamp(1.25rem,3vw,2rem)}
+        .main-header{margin-bottom:1.75rem;padding-bottom:1.125rem;border-bottom:1px solid var(--border-dark)}
+        .main-header h1{font-size:1.5rem;font-weight:700;letter-spacing:-.02em;color:var(--text);display:flex;align-items:center;gap:.625rem}
+        .main-header h1 i{color:#f59e0b}
+        .main-header p{color:var(--muted);font-size:.875rem;margin-top:.25rem}
+        /* KPI strip */
+        .kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
+        .kpi-card{background:var(--as);border:1px solid var(--border-dark);border-radius:16px;padding:1.25rem 1.25rem 1rem;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:1rem;animation:slideUp .4s cubic-bezier(.16,1,.3,1) both}
+        @keyframes slideUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+        .kpi-card:nth-child(1){animation-delay:0s}
+        .kpi-card:nth-child(2){animation-delay:.05s}
+        .kpi-card:nth-child(3){animation-delay:.10s}
+        .kpi-card:nth-child(4){animation-delay:.15s}
+        .kpi-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+        .ki-purple{background:var(--purple-s);color:var(--purple)}
+        .ki-amber{background:var(--amber-s);color:var(--amber)}
+        .ki-danger{background:var(--danger-s);color:var(--danger)}
+        .ki-brand{background:var(--aas);color:var(--aa)}
+        .kpi-val{font-size:1.75rem;font-weight:800;line-height:1;letter-spacing:-.02em}
+        .kpi-lbl{font-size:.78rem;color:var(--muted);margin-top:.375rem;font-weight:600}
+        /* Charts */
+        .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem}
+        .chart-panel{background:var(--as);border:1px solid var(--border-dark);border-radius:16px;padding:1.25rem;box-shadow:var(--shadow-sm)}
+        .chart-panel h3{font-size:.9375rem;font-weight:700;color:var(--text);margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+        .chart-panel h3 i{color:var(--aa)}
+        /* Rating bars */
+        .rating-bars{display:flex;flex-direction:column;gap:.625rem}
+        .rating-row{display:flex;align-items:center;gap:.75rem;font-size:.82rem}
+        .rating-row .lbl{width:40px;color:var(--muted);font-weight:600}
+        .bar-track{flex:1;height:8px;background:oklch(90% .01 168);border-radius:4px;overflow:hidden}
+        .bar-fill{height:100%;background:linear-gradient(90deg,#f59e0b,#d97706);border-radius:4px;transition:width .7s cubic-bezier(.16,1,.3,1)}
+        .bar-cnt{width:28px;text-align:right;font-weight:700;color:var(--text)}
+        /* Filter bar */
+        .filter-bar{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center}
+        .filter-lbl{font-size:.82rem;font-weight:600;color:var(--muted)}
+        .filter-btn{padding:.4375rem .875rem;border-radius:20px;border:1px solid var(--border-dark);background:var(--as);color:var(--muted);font-size:.8rem;font-weight:600;cursor:pointer;text-decoration:none;transition:.2s}
+        .filter-btn:hover,.filter-btn.act{background:var(--aa);color:#fff;border-color:var(--aa)}
+        .filter-btn.act-danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+        /* Table card */
+        .table-card{background:var(--as);border:1px solid var(--border-dark);border-radius:16px;overflow:hidden;box-shadow:var(--shadow-sm)}
+        .table-card-hdr{padding:.875rem 1.25rem;border-bottom:1px solid var(--border-dark);font-weight:600;font-size:.875rem;display:flex;align-items:center;justify-content:space-between;background:var(--am);color:var(--text)}
+        .table-card-hdr i{color:var(--aa);margin-right:.5rem}
+        table{width:100%;border-collapse:collapse;font-size:.8125rem}
+        th{padding:.75rem 1rem;text-align:left;font-weight:600;color:var(--muted);background:var(--bg);border-bottom:1px solid var(--border-dark);white-space:nowrap}
+        td{padding:.75rem 1rem;border-bottom:1px solid var(--border-dark);color:var(--text)}
+        tr:last-child td{border-bottom:none}
+        tbody tr:hover td{background:oklch(.97 .02 168)}
+        .comment-cell{max-width:260px}
+        .comment-text{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.5}
+        /* Badges */
+        .badge{display:inline-flex;align-items:center;gap:4px;padding:.25rem .625rem;border-radius:6px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+        .b-new{background:var(--danger-s);color:var(--danger);border:1px solid oklch(.9 .06 25)}
+        .b-seen{background:var(--amber-s);color:var(--amber);border:1px solid oklch(.9 .08 75)}
+        .b-done{background:var(--aas);color:var(--aa);border:1px solid oklch(.88 .06 168)}
+        .b-cat{background:var(--purple-s);color:var(--purple);border:1px solid oklch(.88 .06 285)}
+        /* Star */
+        .star-row{color:#f59e0b;font-size:.88rem;letter-spacing:2px}
+        /* Buttons */
+        .btn-sm{padding:.375rem .75rem;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid;transition:.2s}
+        .btn-view{background:var(--info-s);color:var(--info);border-color:oklch(.88 .05 250)}
+        .btn-del{background:var(--danger-s);color:var(--danger);border-color:oklch(.88 .06 25)}
+        .btn-del:hover{background:var(--danger);color:#fff}
+        /* Empty */
+        .empty-state{padding:4rem 1rem;text-align:center;color:var(--muted)}
+        .empty-state i{font-size:2.5rem;opacity:.4;margin-bottom:1rem;display:block}
+        /* Modal */
+        .modal-overlay{display:none;position:fixed;inset:0;background:oklch(.22 .04 168 / .55);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(6px)}
+        .modal-overlay.open{display:flex}
+        .modal-box{background:var(--as);border:1px solid var(--border-dark);border-radius:20px;width:90%;max-width:520px;box-shadow:var(--shadow-lg);animation:slideUp .3s cubic-bezier(.16,1,.3,1)}
+        .modal-header{padding:1rem 1.25rem;border-bottom:1px solid var(--border-dark);display:flex;align-items:center;justify-content:space-between;background:var(--am);border-radius:20px 20px 0 0}
+        .modal-header h3{font-size:1rem;font-weight:700;color:var(--text)}
+        .modal-close{background:var(--as);border:1px solid var(--border-dark);color:var(--muted);cursor:pointer;padding:.375rem .5rem;border-radius:8px;transition:background var(--tr)}
+        .modal-close:hover{background:var(--bg)}
+        .modal-body{padding:1.25rem;display:flex;flex-direction:column;gap:1rem}
+        .modal-footer{padding:.875rem 1.25rem;border-top:1px solid var(--border-dark);display:flex;justify-content:flex-end;gap:.75rem;background:var(--am);border-radius:0 0 20px 20px}
+        .form-group{display:flex;flex-direction:column;gap:.375rem}
+        .form-group label{font-size:.8125rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+        .form-group select,.form-group textarea{padding:.75rem 1rem;border:1px solid var(--border-dark);border-radius:10px;font-family:inherit;font-size:.875rem;color:var(--text);background:oklch(100% .003 168 / .75);resize:vertical;transition:.2s}
+        .form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--aa);box-shadow:0 0 0 3px var(--brand-glow)}
+        .btn-save{padding:.75rem 1.5rem;background:linear-gradient(135deg,var(--aa),var(--brand-dark));color:#fff;border:none;border-radius:10px;font-weight:700;font-size:.875rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px var(--brand-glow);transition:.2s}
+        .btn-save:hover{transform:translateY(-1px);filter:brightness(1.05)}
+        .btn-cancel{padding:.75rem 1.25rem;background:var(--as);color:var(--text);border:1px solid var(--border-dark);border-radius:10px;font-weight:600;font-size:.875rem;cursor:pointer;font-family:inherit}
+    </style>
+</head>
+<body class="admin-shell">
+    <aside class="app-sidebar" aria-label="Điều hướng quản trị">
+        <div class="sb-brand">
+            <div class="sb-mark"><i class="fas fa-brain"></i></div>
+            <div class="sb-brand-text">
+                <strong>Bảng quản trị</strong>
+                <span>AI Agent</span>
+            </div>
+        </div>
+        <nav class="sb-nav">
+            <a href="/admin/dashboard" class="nav-item"><i class="fas fa-users"></i> Người dùng</a>
+            <a href="/admin/dashboard" class="nav-item"><i class="fas fa-chart-line"></i> Phân tích AI</a>
+            <a href="/admin/dashboard" class="nav-item"><i class="fas fa-database"></i> Dữ liệu</a>
+            <a href="/admin/dashboard" class="nav-item"><i class="fas fa-comments"></i> Phiên phân tích</a>
+            <a href="/admin/feedbacks" class="nav-item active">
+                <i class="fas fa-star"></i> Phản hồi
+                {% if stats.new_count > 0 %}
+                <span style="margin-left:auto;background:var(--danger);color:#fff;border-radius:10px;padding:2px 7px;font-size:.72rem;">{{ stats.new_count }}</span>
+                {% endif %}
+            </a>
+            <a href="/admin/settings" class="nav-item"><i class="fas fa-sliders"></i> Cấu hình AI</a>
+        </nav>
+        <div class="sb-footer">
+            <a href="{{ url_for('ai.dashboard') }}" class="back-btn"><i class="fas fa-arrow-left"></i> Về Dashboard</a>
+        </div>
+    </aside>
+
+    <main class="app-main">
+        <div class="main-inner">
+            <header class="main-header">
+                <h1><i class="fas fa-star"></i> Quản lý Phản hồi Người dùng</h1>
+                <p>Xem và xử lý các đánh giá trải nghiệm để cải thiện mô hình AI</p>
+            </header>
+
+            <!-- KPI Strip -->
+            <div class="kpi-strip">
+                <div class="kpi-card">
+                    <div class="kpi-icon ki-purple"><i class="fas fa-comment-dots"></i></div>
+                    <div><div class="kpi-val">{{ stats.total }}</div><div class="kpi-lbl">Tổng phản hồi</div></div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon ki-amber"><i class="fas fa-star"></i></div>
+                    <div><div class="kpi-val">{{ stats.avg_rating }}<span style="font-size:1rem;font-weight:500;color:var(--muted)">/5</span></div><div class="kpi-lbl">Điểm trung bình</div></div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon ki-danger"><i class="fas fa-bell"></i></div>
+                    <div><div class="kpi-val">{{ stats.new_count }}</div><div class="kpi-lbl">Chưa xem</div></div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon ki-brand"><i class="fas fa-check-circle"></i></div>
+                    <div><div class="kpi-val">{{ stats.total - stats.new_count }}</div><div class="kpi-lbl">Đã xử lý</div></div>
+                </div>
+            </div>
+
+            {% if stats.total > 0 %}
+            <div class="charts-grid">
+                <div class="chart-panel">
+                    <h3><i class="fas fa-chart-bar"></i> Phân bố đánh giá sao</h3>
+                    <div class="rating-bars">
+                        {% for star in [5,4,3,2,1] %}
+                        {% set count = stats.by_rating.get(star, 0) %}
+                        {% set pct = (count / stats.total * 100) if stats.total > 0 else 0 %}
+                        <div class="rating-row">
+                            <span class="lbl">{{ star }}⭐</span>
+                            <div class="bar-track"><div class="bar-fill" style="width:{{ pct|round(1) }}%"></div></div>
+                            <span class="bar-cnt">{{ count }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="chart-panel">
+                    <h3><i class="fas fa-tag"></i> Theo danh mục</h3>
+                    <canvas id="categoryChart" height="200"></canvas>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Filter -->
+            <div class="filter-bar">
+                <span class="filter-lbl">Lọc:</span>
+                <a href="/admin/feedbacks" class="filter-btn {% if not current_filter %}act{% endif %}">Tất cả</a>
+                <a href="/admin/feedbacks?status=Moi" class="filter-btn {% if current_filter=='Moi' %}act act-danger{% endif %}">
+                    <i class="fas fa-circle" style="font-size:.45rem"></i> Mới
+                </a>
+                <a href="/admin/feedbacks?status=DaXem" class="filter-btn {% if current_filter=='DaXem' %}act{% endif %}">Đã xem</a>
+                <a href="/admin/feedbacks?status=DaXuLy" class="filter-btn {% if current_filter=='DaXuLy' %}act{% endif %}">Đã xử lý</a>
+            </div>
+
+            <!-- Table -->
+            <div class="table-card">
+                <div class="table-card-hdr">
+                    <div><i class="fas fa-comment-dots"></i>Danh sách phản hồi</div>
+                    <span style="font-size:.82rem;color:var(--muted)">{{ feedbacks|length }} phản hồi</span>
+                </div>
+                {% if feedbacks %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Người dùng</th>
+                            <th>Đánh giá</th>
+                            <th>Danh mục</th>
+                            <th>Nhận xét</th>
+                            <th>Trạng thái</th>
+                            <th>Thời gian</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fb in feedbacks %}
+                        <tr id="row-{{ fb[0] }}">
+                            <td style="color:var(--muted)">#{{ fb[0] }}</td>
+                            <td>
+                                <div style="font-weight:700;font-size:.87rem">{{ fb[1] }}</div>
+                                <div style="font-size:.75rem;color:var(--muted)">{{ fb[2] }}</div>
+                            </td>
+                            <td>
+                                <div class="star-row">
+                                    {% for i in range(5) %}
+                                    {% if i < fb[3] %}<i class="fas fa-star"></i>{% else %}<i class="far fa-star" style="color:var(--border-dark)"></i>{% endif %}
+                                    {% endfor %}
+                                </div>
+                                <div style="font-size:.72rem;color:var(--muted);margin-top:2px">{{ fb[3] }}/5 sao</div>
+                            </td>
+                            <td><span class="badge b-cat">{{ fb[4] }}</span></td>
+                            <td class="comment-cell">
+                                <div class="comment-text">{{ fb[5] or '(Không có nhận xét)' }}</div>
+                                {% if fb[7] %}
+                                <div style="margin-top:5px;font-size:.72rem;color:var(--aa)"><i class="fas fa-pen-to-square"></i> {{ fb[7] }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if fb[6] == 'Moi' %}<span class="badge b-new"><i class="fas fa-circle" style="font-size:.45rem"></i> Mới</span>
+                                {% elif fb[6] == 'DaXem' %}<span class="badge b-seen"><i class="fas fa-eye"></i> Đã xem</span>
+                                {% else %}<span class="badge b-done"><i class="fas fa-check"></i> Đã xử lý</span>{% endif %}
+                            </td>
+                            <td style="white-space:nowrap;font-size:.78rem;color:var(--muted)">{{ fb[8].strftime('%H:%M %d/%m/%Y') if fb[8] else 'N/A' }}</td>
+                            <td style="display:flex;gap:6px;flex-wrap:wrap">
+                                <button onclick="openUpdateModal({{ fb[0] }}, '{{ fb[6] }}', `{{ fb[7] or '' }}`)" class="btn-sm btn-view"><i class="fas fa-pen"></i> Xử lý</button>
+                                <button onclick="deleteFeedback({{ fb[0] }})" class="btn-sm btn-del"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-comment-slash"></i>
+                    <p>Chưa có phản hồi nào{% if current_filter %} với trạng thái này{% endif %}.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL -->
+    <div class="modal-overlay" id="updateModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3><i class="fas fa-pen-to-square" style="color:var(--aa);margin-right:8px"></i>Xử lý phản hồi</h3>
+                <button class="modal-close" onclick="closeModal()"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="currentFeedbackId">
+                <div class="form-group">
+                    <label>Cập nhật trạng thái</label>
+                    <select id="statusSelect">
+                        <option value="DaXem">👁️ Đã xem</option>
+                        <option value="DaXuLy">✅ Đã xử lý</option>
+                        <option value="Moi">🔴 Đánh dấu lại là Mới</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Ghi chú xử lý (tuỳ chọn)</label>
+                    <textarea id="adminNoteInput" rows="3" placeholder="Nhập ghi chú về cách xử lý / cải thiện mô hình AI..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal()">Hủy</button>
+                <button class="btn-save" onclick="saveUpdate()"><i class="fas fa-floppy-disk"></i> Lưu thay đổi</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        {% if stats.total > 0 and stats.by_category %}
+        const catCtx = document.getElementById('categoryChart').getContext('2d');
+        new Chart(catCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ stats.by_category.keys() | list | tojson }},
+                datasets: [{ data: {{ stats.by_category.values() | list | tojson }},
+                    backgroundColor: ['oklch(52% 0.14 155)','oklch(52% 0.14 250)','oklch(62% 0.16 75)','oklch(52% 0.2 25)','oklch(52% 0.18 285)','oklch(58% 0.17 168)'],
+                    borderWidth: 0, hoverOffset: 6 }]
+            },
+            options: { cutout: '65%', plugins: { legend: { position: 'right', labels: { font: { family: 'Plus Jakarta Sans', size: 12 }, boxWidth: 12 } } } }
+        });
+        {% endif %}
+
+        function openUpdateModal(id, status, note) {
+            document.getElementById('currentFeedbackId').value = id;
+            document.getElementById('statusSelect').value = status;
+            document.getElementById('adminNoteInput').value = note;
+            document.getElementById('updateModal').classList.add('open');
+        }
+        function closeModal() { document.getElementById('updateModal').classList.remove('open'); }
+        async function saveUpdate() {
+            const id = document.getElementById('currentFeedbackId').value;
+            const status = document.getElementById('statusSelect').value;
+            const note = document.getElementById('adminNoteInput').value.trim();
+            const res = await fetch(`/admin/feedback/update/${id}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status, admin_note: note }) });
+            const data = await res.json();
+            if (data.status === 'success') { closeModal(); location.reload(); }
+            else alert('Lỗi: ' + data.message);
+        }
+        async function deleteFeedback(id) {
+            if (!confirm('Xóa phản hồi này?')) return;
+            const res = await fetch(`/admin/feedback/delete/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.status === 'success') { const r = document.getElementById(`row-${id}`); if (r) r.remove(); }
+            else alert('Lỗi: ' + data.message);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-03T12:00:00.000Z",
+  "title": "Design System: AI Agent Analytics",
+  "extensions": {
+    "colorMeta": {
+      "brand-primary": {
+        "role": "primary",
+        "displayName": "Teal Emerald",
+        "canonical": "oklch(52% 0.17 168)",
+        "tonalRamp": [
+          "oklch(28% 0.08 168)",
+          "oklch(36% 0.12 168)",
+          "oklch(42% 0.16 168)",
+          "oklch(48% 0.165 168)",
+          "oklch(52% 0.17 168)",
+          "oklch(62% 0.14 168)",
+          "oklch(75% 0.10 168)",
+          "oklch(88% 0.04 168)",
+          "oklch(94% 0.06 168)"
+        ]
+      },
+      "surface-bg": {
+        "role": "neutral",
+        "displayName": "Mint Canvas",
+        "canonical": "oklch(97% 0.006 168)",
+        "tonalRamp": [
+          "oklch(88% 0.008 168)",
+          "oklch(91% 0.007 168)",
+          "oklch(94% 0.006 168)",
+          "oklch(97% 0.006 168)",
+          "oklch(99% 0.004 168)",
+          "oklch(100% 0.004 168)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Tiêu đề vùng trên login và hero ngắn."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Chat, bảng, form — cỡ cố định rem."
+      }
+    },
+    "shadows": [
+      {
+        "name": "ambient-sm",
+        "value": "0 1px 3px oklch(14% 0.008 168 / 0.06), 0 4px 12px oklch(14% 0.008 168 / 0.04)",
+        "purpose": "Card, sidebar nhẹ."
+      },
+      {
+        "name": "ambient-md",
+        "value": "0 4px 16px oklch(14% 0.008 168 / 0.08)",
+        "purpose": "Popover, panel nổi."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Mặc định từ impeccable-theme — ease-out expo."
+      },
+      {
+        "name": "ease-ui",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Admin dashboard transitions."
+      }
+    ],
+    "breakpoints": [
+      { "name": "md", "value": "960px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Hành động chính trên nền sáng.",
+      "html": "<button type=\"button\" class=\"ds-btn-primary\">Phân tích</button>",
+      "css": ".ds-btn-primary { font-family: system-ui, sans-serif; font-size: 0.9375rem; font-weight: 600; color: #ffffff; background: #0d9488; border: none; border-radius: 8px; padding: 10px 20px; cursor: pointer; transition: background 180ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-btn-primary:hover { background: #0f766e; } .ds-btn-primary:focus-visible { outline: 2px solid #0d9488; outline-offset: 2px; }"
+    },
+    {
+      "name": "Nav item active",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Mục sidebar đang chọn — tint nhạt, không stripe dày.",
+      "html": "<a href=\"#\" class=\"ds-nav-active\"><span class=\"ds-nav-ic\" aria-hidden=\"true\"></span>Dashboard</a>",
+      "css": ".ds-nav-active { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; font-size: 0.875rem; font-weight: 600; color: #0d9488; background: #f7faf9; text-decoration: none; } .ds-nav-active:hover { background: oklch(96% 0.02 168); }"
+    },
+    {
+      "name": "Card surface",
+      "kind": "card",
+      "refersTo": "card-surface",
+      "description": "Khối nội dung / biểu đồ trong dashboard.",
+      "html": "<section class=\"ds-card\"><h2 class=\"ds-card-title\">Tiêu đề</h2><div class=\"ds-card-body\">Nội dung</div></section>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06); } .ds-card-title { font-size: 1rem; font-weight: 600; margin: 0 0 12px; color: #0f172a; } .ds-card-body { font-size: 0.9375rem; color: #334155; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Trạm phân tích trong sạch",
+    "overview": "Hệ thống nhìn như công cụ phân tích chuyên nghiệp: neutrals có sắc teal–emerald, accent hiếm, typography Plus Jakarta Sans qua impeccable-theme.css; admin dùng cùng theme để sóng nhìn khớp đăng nhập và dashboard người dùng.",
+    "keyCharacteristics": [
+      "OKLCH brand + neutrals tinted",
+      "Accent hiếm cho CTA và selection",
+      "Motion ngắn, reduced-motion respected",
+      "Không hero-metric clone / gradient text / glass default"
+    ],
+    "rules": [
+      {
+        "name": "The One Accent Rule",
+        "body": "Brand chỉ cho hành động chính và điểm nhấn có chủ đích.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Data Rule",
+        "body": "Số dùng tabular-nums trong bảng và KPI.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-First Rule",
+        "body": "Elevation qua shadow có thứ bậc, không nổi hết mọi card.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do đồng bộ token với impeccable-theme.css trước khi thêm màu.",
+      "Do giữ semantic success/danger/info/warning cố định trên mọi màn."
+    ],
+    "donts": [
+      "Don't gradient text hoặc hero metric ba ô clone.",
+      "Don't glassmorphism làm nền toàn trang.",
+      "Don't thêm section ngoài sáu phần DESIGN.md Stitch."
+    ]
+  }
+}

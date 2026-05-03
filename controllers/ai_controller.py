@@ -143,10 +143,10 @@ def build_smart_summary(df: 'pd.DataFrame') -> str:
         nunique = df[col].nunique()
         parts.append(f"'{col}': {nunique} giá trị khạc nhau. Top 5: {top_str}")
 
-    # 6. 3 dòng đầu làm mẫu (thay vì toàn bộ)
+    # 6. Dữ liệu chi tiết (Gửi toàn bộ để AI có thể xuất hết)
     sample_buf = _io.StringIO()
-    df.head(3).fillna("").to_string(sample_buf, index=False)
-    parts.append(f"3 dòng đầu (mẫu):\n{sample_buf.getvalue()}")
+    df.head(1000).fillna("").to_csv(sample_buf, index=False)
+    parts.append(f"Dữ liệu chi tiết:\n{sample_buf.getvalue()}")
 
     return "\n\n".join(parts)
 
@@ -179,8 +179,6 @@ def upload_file():
 
         # Tạo bản tóm tắt thống kê (tiết kiệm 70-90% token so với df.to_string())
         smart_summary = build_smart_summary(df)
-        session['excel_data'] = smart_summary   # dùng cho câu hỏi tiếp theo
-        session['excel_full'] = df_display.head(50).to_string()  # giữ 50 dòng cho người dùng hỏi chi tiết
         
         # 2. LƯU FILE VÀO DATABASE (Bảng ExcelFiles)
         conn = get_connection()
@@ -214,8 +212,19 @@ def upload_file():
 
         # 4. GỌI AI TẠO BÁO CÁO — dùng smart_summary (tiết kiệm 70-90% token)
         configs = get_all_system_configs()
+        default_prompt = configs.get('DefaultPrompt', '').strip()
         base_prompt = get_report_prompt(smart_summary, style)
-        prompt = f"{configs.get('DefaultPrompt', '')}\n\n{base_prompt}" if configs.get('DefaultPrompt') else base_prompt
+        if default_prompt:
+            # DefaultPrompt từ admin THAY THẾ phần role description, đặt làm system instruction ưu tiên
+            # Tách phần dữ liệu khỏi base_prompt để ghép lại
+            data_marker = '\n\nDữ liệu cần phân tích:'
+            if data_marker in base_prompt:
+                data_part = base_prompt[base_prompt.index(data_marker):]
+                prompt = f"{default_prompt}\n\n[Quy tắc định dạng: Dùng Markdown (##, **, bảng |col|, -). Bắt đầu ngay nội dung, không viết lời mở đầu thừa.]{data_part}"
+            else:
+                prompt = f"{default_prompt}\n\n{base_prompt}"
+        else:
+            prompt = base_prompt
 
         generation_config = {
             "temperature": configs.get("Temperature", 0.5),
@@ -305,8 +314,33 @@ def upload_file():
 def ask():
     data = request.json
     question = data.get('question')
-    excel_data = session.get('excel_data', "Không có dữ liệu bảng.")
     session_id = session.get('current_session_id') # Lấy ID phiên từ lúc upload
+    file_id = session.get('current_file_id')
+
+    # Nếu có session_id mà chưa có file_id, lấy file_id từ DB
+    if session_id and not file_id:
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT FileID FROM ChatSessions WHERE SessionID = ?", (session_id,))
+            s_row = cursor.fetchone()
+            conn.close()
+            if s_row: file_id = s_row[0]
+        except: pass
+
+    excel_data = "Không có dữ liệu bảng."
+    if file_id:
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT FilePath FROM ExcelFiles WHERE FileID = ?", (file_id,))
+            row = cursor.fetchone()
+            conn.close()
+            if row and row[0] and os.path.exists(row[0]):
+                df = pd.read_excel(row[0], dtype=str)
+                excel_data = build_smart_summary(df)
+        except Exception as e:
+            print("Lỗi đọc file excel cho ask:", e)
 
     try:
         user_id = int(session.get('user_id'))
@@ -335,8 +369,13 @@ def ask():
 
         import google.generativeai as genai
         configs = get_all_system_configs()
-        base_prompt = f"Dữ liệu: {excel_data}\n\nCâu hỏi: {question}\n\nTrả lời ngắn gọn, chính xác."
-        full_prompt = f"{configs.get('DefaultPrompt', '')}\n\n{base_prompt}" if configs.get('DefaultPrompt') else base_prompt
+        default_prompt = configs.get('DefaultPrompt', '').strip()
+        data_prompt = f"Dữ liệu: {excel_data}\n\nCâu hỏi: {question}\n\nTrả lời ngắn gọn, chính xác bằng tiếng Việt."
+        if default_prompt:
+            # DefaultPrompt từ admin làm system instruction ưu tiên
+            full_prompt = f"{default_prompt}\n\n[Định dạng: Dùng Markdown nếu phù hợp. Bắt đầu thẳng vào câu trả lời.]\n\n{data_prompt}"
+        else:
+            full_prompt = data_prompt
         
         _gen_cfg = genai.types.GenerationConfig(
             temperature=configs.get("Temperature", 0.7),
@@ -812,11 +851,9 @@ def get_session(session_id):
             df = pd.read_excel(file_data[0], dtype=str)  # Đọc ALL cột là string để tránh Mã SV bị 2.36e+09
             df = df.fillna("")
             table_html = df.to_html(classes='table table-hover', index=False)
-            # Cập nhật lại dữ liệu vào session để người dùng có thể chat tiếp với file này
-            session['excel_data'] = df.to_string()
             
-            # Kiểm tra biểu đồ
             file_id = file_data[2]
+            session['current_file_id'] = file_id
             potential_chart = f"static/charts/chart_{file_id}.png"
             if os.path.exists(os.path.join(os.getcwd(), potential_chart)):
                 chart_path = "/" + potential_chart
@@ -1091,3 +1128,32 @@ def view_shared(token):
 
     except Exception as e:
         return f"Lỗi hệ thống khi tải báo cáo: {str(e)}", 500
+
+# --- API GỬI PHẢN HỒI / ĐÁNH GIÁ ---
+@ai_bp.route('/feedback', methods=['POST'])
+def submit_feedback():
+    """Người dùng gửi phản hồi trải nghiệm về admin."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Vui lòng đăng nhập!"}), 401
+
+    data = request.json
+    rating = data.get('rating')
+    comment = data.get('comment', '').strip()
+    category = data.get('category', 'Chung')
+    session_id = data.get('session_id') or session.get('current_session_id')
+
+    if not rating or not (1 <= int(rating) <= 5):
+        return jsonify({"error": "Điểm đánh giá không hợp lệ (1-5 sao)!"}), 400
+
+    from database import save_feedback
+    ok = save_feedback(
+        user_id=user_id,
+        rating=int(rating),
+        comment=comment,
+        category=category,
+        session_id=session_id or None
+    )
+    if ok:
+        return jsonify({"success": True, "message": "Cảm ơn bạn đã gửi phản hồi! 🎉"})
+    return jsonify({"error": "Lưu phản hồi thất bại, vui lòng thử lại!"}), 500

@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-
+app.config['JSON_AS_ASCII'] = False
 # 1. Cấu hình Gemini (Lấy tập trung từ database.py)
 from database import configure_ai
 model = configure_ai()

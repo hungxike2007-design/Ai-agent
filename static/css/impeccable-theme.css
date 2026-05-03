@@ -1,0 +1,64 @@
+/* 
+ * Impeccable Theme System
+ * Built on OKLCH for perceptually uniform colors
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+    /* OKLCH brand: teal-emerald */
+    --brand: oklch(52% 0.17 168);
+    --brand-dark: oklch(42% 0.16 168);
+    --brand-glow: oklch(52% 0.17 168 / 0.22);
+    --brand-subtle: oklch(94% 0.06 168);
+
+    /* Neutrals — tinted toward brand */
+    --bg: oklch(97% 0.006 168);
+    --sidebar: oklch(100% 0.005 168 / 0.92);
+    --surface: oklch(100% 0.004 168 / 0.80);
+    --border: oklch(100% 0.004 168 / 0.60);
+    --border-dark: oklch(84% 0.010 168);
+
+    /* Text */
+    --text: oklch(14% 0.008 168);
+    --muted: oklch(50% 0.012 168);
+    --subtle: oklch(68% 0.010 168);
+
+    /* Semantic aliases */
+    --green: var(--brand);
+    --green-d: var(--brand-dark);
+    --green-glow: var(--brand-glow);
+    --blue: #2563eb;
+    --amber: #d97706;
+    --red: #dc2626;
+
+    --user-msg: oklch(94% 0.06 168 / 0.7);
+    --ai-msg: oklch(100% 0.004 168 / 0.9);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 3px oklch(14% 0.008 168 / 0.06), 0 4px 12px oklch(14% 0.008 168 / 0.04);
+    --shadow-md: 0 4px 16px oklch(14% 0.008 168 / 0.08);
+    --shadow-lg: 0 12px 40px oklch(14% 0.008 168 / 0.10);
+    --blur: blur(16px);
+
+    /* Motion */
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Base Typographic Reset */
+body {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+}

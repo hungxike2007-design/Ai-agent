@@ -4,86 +4,175 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Báo cáo: {{ filename }}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <meta name="description" content="Báo cáo phân tích AI được chia sẻ công khai">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        *{box-sizing:border-box;margin:0;padding:0}
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         :root{
-            --bg:#f8fafc;--surface:#ffffff;--border:#e2e8f0;--text:#0f172a;--muted:#64748b;--green:#059669;
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --brand:oklch(52% .17 168);--brand-dark:oklch(42% .16 168);
+            --brand-glow:oklch(52% .17 168 / .22);--brand-subtle:oklch(94% .06 168);
+            --bg:oklch(97% .006 168);--surface:oklch(100% .004 168 / .88);
+            --border:oklch(100% .004 168 / .65);--border-dark:oklch(84% .010 168);
+            --text:oklch(14% .008 168);--muted:oklch(50% .012 168);--subtle:oklch(68% .010 168);
+            --shadow-sm:0 1px 3px oklch(14% .008 168 / .06),0 4px 12px oklch(14% .008 168 / .04);
+            --shadow-md:0 4px 16px oklch(14% .008 168 / .08);
+            --shadow-lg:0 12px 40px oklch(14% .008 168 / .12);
+            --ease-out-expo:cubic-bezier(.16,1,.3,1);
         }
-        body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:32px 16px}
-        .container{max-width:860px;margin:0 auto}
-        /* HEADER */
-        .report-header{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:32px 36px;margin-bottom:24px;box-shadow:var(--shadow-md)}
-        .report-brand{display:flex;align-items:center;gap:10px;margin-bottom:16px}
-        .brand-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--green),#047857);border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm)}
-        .brand-icon i{color:#fff;font-size:.9rem}
-        .brand-name{font-size:.95rem;font-weight:700;color:#475569}
-        h1{font-size:1.8rem;font-weight:800;margin-bottom:14px;color:#0f172a}
-        .meta{display:flex;flex-wrap:wrap;gap:16px}
-        .meta-item{display:flex;align-items:center;gap:7px;font-size:.85rem;color:var(--muted);font-weight:500}
-        .meta-item i{color:var(--green)}
-        .meta-item strong{color:#334155;font-weight:700}
-        /* CONTENT */
-        .content-card{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:32px 36px;margin-bottom:24px;box-shadow:var(--shadow-sm)}
-        .section-title{font-size:.85rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.08em;margin-bottom:20px;display:flex;align-items:center;gap:8px}
-        .section-title i{color:var(--green);font-size:.95rem}
+        @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+        body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:2.5rem 1rem;position:relative}
+        #bg-canvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:.5}
+        .container{max-width:880px;margin:0 auto;position:relative;z-index:1}
+
+        /* ── Header card ── */
+        .report-header{
+            background:var(--surface);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+            border:1px solid var(--border);border-radius:28px;padding:2.5rem 2.75rem;
+            margin-bottom:1.75rem;box-shadow:var(--shadow-md);
+            animation:cardIn .55s var(--ease-out-expo) both;
+        }
+        @keyframes cardIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        .report-brand{display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem}
+        .brand-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--brand),var(--brand-dark));border-radius:11px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1rem;box-shadow:0 4px 12px var(--brand-glow)}
+        .brand-name{font-size:.9rem;font-weight:700;color:var(--muted)}
+        .ai-badge{display:inline-flex;align-items:center;gap:5px;padding:.25rem .75rem;background:var(--brand-subtle);border:1px solid var(--brand-glow);border-radius:20px;font-size:.75rem;font-weight:700;color:var(--brand);margin-left:.5rem}
+        h1{font-size:1.9rem;font-weight:800;letter-spacing:-.03em;color:var(--text);line-height:1.2;margin-bottom:1rem}
+        .meta-row{display:flex;flex-wrap:wrap;gap:1rem}
+        .meta-item{display:flex;align-items:center;gap:6px;font-size:.84rem;color:var(--muted);font-weight:500}
+        .meta-item i{color:var(--brand)}
+        .meta-item strong{color:var(--text);font-weight:700}
+
+        /* ── Content card ── */
+        .content-card{
+            background:var(--surface);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+            border:1px solid var(--border);border-radius:24px;padding:2.25rem 2.75rem;
+            margin-bottom:1.5rem;box-shadow:var(--shadow-sm);
+            animation:cardIn .55s var(--ease-out-expo) .1s both;
+        }
+        .section-title{font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:1.5rem;display:flex;align-items:center;gap:8px}
+        .section-title::after{content:'';flex:1;height:1px;background:var(--border-dark)}
+        .section-title i{color:var(--brand)}
+        /* Markdown body */
         .report-body{font-size:.95rem;line-height:1.8;color:#334155;white-space:pre-wrap;word-wrap:break-word}
-        .report-body h1, .report-body h2, .report-body h3 { color: #0f172a; margin: 1em 0 0.5em; font-weight: 700; }
-        .report-body ul, .report-body ol { padding-left: 1.5em; margin: 0.5em 0; }
-        .report-body li { margin: 0.3em 0; }
-        .report-body strong { color: #0f172a; font-weight: 700; }
-        /* TABLE */
-        .table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);box-shadow:var(--shadow-sm)}
-        .table-wrap table{width:100%;border-collapse:collapse;font-size:.85rem}
-        .table-wrap th{background:#f8fafc;padding:12px 16px;text-align:left;font-weight:600;color:#334155;border-bottom:1px solid var(--border);white-space:nowrap}
-        .table-wrap td{padding:12px 16px;border-bottom:1px solid var(--border);color:#475569}
+        .report-body h1,.report-body h2,.report-body h3{color:var(--text);margin:.9em 0 .45em;font-weight:700}
+        .report-body h1{font-size:1.2rem}.report-body h2{font-size:1.05rem}.report-body h3{font-size:.95rem}
+        .report-body ul,.report-body ol{padding-left:1.5em;margin:.5em 0}
+        .report-body li{margin:.3em 0}
+        .report-body strong{color:var(--text);font-weight:700}
+        .report-body code{background:var(--brand-subtle);color:var(--brand-dark);padding:.15em .4em;border-radius:5px;font-size:.88em}
+
+        /* ── Chart image ── */
+        .chart-wrap{text-align:center;margin-bottom:1.75rem;padding:1rem;background:oklch(99% .004 168);border-radius:14px;border:1px solid var(--border-dark)}
+        .chart-wrap img{max-width:100%;border-radius:8px}
+
+        /* ── Table card ── */
+        .table-card{
+            background:var(--surface);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+            border:1px solid var(--border);border-radius:24px;overflow:hidden;
+            margin-bottom:1.5rem;box-shadow:var(--shadow-sm);
+            animation:cardIn .55s var(--ease-out-expo) .18s both;
+        }
+        .table-card .section-title{padding:1.25rem 1.75rem 0;margin-bottom:0}
+        .table-wrap{overflow-x:auto;padding:1rem 1.75rem 1.5rem}
+        .table-wrap table{width:100%;border-collapse:collapse;font-size:.82rem}
+        .table-wrap th{background:oklch(97% .006 168);padding:.75rem 1rem;text-align:left;font-weight:600;color:var(--muted);border-bottom:2px solid var(--brand);white-space:nowrap}
+        .table-wrap td{padding:.625rem 1rem;border-bottom:1px solid var(--border-dark);color:#475569}
         .table-wrap tr:last-child td{border-bottom:none}
-        .table-wrap tr:hover td{background:#f1f5f9}
-        /* FOOTER */
-        .footer{text-align:center;color:var(--muted);font-size:.85rem;margin-top:36px;padding-top:24px;border-top:1px solid var(--border);font-weight:500}
-        .footer a{color:var(--green);text-decoration:none;font-weight:600}
-        .footer a:hover{text-decoration:underline}
+        .table-wrap tr:hover td{background:oklch(97% .02 168)}
+
+        /* ── Footer ── */
+        .page-footer{text-align:center;color:var(--muted);font-size:.84rem;margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border-dark);font-weight:500}
+        .page-footer a{color:var(--brand);text-decoration:none;font-weight:700}
+        .page-footer a:hover{text-decoration:underline}
+        /* Watermark */
+        .watermark{display:inline-flex;align-items:center;gap:6px;padding:.375rem 1rem;background:var(--brand-subtle);border:1px solid var(--brand-glow);border-radius:20px;margin-bottom:.75rem}
+        .watermark i{color:var(--brand)}
     </style>
 </head>
 <body>
-<div class="container">
-    <div class="report-header">
-        <div class="report-brand">
-            <div class="brand-icon"><i class="fas fa-brain"></i></div>
-            <span class="brand-name">AI Agent Analytics — Báo cáo chia sẻ</span>
-        </div>
-        <h1><i class="fas fa-chart-bar" style="color:var(--green);margin-right:10px;"></i>{{ filename }}</h1>
-        <div class="meta">
-            <div class="meta-item"><i class="fas fa-calendar-days"></i> Ngày tạo: <strong>{{ date }}</strong></div>
-            <div class="meta-item"><i class="fas fa-robot"></i> Được tạo bởi <strong>AI Agent</strong></div>
-        </div>
-    </div>
+    <canvas id="bg-canvas"></canvas>
 
-    <div class="content-card">
-        <div class="section-title"><i class="fas fa-file-lines"></i> Nội dung báo cáo phân tích</div>
-        
-        {% if chart_path %}
-        <div style="text-align: center; margin-bottom: 24px;">
-            <img src="{{ chart_path }}" alt="Biểu đồ phân tích" style="max-width: 100%; border-radius: 8px; border: 1px dashed var(--border);">
+    <div class="container">
+        <!-- Report Header -->
+        <div class="report-header">
+            <div class="report-brand">
+                <div class="brand-icon"><i class="fas fa-brain"></i></div>
+                <span class="brand-name">AI Agent Analytics — Báo cáo chia sẻ</span>
+                <span class="ai-badge"><i class="fas fa-robot"></i> AI Generated</span>
+            </div>
+            <h1><i class="fas fa-chart-bar" style="color:var(--brand);margin-right:.5rem"></i>{{ filename }}</h1>
+            <div class="meta-row">
+                <div class="meta-item"><i class="fas fa-calendar-days"></i> Ngày tạo: <strong>{{ date }}</strong></div>
+                <div class="meta-item"><i class="fas fa-robot"></i> Được tạo bởi <strong>AI Agent</strong></div>
+                <div class="meta-item"><i class="fas fa-globe"></i> <strong>Chia sẻ công khai</strong></div>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="content-card">
+            <div class="section-title"><i class="fas fa-file-lines"></i> Nội dung báo cáo phân tích</div>
+
+            {% if chart_path %}
+            <div class="chart-wrap">
+                <img src="{{ chart_path }}" alt="Biểu đồ phân tích">
+            </div>
+            {% endif %}
+
+            <div class="report-body">{{ content | safe }}</div>
+        </div>
+
+        {% if table_preview %}
+        <div class="table-card">
+            <div class="section-title"><i class="fas fa-table"></i> Dữ liệu nguồn (15 dòng đầu)</div>
+            <div class="table-wrap">{{ table_preview | safe }}</div>
         </div>
         {% endif %}
 
-        <div class="report-body">{{ content | safe }}</div>
+        <div class="page-footer">
+            <div class="watermark"><i class="fas fa-brain"></i> AI Agent Analytics</div>
+            <div>Báo cáo được tạo bởi <a href="/">AI Agent Analytics</a> &bull; Được chia sẻ công khai</div>
+        </div>
     </div>
 
-    {% if table_preview %}
-    <div class="content-card">
-        <div class="section-title"><i class="fas fa-table"></i> Dữ liệu nguồn (15 dòng đầu)</div>
-        <div class="table-wrap">{{ table_preview | safe }}</div>
-    </div>
-    {% endif %}
-
-    <div class="footer">
-        Báo cáo được tạo bởi <a href="/">AI Agent Analytics</a> &bull; Được chia sẻ công khai
-    </div>
-</div>
+    <script>
+        // ── Soft particle background for public report ──
+        (function () {
+            const canvas = document.getElementById('bg-canvas');
+            const ctx = canvas.getContext('2d');
+            let W, H, pts = [];
+            function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+            function init() {
+                pts = Array.from({ length: 30 }, () => ({
+                    x: Math.random() * W, y: Math.random() * H,
+                    vx: (Math.random() - .5) * .25, vy: (Math.random() - .5) * .25,
+                    r: Math.random() * 2 + 1,
+                    hue: 160 + Math.random() * 20,
+                    a: Math.random() * .12 + .04,
+                }));
+            }
+            function draw() {
+                ctx.clearRect(0, 0, W, H);
+                pts.forEach(p => {
+                    p.x += p.vx; p.y += p.vy;
+                    if (p.x < 0 || p.x > W) p.vx *= -1;
+                    if (p.y < 0 || p.y > H) p.vy *= -1;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.fillStyle = `oklch(55% 0.13 ${p.hue} / ${p.a})`; ctx.fill();
+                });
+                for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+                    const d = Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y);
+                    if (d < 120) {
+                        ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y);
+                        ctx.strokeStyle = `oklch(52% 0.12 168 / ${(1 - d / 120) * .08})`; ctx.lineWidth = 1; ctx.stroke();
+                    }
+                }
+                requestAnimationFrame(draw);
+            }
+            window.addEventListener('resize', () => { resize(); init(); });
+            resize(); init(); draw();
+        })();
+    </script>
 </body>
 </html>

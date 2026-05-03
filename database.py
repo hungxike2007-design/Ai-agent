@@ -4,16 +4,12 @@ import pyodbc
 CONN_STR = r"Driver={SQL Server};Server=LAPTOP-355TS2QT\HUY_DEV;Database=QuanLyAIAgent;Trusted_Connection=yes;"
 
 # --- CẤU HÌNH GEMINI TẬP TRUNG ---
-# Bạn chỉ cần thay đổi Key ở đây, tất cả các file khác sẽ tự cập nhật theo
-GEMINI_API_KEY = "AIzaSyACFwEfJ2Bko4WXfMqmg51zp7PrUgz7LtE"
-GEMINI_MODEL_NAME = "gemini-flash-latest" 
-# --- CẤU HÌNH GEMINI TẬP TRUNG ---
 # Thêm tất cả API Keys vào danh sách bên dưới.
 # Hệ thống sẽ tự động xoay vòng sang key tiếp theo khi key hiện tại hết quota.
 GEMINI_API_KEYS = [
-    "",  # Key 1
-    "",               # Key 2
-    "",               # Key 3
+    "ENCRYPTION_KEY",  # thay key ở đây
+    "ENCRYPTION_KEY",  # thay key ở đây
+    "ENCRYPTION_KEY"   # thay key ở đây
 ]
 GEMINI_MODEL_NAME = "gemini-flash-latest"  # quota miễn phí cao hơn gemini-2.0-flash
 
@@ -264,3 +260,106 @@ def get_all_system_configs():
     except Exception as e:
         print(f"Lỗi lấy cấu hình hệ thống: {e}")
     return configs
+
+# --- PHẦN 5: QUẢN LÝ PHẢN HỒI (FEEDBACKS) ---
+
+def save_feedback(user_id, rating, comment, category='Chung', session_id=None):
+    """Lưu phản hồi / đánh giá từ người dùng"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    query = """
+        INSERT INTO Feedbacks (UserID, SessionID, Rating, Category, Comment, Status, CreatedAt, UpdatedAt)
+        VALUES (?, ?, ?, ?, ?, N'Moi', GETDATE(), GETDATE())
+    """
+    try:
+        cursor.execute(query, (user_id, session_id, rating, category, comment))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Lỗi save_feedback: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_all_feedbacks(status_filter=None, limit=100):
+    """Admin: Lấy danh sách tất cả phản hồi, có thể lọc theo trạng thái"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    if status_filter:
+        query = """
+            SELECT f.FeedbackID, u.FullName, u.Email, f.Rating, f.Category,
+                   f.Comment, f.Status, f.AdminNote, f.CreatedAt, f.SessionID
+            FROM Feedbacks f
+            JOIN Users u ON f.UserID = u.UserID
+            WHERE f.Status = ?
+            ORDER BY f.CreatedAt DESC
+        """
+        cursor.execute(query, (status_filter,))
+    else:
+        query = """
+            SELECT f.FeedbackID, u.FullName, u.Email, f.Rating, f.Category,
+                   f.Comment, f.Status, f.AdminNote, f.CreatedAt, f.SessionID
+            FROM Feedbacks f
+            JOIN Users u ON f.UserID = u.UserID
+            ORDER BY f.CreatedAt DESC
+        """
+        cursor.execute(query)
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+def update_feedback_status(feedback_id, status, admin_note=None):
+    """Admin: Cập nhật trạng thái và ghi chú xử lý cho phản hồi"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            UPDATE Feedbacks
+            SET Status = ?, AdminNote = ?, UpdatedAt = GETDATE()
+            WHERE FeedbackID = ?
+        """, (status, admin_note, feedback_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Lỗi update_feedback_status: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_feedback_stats():
+    """Admin: Thống kê tổng quan phản hồi"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    stats = {"total": 0, "avg_rating": 0, "new_count": 0, "by_rating": {}, "by_category": {}}
+    try:
+        cursor.execute("SELECT COUNT(*), AVG(CAST(Rating AS FLOAT)), SUM(CASE WHEN Status = N'Moi' THEN 1 ELSE 0 END) FROM Feedbacks")
+        row = cursor.fetchone()
+        if row:
+            stats["total"] = row[0] or 0
+            stats["avg_rating"] = round(row[1] or 0, 1)
+            stats["new_count"] = row[2] or 0
+        cursor.execute("SELECT Rating, COUNT(*) FROM Feedbacks GROUP BY Rating ORDER BY Rating")
+        for r in cursor.fetchall():
+            stats["by_rating"][r[0]] = r[1]
+        cursor.execute("SELECT Category, COUNT(*) FROM Feedbacks GROUP BY Category")
+        for r in cursor.fetchall():
+            stats["by_category"][r[0]] = r[1]
+    except Exception as e:
+        print(f"Lỗi get_feedback_stats: {e}")
+    finally:
+        conn.close()
+    return stats
+
+def delete_feedback(feedback_id):
+    """Admin: Xóa một phản hồi"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM Feedbacks WHERE FeedbackID = ?", (feedback_id,))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Lỗi delete_feedback: {e}")
+        return False
+    finally:
+        conn.close()

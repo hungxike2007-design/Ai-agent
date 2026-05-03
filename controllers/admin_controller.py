@@ -1,34 +1,35 @@
-﻿from flask import Blueprint, render_template, session, redirect, url_for, flash, request, jsonify
+# -*- coding: utf-8 -*-
+from flask import Blueprint, render_template, session, redirect, url_for, flash, request, jsonify
 import pyodbc
 from datetime import datetime, timedelta
 
 admin_bp = Blueprint('admin', __name__)
 
 def get_db_connection():
-    conn_str = 'DRIVER={SQL Server};SERVER=LAPTOP-355TS2QT\HUY_DEV;DATABASE=QuanLyAIAgent;Trusted_Connection=yes;'
+    conn_str = r'DRIVER={SQL Server};SERVER=LAPTOP-355TS2QT\HUY_DEV;DATABASE=QuanLyAIAgent;Trusted_Connection=yes;'
     return pyodbc.connect(conn_str)
 
 @admin_bp.route('/dashboard') 
 def dashboard():
     if session.get('role') != 'Admin':
-        flash("Quyá»n truy cáº­p bá»‹ tá»« chá»‘i!", "danger")
+        flash("Quyền truy cập bị từ chối!", "danger")
         return redirect(url_for('auth.index'))
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 1. Danh sÃ¡ch ngÆ°á»i dÃ¹ng
+    # 1. Danh s\xc3\xa1ch ng\xc6\xb0\xe1\xbb\x9di d\xc3\xb9ng
     cursor.execute("SELECT UserID, Username, FullName, Email, Role FROM Users")
     users = cursor.fetchall()
 
-    # 2. Danh sÃ¡ch file
+    # 2. Danh s\xc3\xa1ch file
     cursor.execute("""
         SELECT f.FileID, f.FileName, u.FullName, f.UploadDate 
         FROM ExcelFiles f JOIN Users u ON f.UserID = u.UserID
     """)
     files = cursor.fetchall()
 
-    # 3. Danh sÃ¡ch phiÃªn chat
+    # 3. Danh s\xc3\xa1ch phi\xc3\xaan chat
     cursor.execute("""
         SELECT s.SessionID, s.SessionTitle, u.FullName, f.FileName, s.StartTime
         FROM ChatSessions s
@@ -38,7 +39,7 @@ def dashboard():
     """)
     sessions = cursor.fetchall()
 
-    # 4. Thá»‘ng kÃª
+    # 4. Th\xe1\xbb\u2018ng k\xc3\xaa
     cursor.execute("SELECT SUM(TokensUsed) FROM TokenLogs")
     total_tokens = cursor.fetchone()[0] or 0
     
@@ -51,7 +52,6 @@ def dashboard():
                             total_tokens=total_tokens, total_requests=total_requests,
                             total_users=len(users))
 
-# --- CHá»¨C NÄ‚NG Má»šI: Cáº¬P NHáº¬T QUYá»€N USER ---
 @admin_bp.route('/update_role', methods=['POST'])
 def update_role():
     if session.get('role') != 'Admin':
@@ -63,20 +63,20 @@ def update_role():
         new_role = data.get('new_role')
 
         if not user_id or not new_role or new_role not in ['Admin', 'User']:
-            return jsonify({"status": "error", "message": "Dá»¯ liá»‡u khÃ´ng há»£p lá»‡"}), 400
+            return jsonify({"status": "error", "message": "D\u1eef li\u1ec7u kh\xf4ng h\u1ee3p l\u1ec7"}), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        # ChÃº Ã½: Cá»™t lÃ  [Role], báº£ng lÃ  [Users]
+        # Ch\xc3\xba \xc3\xbd: C\xe1\xbb\u2122t l\xc3\xa0 [Role], b\xe1\xba\xa3ng l\xc3\xa0 [Users]
         cursor.execute("UPDATE Users SET Role = ? WHERE UserID = ?", (new_role, user_id))
         conn.commit()
         conn.close()
 
         return jsonify({"status": "success"})
     except Exception as e:
-        print(f"Lá»—i update_role: {e}")
+        print(f"L\xe1\xbb\u2014i update_role: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
-# --- CHá»¨C NÄ‚NG Má»šI: Cáº¤U HÃŒNH PROMPT Há»† THá»NG ---
+# --- CH\xe1\xbb\xa8C N\xc4\u201aNG M\xe1\xbb\u0161I: C\xe1\xba\xa4U H\xc3\u0152NH PROMPT H\xe1\xbb\u2020 TH\xe1\xbb\x90NG ---
 @admin_bp.route('/settings', methods=['GET', 'POST'])
 def settings():
     if session.get('role') != 'Admin': return redirect(url_for('auth.index'))
@@ -94,13 +94,13 @@ def settings():
         cursor.execute("UPDATE SystemConfigs SET ConfigValue = ? WHERE ConfigKey = 'Temperature'", (temperature,))
         cursor.execute("UPDATE SystemConfigs SET ConfigValue = ? WHERE ConfigKey = 'MaxTokens'", (max_tokens,))
         conn.commit()
-        flash("Cáº­p nháº­t cáº¥u hÃ¬nh thÃ nh cÃ´ng!", "success")
+        flash("C\u1eadp nh\u1eadt c\u1ea5u h\xecnh th\xe0nh c\xf4ng!", "success")
 
     conn.close()
     configs = get_all_system_configs()
     return render_template('admin_settings.html', configs=configs)
 
-# --- CHá»¨C NÄ‚NG XÃ“A (ÄÃ£ cÃ³ ON DELETE CASCADE nÃªn code ráº¥t ngáº¯n gá»n) ---
+# --- CH\xe1\xbb\xa8C N\xc4\u201aNG X\xc3\u201cA (\xc4\x90\xc3\xa3 c\xc3\xb3 ON DELETE CASCADE n\xc3\xaan code r\xe1\xba\xa5t ng\xe1\xba\xafn g\xe1\xbb\x8dn) ---
 @admin_bp.route('/delete_session/<int:session_id>', methods=['DELETE'])
 def delete_session(session_id):
     if session.get('role') != 'Admin': return jsonify({"error": "Forbidden"}), 403
@@ -109,7 +109,7 @@ def delete_session(session_id):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 1. Láº¥y thÃ´ng tin file trÆ°á»›c khi xÃ³a session
+        # 1. L\xe1\xba\xa5y th\xc3\xb4ng tin file tr\xc6\xb0\xe1\xbb\u203ac khi x\xc3\xb3a session
         cursor.execute("""
             SELECT f.FilePath, f.FileID 
             FROM ChatSessions s
@@ -118,7 +118,7 @@ def delete_session(session_id):
         """, (session_id,))
         info = cursor.fetchone()
         
-        # 2. XÃ³a Session (ChatMessages sáº½ tá»± xÃ³a nhá» ON DELETE CASCADE)
+        # 2. X\xc3\xb3a Session (ChatMessages s\xe1\xba\xbd t\xe1\xbb\xb1 x\xc3\xb3a nh\xe1\xbb\x9d ON DELETE CASCADE)
         cursor.execute("DELETE FROM ChatSessions WHERE SessionID = ?", (session_id,))
         
         if info:
@@ -126,16 +126,16 @@ def delete_session(session_id):
             file_id = info[1]
             
             if file_id:
-                # 3. XÃ³a báº£n ghi trong Reports vÃ  ExcelFiles
+                # 3. X\xc3\xb3a b\xe1\xba\xa3n ghi trong Reports v\xc3\xa0 ExcelFiles
                 cursor.execute("DELETE FROM Reports WHERE FileID = ?", (file_id,))
                 cursor.execute("DELETE FROM ExcelFiles WHERE FileID = ?", (file_id,))
                 
-                # 4. XÃ³a file váº­t lÃ½ trÃªn server
+                # 4. X\xc3\xb3a file v\xe1\xba\xadt l\xc3\xbd tr\xc3\xaan server
                 if file_path and os.path.exists(file_path):
                     try: os.remove(file_path)
                     except: pass
                 
-                # 5. XÃ³a biá»ƒu Ä‘á»“
+                # 5. X\xc3\xb3a bi\xe1\xbb\u0192u \xc4\u2018\xe1\xbb\u201c
                 chart_file = os.path.join(os.getcwd(), 'static', 'charts', f"chart_{file_id}.png")
                 if os.path.exists(chart_file):
                     try: os.remove(chart_file)
@@ -143,11 +143,11 @@ def delete_session(session_id):
 
         conn.commit()
         conn.close()
-        return jsonify({"status": "success", "message": "ÄÃ£ xÃ³a sáº¡ch phiÃªn chat vÃ  cÃ¡c tá»‡p liÃªn quan!"})
+        return jsonify({"status": "success", "message": "\u0110\xe3 x\xf3a s\u1ea1ch phi\xean chat v\xe0 c\xe1c t\u1ec7p li\xean quan!"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# --- CHá»¨C NÄ‚NG XEM CHI TIáº¾T PHIÃŠN CHAT ---
+# --- CH\xe1\xbb\xa8C N\xc4\u201aNG XEM CHI TI\xe1\xba\xbeT PHI\xc3\u0160N CHAT ---
 @admin_bp.route('/get_session_chat/<int:session_id>')
 def get_session_chat(session_id):
     if session.get('role') != 'Admin': return jsonify({"error": "Forbidden"}), 403
@@ -161,7 +161,7 @@ def get_session_chat(session_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- CHá»¨C NÄ‚NG THá»NG KÃŠ (API) ---
+# --- CH\xe1\xbb\xa8C N\xc4\u201aNG TH\xe1\xbb\x90NG K\xc3\u0160 (API) ---
 @admin_bp.route('/stats_data')
 def stats_data():
     if session.get('role') != 'Admin':
@@ -171,13 +171,13 @@ def stats_data():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # 1. Thá»‘ng kÃª ngÆ°á»i dÃ¹ng má»›i trong 7 ngÃ y qua
+        # 1. Th\xe1\xbb\u2018ng k\xc3\xaa ng\xc6\xb0\xe1\xbb\x9di d\xc3\xb9ng m\xe1\xbb\u203ai trong 7 ng\xc3\xa0y qua
         user_stats = []
         for i in range(6, -1, -1):
             date_obj = datetime.now() - timedelta(days=i)
             date_str = date_obj.strftime('%Y-%m-%d')
             try:
-                # Group by date of CreatedAt (giáº£ Ä‘á»‹nh cÃ³ cá»™t CreatedAt)
+                # Group by date of CreatedAt (gi\xe1\xba\xa3 \xc4\u2018\xe1\xbb\u2039nh c\xc3\xb3 c\xe1\xbb\u2122t CreatedAt)
                 cursor.execute("""
                     SELECT COUNT(*) FROM Users 
                     WHERE CAST(CreatedAt AS DATE) = ?
@@ -187,7 +187,7 @@ def stats_data():
                 count = 0
             user_stats.append({"date": date_obj.strftime('%d/%m'), "count": count})
 
-        # 2. Thá»‘ng kÃª tráº¡ng thÃ¡i xá»­ lÃ½ file Excel (Success vs Failed)
+        # 2. Th\xe1\xbb\u2018ng k\xc3\xaa tr\xe1\xba\xa1ng th\xc3\xa1i x\xe1\xbb\xad l\xc3\xbd file Excel (Success vs Failed)
         cursor.execute("SELECT Status, COUNT(*) FROM ExcelFiles GROUP BY Status")
         file_rows = cursor.fetchall()
         file_stats = [{"status": str(row[0]), "count": row[1]} for row in file_rows]
@@ -198,11 +198,11 @@ def stats_data():
             "files": file_stats
         })
     except Exception as e:
-        print(f"Lá»—i stats_data: {e}")
+        print(f"L\xe1\xbb\u2014i stats_data: {e}")
         return jsonify({"error": str(e)}), 500
 
 def _internal_delete_file(cursor, file_id):
-    """HÃ m ná»™i bá»™ Ä‘á»ƒ xÃ³a file vÃ  dá»¯ liá»‡u liÃªn quan, dÃ¹ng cho cáº£ xÃ³a Ä‘Æ¡n vÃ  xÃ³a nhiá»u"""
+    """H\xc3\xa0m n\xe1\xbb\u2122i b\xe1\xbb\u2122 \xc4\u2018\xe1\xbb\u0192 x\xc3\xb3a file v\xc3\xa0 d\xe1\xbb\xaf li\xe1\xbb\u2021u li\xc3\xaan quan, d\xc3\xb9ng cho c\xe1\xba\xa3 x\xc3\xb3a \xc4\u2018\xc6\xa1n v\xc3\xa0 x\xc3\xb3a nhi\xe1\xbb\x81u"""
     import os
     cursor.execute("SELECT FilePath FROM ExcelFiles WHERE FileID = ?", (file_id,))
     row = cursor.fetchone()
@@ -221,7 +221,7 @@ def _internal_delete_file(cursor, file_id):
         return True
     return False
 
-# --- CHá»¨C NÄ‚NG XÃ“A FILE Há»† THá»NG ---
+# --- CH\xe1\xbb\xa8C N\xc4\u201aNG X\xc3\u201cA FILE H\xe1\xbb\u2020 TH\xe1\xbb\x90NG ---
 @admin_bp.route('/delete_file/<int:file_id>', methods=['DELETE'])
 def delete_file(file_id):
     if session.get('role') != 'Admin': return jsonify({"error": "Forbidden"}), 403
@@ -231,13 +231,13 @@ def delete_file(file_id):
         if _internal_delete_file(cursor, file_id):
             conn.commit()
             conn.close()
-            return jsonify({"status": "success", "message": "ÄÃ£ xÃ³a file thÃ nh cÃ´ng!"})
+            return jsonify({"status": "success", "message": "\u0110\xe3 x\xf3a file th\xe0nh c\xf4ng!"})
         conn.close()
-        return jsonify({"status": "error", "message": "KhÃ´ng tÃ¬m tháº¥y file!"}), 404
+        return jsonify({"status": "error", "message": "Kh\xf4ng t\xecm th\u1ea5y file!"}), 404
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# --- CHá»¨C NÄ‚NG XÃ“A NHIá»€U FILE ---
+# --- CH\xe1\xbb\xa8C N\xc4\u201aNG X\xc3\u201cA NHI\xe1\xbb\u20acU FILE ---
 @admin_bp.route('/bulk_delete_files', methods=['POST'])
 def bulk_delete_files():
     if session.get('role') != 'Admin': return jsonify({"error": "Forbidden"}), 403
@@ -245,7 +245,7 @@ def bulk_delete_files():
         data = request.json
         file_ids = data.get('file_ids', [])
         if not file_ids:
-            return jsonify({"status": "error", "message": "KhÃ´ng cÃ³ file nÃ o Ä‘Æ°á»£c chá»n!"}), 400
+            return jsonify({"status": "error", "message": "Kh\xf4ng c\xf3 file n\xe0o \u0111\u01b0\u1ee3c ch\u1ecdn!"}), 400
         
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -256,6 +256,54 @@ def bulk_delete_files():
         
         conn.commit()
         conn.close()
-        return jsonify({"status": "success", "message": f"ÄÃ£ xÃ³a thÃ nh cÃ´ng {success_count} tá»‡p tin!"})
+        return jsonify({"status": "success", "message": f"\xc4\x90\xc3\xa3 x\xc3\xb3a th\xc3\xa0nh c\xc3\xb4ng {success_count} t\u1ec7p tin!"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+# --- CH\u1ee8C N\u0102NG QU\u1ea2N L\xdd PH\u1ea2N H\u1ed2I ---
+@admin_bp.route('/feedbacks')
+def feedbacks():
+    """Trang qu\u1ea3n l\xfd ph\u1ea3n h\u1ed3i c\u1ee7a ng\u01b0\u1eddi d\xf9ng"""
+    if session.get('role') != 'Admin':
+        return redirect(url_for('auth.index'))
+    from database import get_all_feedbacks, get_feedback_stats
+    status_filter = request.args.get('status', '')
+    all_feedbacks = get_all_feedbacks(status_filter if status_filter else None)
+    stats = get_feedback_stats()
+    return render_template('admin_feedbacks.html',
+                           feedbacks=all_feedbacks,
+                           stats=stats,
+                           current_filter=status_filter)
+
+@admin_bp.route('/feedback/update/<int:feedback_id>', methods=['POST'])
+def update_feedback(feedback_id):
+    """Admin c\u1eadp nh\u1eadt tr\u1ea1ng th\xe1i ph\u1ea3n h\u1ed3i"""
+    if session.get('role') != 'Admin':
+        return jsonify({"error": "Forbidden"}), 403
+    data = request.json
+    status = data.get('status', 'DaXem')
+    admin_note = data.get('admin_note', '')
+    from database import update_feedback_status
+    ok = update_feedback_status(feedback_id, status, admin_note)
+    if ok:
+        return jsonify({"status": "success"})
+    return jsonify({"status": "error", "message": "C\u1eadp nh\u1eadt th\u1ea5t b\u1ea1i"}), 500
+
+@admin_bp.route('/feedback/delete/<int:feedback_id>', methods=['DELETE'])
+def delete_feedback_route(feedback_id):
+    """Admin x\xf3a m\u1ed9t ph\u1ea3n h\u1ed3i"""
+    if session.get('role') != 'Admin':
+        return jsonify({"error": "Forbidden"}), 403
+    from database import delete_feedback
+    ok = delete_feedback(feedback_id)
+    if ok:
+        return jsonify({"status": "success"})
+    return jsonify({"status": "error", "message": "X\xf3a th\u1ea5t b\u1ea1i"}), 500
+
+@admin_bp.route('/feedback/stats_api')
+def feedback_stats_api():
+    """API tr\u1ea3 v\u1ec1 th\u1ed1ng k\xea ph\u1ea3n h\u1ed3i d\u1ea1ng JSON"""
+    if session.get('role') != 'Admin':
+        return jsonify({"error": "Forbidden"}), 403
+    from database import get_feedback_stats
+    return jsonify(get_feedback_stats())

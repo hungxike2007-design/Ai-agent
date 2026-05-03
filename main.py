@@ -27,6 +27,17 @@ app = Flask(__name__)
 
 app.secret_key = "hung_store_key_bi_mat"
 
+# Đảm bảo JSON trả về là tiếng Việt chuẩn (không bị mã hóa \uXXXX)
+app.config['JSON_AS_ASCII'] = False
+
+@app.after_request
+def enforce_utf8_charset(response):
+    """Bắt buộc mọi phản hồi (HTML/JSON) đều phải có charset=utf-8 ở HTTP Header"""
+    content_type = response.headers.get('Content-Type', '')
+    if content_type and 'charset' not in content_type.lower():
+        response.headers['Content-Type'] = f"{content_type}; charset=utf-8"
+    return response
+
 # --- KHỞI TẠO OAUTH ---
 # Dòng này cực kỳ quan trọng để kết nối thư viện Authlib với ứng dụng Flask của Hùng
 oauth.init_app(app)
@@ -40,4 +51,4 @@ app.register_blueprint(admin_bp, url_prefix='/admin')
 
 if __name__ == '__main__':
     print("Do an dang chay tai: http://127.0.0.1:5000")
-    app.run(debug=True, port=5000, use_reloader=False)
+    app.run(debug=True, port=5000, use_reloader=True)
