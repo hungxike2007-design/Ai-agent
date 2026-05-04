@@ -20,6 +20,10 @@ from controllers.auth_controller import auth_bp, oauth
 from controllers.ai_controller import ai_bp
 from controllers.api_controller import api_bp
 from controllers.admin_controller import admin_bp
+from database import init_db_schema
+
+# Tự động cập nhật cấu trúc database (nếu cần)
+init_db_schema()
 
 
 app = Flask(__name__)
@@ -51,4 +55,5 @@ app.register_blueprint(admin_bp, url_prefix='/admin')
 
 if __name__ == '__main__':
     print("Do an dang chay tai: http://127.0.0.1:5000")
-    app.run(debug=True, port=5000, use_reloader=True)
+    # Sử dụng reloader_type='stat' để tránh loop restart khi lưu biểu đồ trên Windows
+    app.run(debug=True, port=5000, use_reloader=True, reloader_type='stat')

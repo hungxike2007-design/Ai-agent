@@ -4,7 +4,7 @@ import io
 import os
 import uuid
 from docx import Document
-from services.data_processor import get_cleaning_suggestions, generate_auto_chart, generate_multi_charts, _analyze_dataframe
+from services.data_processor import get_cleaning_suggestions, generate_auto_chart, generate_multi_charts, _analyze_dataframe, generate_plotly_json
 from services.report_service import get_report_prompt, get_available_styles
 from database import get_connection, get_all_system_configs
 
@@ -94,7 +94,8 @@ def clean_ai_response(text: str) -> str:
     if not text:
         return text
     for pattern in _FILLER_PATTERNS:
-        text = re.sub(pattern, '', text, flags=re.IGNORECASE | re.MULTILINE)
+        # Chỉ xóa ở đầu văn bản (không dùng MULTILINE để tránh xóa nhầm ở giữa)
+        text = re.sub(pattern, '', text, count=1, flags=re.IGNORECASE)
     text = re.sub(r'\n{3,}', '\n\n', text)
     
     # Chuyển bullet point dạng * sang - trước khi xóa
@@ -209,6 +210,7 @@ def upload_file():
         chart_reason = chart_info.get('reason', '')
         print(f"[SMART CHART] Chon: {chart_type_chosen} | {chart_reason}")
         chart_path = generate_auto_chart(df, file_id)
+        plotly_json = generate_plotly_json(df)
 
         # 4. GỌI AI TẠO BÁO CÁO — dùng smart_summary (tiết kiệm 70-90% token)
         configs = get_all_system_configs()
@@ -228,14 +230,14 @@ def upload_file():
 
         generation_config = {
             "temperature": configs.get("Temperature", 0.5),
-            "max_output_tokens": min(int(configs.get("MaxTokens", 1024)), 1500)
+            "max_output_tokens": int(configs.get("MaxTokens", 2048))
         }
 
         try:
             import google.generativeai as genai
             _gen_cfg = genai.types.GenerationConfig(
                 temperature=configs.get("Temperature", 0.5),
-                max_output_tokens=min(int(configs.get("MaxTokens", 1024)), 1500)
+                max_output_tokens=int(configs.get("MaxTokens", 2048))
             )
             # Dùng rotator.generate() — tự xoay key khi gặp quota
             response = get_key_rotator().generate(prompt, generation_config=_gen_cfg)
@@ -287,10 +289,10 @@ def upload_file():
         try:
             summary_text = report_content[:200] + "..." if len(report_content) > 200 else report_content
             sql_report = """
-                INSERT INTO Reports (FileID, [Content], CreatedDate, Summary) 
-                VALUES (?, ?, GETDATE(), ?)
+                INSERT INTO Reports (FileID, [Content], CreatedDate, Summary, PlotlyJSON) 
+                VALUES (?, ?, GETDATE(), ?, ?)
             """
-            cursor.execute(sql_report, (file_id, report_content, summary_text))
+            cursor.execute(sql_report, (file_id, report_content, summary_text, plotly_json))
             conn.commit()
         except Exception as db_err:
             print(f"Loi khi luu vao bang Reports: {db_err}")
@@ -303,6 +305,7 @@ def upload_file():
                                cleaning_hints=cleaning_hints,
                                selected_style=style,
                                chart_path=chart_path,
+                               plotly_json=plotly_json,
                                extra_charts=[],
                                chart_type_chosen=chart_type_chosen,
                                chart_reason=chart_reason)
@@ -349,28 +352,56 @@ def ask():
 
     # Nếu chưa có session_id (người dùng chưa upload file mà đã hỏi), tạo mới
     if not session_id:
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO ChatSessions (UserID, StartTime, SessionTitle) OUTPUT INSERTED.SessionID VALUES (?, GETDATE(), ?)", 
+                           (user_id, question[:50]))
+            session_id = cursor.fetchone()[0]
+            session['current_session_id'] = session_id
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"[SESSION ERROR] {e}")
+
+    # --- TÍNH NĂNG 2: CONVERSATIONAL MEMORY (TRÍ NHỚ HỘI THOẠI) ---
+    # Lấy 6 tin nhắn gần nhất để AI hiểu ngữ cảnh đang nói gì
+    history_context = ""
+    try:
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO ChatSessions (UserID, StartTime, SessionTitle) OUTPUT INSERTED.SessionID VALUES (?, GETDATE(), ?)", 
-                       (user_id, question[:50]))
-        session_id = cursor.fetchone()[0]
-        session['current_session_id'] = session_id
-        conn.commit()
+        cursor.execute("""
+            SELECT TOP 6 Role, [Content] 
+            FROM ChatMessages 
+            WHERE SessionID = ? 
+            ORDER BY CreatedAt DESC
+        """, (session_id,))
+        history_rows = cursor.fetchall()
         conn.close()
+        
+        if history_rows:
+            # Đảo ngược lại để đúng thứ tự thời gian cũ -> mới
+            history_rows.reverse()
+            history_text = "\n".join([f"{'Người dùng' if r[0]=='user' else 'AI Agent'}: {r[1]}" for r in history_rows])
+            history_context = f"\n\n[Lịch sử hội thoại trước đó]\n{history_text}"
+    except Exception as e:
+        print(f"[MEMORY ERROR] Không lấy được lịch sử: {e}")
 
     try:
-        # 1. Tạo tiêu đề bằng AI
+        # 1. Tạo tiêu đề bằng AI (nếu cần cập nhật tiêu đề cho session mới)
         try:
             title_prompt = f"Tóm tắt ngắn gọn câu hỏi này làm tiêu đề lịch sử (max 5 từ): '{question}'"
             title_response = get_key_rotator().generate(title_prompt)
             title = title_response.text.strip().replace("*", "").replace('"', '')
         except:
             title = question[:50]
-
+            
         import google.generativeai as genai
         configs = get_all_system_configs()
         default_prompt = configs.get('DefaultPrompt', '').strip()
-        data_prompt = f"Dữ liệu: {excel_data}\n\nCâu hỏi: {question}\n\nTrả lời ngắn gọn, chính xác bằng tiếng Việt."
+        
+        # Ghép lịch sử vào prompt (Tính năng Trí nhớ hội thoại)
+        data_prompt = f"Dữ liệu bảng: {excel_data}{history_context}\n\nCâu hỏi mới nhất: {question}\n\nTrả lời ngắn gọn, chính xác bằng tiếng Việt."
         if default_prompt:
             # DefaultPrompt từ admin làm system instruction ưu tiên
             full_prompt = f"{default_prompt}\n\n[Định dạng: Dùng Markdown nếu phù hợp. Bắt đầu thẳng vào câu trả lời.]\n\n{data_prompt}"
@@ -838,11 +869,13 @@ def get_session(session_id):
         # 2.5 Lấy báo cáo phân tích ban đầu (từ bảng Reports) và chèn vào đầu danh sách
         if file_data and file_data[2]:
             file_id = file_data[2]
-            cursor.execute("SELECT [Content] FROM Reports WHERE FileID = ?", (file_id,))
+            cursor.execute("SELECT [Content], PlotlyJSON FROM Reports WHERE FileID = ?", (file_id,))
             report_row = cursor.fetchone()
+            plotly_json = None
             if report_row:
                 # Chèn báo cáo phân tích ban đầu vào đầu danh sách tin nhắn
                 messages.insert(0, {"role": "assistant", "content": report_row[0]})
+                plotly_json = report_row[1]
 
         # 3. Đọc dữ liệu Excel để hiển thị lại bảng
         table_html = ""
@@ -865,7 +898,8 @@ def get_session(session_id):
             "messages": messages,
             "table_html": table_html,
             "filename": file_data[1] if file_data else "Unknown",
-            "chart_path": chart_path
+            "chart_path": chart_path,
+            "plotly_json": plotly_json
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500

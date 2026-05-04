@@ -1,15 +1,15 @@
 import pyodbc
 
 # Chuỗi kết nối đến SQL Server của Hùng
-CONN_STR = r"Driver={SQL Server};Server=LAPTOP-355TS2QT\HUY_DEV;Database=QuanLyAIAgent;Trusted_Connection=yes;"
+CONN_STR = r"Driver={SQL Server};Server=LAPTOP-FOEQL0GL;Database=QuanLyAIAgent;Trusted_Connection=yes;"
 
 # --- CẤU HÌNH GEMINI TẬP TRUNG ---
 # Thêm tất cả API Keys vào danh sách bên dưới.
 # Hệ thống sẽ tự động xoay vòng sang key tiếp theo khi key hiện tại hết quota.
 GEMINI_API_KEYS = [
-    "ENCRYPTION_KEY",  # thay key ở đây
-    "ENCRYPTION_KEY",  # thay key ở đây
-    "ENCRYPTION_KEY"   # thay key ở đây
+    "",  # thay key ở đây
+    "",  # thay key ở đây
+    ""   # thay key ở đây
 ]
 GEMINI_MODEL_NAME = "gemini-flash-latest"  # quota miễn phí cao hơn gemini-2.0-flash
 
@@ -126,6 +126,26 @@ def get_connection():
     """Hàm tạo kết nối đến Database"""
     return pyodbc.connect(CONN_STR)
 
+def init_db_schema():
+    """Tự động kiểm tra và nâng cấp cấu trúc Database (Migrations)"""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        # Kiểm tra và thêm cột PlotlyJSON vào bảng Reports nếu chưa có
+        cursor.execute("""
+            IF NOT EXISTS (
+                SELECT * FROM sys.columns 
+                WHERE object_id = OBJECT_ID('Reports') AND name = 'PlotlyJSON'
+            )
+            BEGIN
+                ALTER TABLE Reports ADD PlotlyJSON NVARCHAR(MAX)
+            END
+        """)
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[DB SCHEMA] Lỗi cập nhật cấu trúc: {e}")
+
 # --- PHẦN 1: QUẢN LÝ NGƯỜI DÙNG (USERS) ---
 
 def register_user(username, password, fullname, email, avatar=None):
@@ -240,7 +260,7 @@ def get_all_system_configs():
     configs = {
         "DefaultPrompt": "",
         "Temperature": 0.7,
-        "MaxTokens": 2048
+        "MaxTokens": 4096
     }
     try:
         conn = get_connection()

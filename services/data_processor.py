@@ -1,4 +1,8 @@
 import pandas as pd
+import json
+import plotly.express as px
+import plotly.utils
+
 import matplotlib
 matplotlib.use('Agg')  # Non-interactive backend (no UI window)
 
@@ -13,6 +17,10 @@ import numpy as np
 matplotlib.rcParams.update({
     'font.family': 'DejaVu Sans',
     'axes.unicode_minus': False,
+    'text.color': '#f8fafc',
+    'axes.labelcolor': '#cbd5e1',
+    'xtick.color': '#cbd5e1',
+    'ytick.color': '#cbd5e1',
 })
 
 
@@ -61,11 +69,11 @@ def _setup_style(fig, ax):
     """Áp dụng nền và grid nhất quán cho mọi biểu đồ."""
     fig.patch.set_facecolor("#0f172a")
     ax.set_facecolor("#1e293b")
-    ax.tick_params(colors="#94a3b8", labelsize=9)
-    ax.xaxis.label.set_color("#94a3b8")
-    ax.yaxis.label.set_color("#94a3b8")
-    ax.title.set_color("#f1f5f9")
-    ax.spines[:].set_color("#334155")
+    ax.tick_params(colors="#cbd5e1", labelsize=9)
+    ax.xaxis.label.set_color("#cbd5e1")
+    ax.yaxis.label.set_color("#cbd5e1")
+    ax.title.set_color("#f8fafc")
+    ax.spines[:].set_color("#475569")
     ax.grid(axis='y', color="#334155", linewidth=0.6, linestyle="--", alpha=0.7)
     ax.set_axisbelow(True)
 
@@ -179,13 +187,13 @@ def _draw_legend_panel(fig, counts_series, col_name, total):
     ax_leg.axis('off')
 
     # ── Tiêu đề panel
-    ax_leg.text(0.5, 0.975, 'CHU THICH',
+    ax_leg.text(0.5, 0.975, 'CHÚ THÍCH',
                 transform=ax_leg.transAxes,
-                ha='center', va='top', fontsize=10, fontweight='bold',
-                color='#f1f5f9')
-    ax_leg.text(0.5, 0.935, _safe_label(f'Cot: {col_name}'),
+                ha='center', va='top', fontsize=11, fontweight='bold',
+                color='#f8fafc')
+    ax_leg.text(0.5, 0.935, _safe_label(f'Cột dữ liệu: {col_name}'),
                 transform=ax_leg.transAxes,
-                ha='center', va='top', fontsize=7.5,
+                ha='center', va='top', fontsize=8,
                 color='#94a3b8', style='italic')
 
     # Đường kẻ dưới tiêu đề
@@ -197,12 +205,12 @@ def _draw_legend_panel(fig, counts_series, col_name, total):
 
     # ── Header cột
     hdr_y = 0.875
-    ax_leg.text(0.08, hdr_y, 'Ky hieu', transform=ax_leg.transAxes,
-                fontsize=7, fontweight='bold', color='#64748b', va='top')
-    ax_leg.text(0.42, hdr_y, 'SL', transform=ax_leg.transAxes,
-                fontsize=7, fontweight='bold', color='#64748b', va='top')
-    ax_leg.text(0.60, hdr_y, 'Ty le', transform=ax_leg.transAxes,
-                fontsize=7, fontweight='bold', color='#64748b', va='top')
+    ax_leg.text(0.08, hdr_y, 'Phân loại', transform=ax_leg.transAxes,
+                fontsize=7.5, fontweight='bold', color='#64748b', va='top')
+    ax_leg.text(0.42, hdr_y, 'Số lượng', transform=ax_leg.transAxes,
+                fontsize=7.5, fontweight='bold', color='#64748b', va='top')
+    ax_leg.text(0.60, hdr_y, 'Tỷ lệ (%)', transform=ax_leg.transAxes,
+                fontsize=7.5, fontweight='bold', color='#64748b', va='top')
 
     # ── Các dòng
     y = 0.820
@@ -325,8 +333,8 @@ def generate_auto_chart(df, file_id):
                 at.set_fontsize(9.5)
                 at.set_fontweight("bold")
 
-            ax.set_title(_safe_label(f"Phan bo: {col}"),
-                         fontsize=14, pad=16, color="#f1f5f9", fontweight="bold")
+            ax.set_title(_safe_label(f"Phân bổ: {col}"),
+                         fontsize=15, pad=20, color="#f8fafc", fontweight="bold")
             ax.axis("equal")
             _draw_legend_panel(fig, counts, col, total)
 
@@ -350,10 +358,10 @@ def generate_auto_chart(df, file_id):
                         ha="center", va="bottom",
                         color="#f1f5f9", fontsize=8.5, fontweight="bold")
 
-            ax.set_title(_safe_label(f"So luong theo: {col}"),
-                         fontsize=14, pad=14, fontweight="bold")
-            ax.set_xlabel(_safe_label(col), fontsize=10)
-            ax.set_ylabel("So luong", fontsize=10)
+            ax.set_title(_safe_label(f"Số lượng theo: {col}"),
+                         fontsize=15, pad=18, color="#f8fafc", fontweight="bold")
+            ax.set_xlabel(_safe_label(col), fontsize=10, color="#cbd5e1")
+            ax.set_ylabel("Số lượng", fontsize=10, color="#cbd5e1")
             ax.yaxis.set_major_formatter(
                 mticker.FuncFormatter(lambda x, _: f"{int(x):,}"))
             plt.sca(ax)
@@ -376,10 +384,10 @@ def generate_auto_chart(df, file_id):
                         ha="center", va="bottom",
                         color="#f1f5f9", fontsize=8, fontweight="bold")
 
-            ax.set_title(_safe_label(f"Tong {num_col} theo {cat_col}"),
-                         fontsize=14, pad=14, fontweight="bold")
-            ax.set_xlabel(_safe_label(cat_col), fontsize=10)
-            ax.set_ylabel(_safe_label(num_col), fontsize=10)
+            ax.set_title(_safe_label(f"Tổng {num_col} theo {cat_col}"),
+                         fontsize=15, pad=18, color="#f8fafc", fontweight="bold")
+            ax.set_xlabel(_safe_label(cat_col), fontsize=10, color="#cbd5e1")
+            ax.set_ylabel(_safe_label(num_col), fontsize=10, color="#cbd5e1")
             ax.yaxis.set_major_formatter(
                 mticker.FuncFormatter(lambda x, _: f"{x:,.0f}"))
             plt.sca(ax)
@@ -413,10 +421,10 @@ def generate_auto_chart(df, file_id):
                     arrowprops={"arrowstyle": "->", "color": "#10a37f", "lw": 1.2}
                 )
 
-            ax.set_title(_safe_label(f"Xu huong {num_col} theo thoi gian"),
-                         fontsize=14, pad=14, fontweight="bold")
-            ax.set_xlabel(_safe_label(date_col), fontsize=10)
-            ax.set_ylabel(_safe_label(num_col), fontsize=10)
+            ax.set_title(_safe_label(f"Xu hướng {num_col} theo thời gian"),
+                         fontsize=15, pad=18, color="#f8fafc", fontweight="bold")
+            ax.set_xlabel(_safe_label(date_col), fontsize=10, color="#cbd5e1")
+            ax.set_ylabel(_safe_label(num_col), fontsize=10, color="#cbd5e1")
             ax.yaxis.set_major_formatter(
                 mticker.FuncFormatter(lambda x, _: f"{x:,.0f}"))
             plt.sca(ax)
@@ -440,9 +448,9 @@ def generate_auto_chart(df, file_id):
                         ha="center", va="bottom",
                         color="#f1f5f9", fontsize=8.5, fontweight="bold")
 
-            ax.set_title("So sanh gia tri trung binh cac chi tieu",
-                         fontsize=14, pad=14, fontweight="bold")
-            ax.set_ylabel("Gia tri trung binh", fontsize=10)
+            ax.set_title("So sánh giá trị trung bình các chỉ tiêu",
+                         fontsize=15, pad=18, color="#f8fafc", fontweight="bold")
+            ax.set_ylabel("Giá trị trung bình", fontsize=10, color="#cbd5e1")
             ax.yaxis.set_major_formatter(
                 mticker.FuncFormatter(lambda x, _: f"{x:,.1f}"))
             plt.sca(ax)
@@ -464,10 +472,10 @@ def generate_auto_chart(df, file_id):
             ax.legend(facecolor="#1e293b", edgecolor="#334155",
                       labelcolor="#f1f5f9", fontsize=8.5)
 
-            ax.set_title(_safe_label(f"Phan phoi: {num_col}"),
-                         fontsize=14, pad=14, fontweight="bold")
-            ax.set_xlabel(_safe_label(num_col), fontsize=10)
-            ax.set_ylabel("Tan suat", fontsize=10)
+            ax.set_title(_safe_label(f"Phân phối: {num_col}"),
+                         fontsize=15, pad=18, color="#f8fafc", fontweight="bold")
+            ax.set_xlabel(_safe_label(num_col), fontsize=10, color="#cbd5e1")
+            ax.set_ylabel("Tần suất", fontsize=10, color="#cbd5e1")
             ax.yaxis.set_major_formatter(
                 mticker.FuncFormatter(lambda x, _: f"{int(x):,}"))
 
@@ -507,3 +515,75 @@ def cleanup_orphan_charts(active_file_ids: list):
                 os.remove(os.path.join(charts_dir, fname))
             except Exception:
                 pass
+
+def generate_plotly_json(df):
+    """
+    Tạo cấu trúc JSON cho biểu đồ Plotly dựa trên phân tích dữ liệu.
+    """
+    from services.data_processor import _analyze_dataframe, _PALETTE, _safe_label
+    import plotly.express as px
+    import plotly.utils
+    import json
+
+    info = _analyze_dataframe(df)
+    chart_type = info.get("chart_type", "none")
+    
+    try:
+        if chart_type == "pie":
+            col = info["cat_col"]
+            counts = df[col].value_counts().reset_index()
+            counts.columns = [col, 'Số lượng']
+            fig = px.pie(counts, values='Số lượng', names=col, title=f'Phân bổ: {col}',
+                         color_discrete_sequence=_PALETTE)
+        
+        elif chart_type == "bar_count":
+            col = info["cat_col"]
+            counts = df[col].value_counts().head(15).reset_index()
+            counts.columns = [col, 'Số lượng']
+            fig = px.bar(counts, x=col, y='Số lượng', title=f'Số lượng theo: {col}',
+                         color=col, color_discrete_sequence=_PALETTE)
+            
+        elif chart_type == "bar_agg":
+            cat_col = info["cat_col"]
+            num_col = info["num_col"]
+            df_copy = df.copy()
+            df_copy[num_col] = pd.to_numeric(df_copy[num_col], errors='coerce')
+            agg = df_copy.groupby(cat_col)[num_col].sum().nlargest(15).reset_index()
+            fig = px.bar(agg, x=cat_col, y=num_col, title=f'Tổng {num_col} theo {cat_col}',
+                         color=cat_col, color_discrete_sequence=_PALETTE)
+
+        elif chart_type == "line":
+            date_col = info["date_col"]
+            num_col = info["num_col"]
+            tmp = df[[date_col, num_col]].copy()
+            tmp[date_col] = pd.to_datetime(tmp[date_col], errors="coerce")
+            tmp[num_col] = pd.to_numeric(tmp[num_col], errors='coerce')
+            tmp = tmp.dropna().sort_values(date_col)
+            tmp = tmp.groupby(date_col)[num_col].sum().reset_index()
+            fig = px.line(tmp, x=date_col, y=num_col, title=f'Xu hướng {num_col} theo thời gian',
+                          markers=True)
+            fig.update_traces(line_color=_PALETTE[0])
+
+        elif chart_type == "hist":
+            num_col = info["num_col"]
+            data = df[[num_col]].copy()
+            data[num_col] = pd.to_numeric(data[num_col], errors='coerce')
+            fig = px.histogram(data, x=num_col, title=f'Phân phối: {num_col}',
+                               color_discrete_sequence=[_PALETTE[0]])
+
+        else:
+            return None
+
+        fig.update_layout(
+            template="plotly_dark",
+            paper_bgcolor="#0f172a",
+            plot_bgcolor="#1e293b",
+            font=dict(color="#f8fafc", family="Inter, sans-serif"),
+            title_font=dict(size=18, color="#f8fafc"),
+            margin=dict(l=40, r=40, t=60, b=40)
+        )
+        
+        return json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
+    except Exception as e:
+        print(f"[PLOTLY ERROR] {e}")
+        return None
