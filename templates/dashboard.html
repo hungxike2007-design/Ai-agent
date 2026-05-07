@@ -7,6 +7,8 @@
     <title>AI Agent Analytics — Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Bootstrap CSS (local) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
@@ -463,22 +465,38 @@
         /* UPLOAD */
         .upload-row {
             display: flex;
-            gap: 12px;
+            gap: 16px;
             align-items: center;
             flex-wrap: wrap;
+            padding-bottom: 4px;
+            row-gap: 12px; /* Ensure vertical gap when wrapped */
         }
 
         .style-select {
-            padding: 10px 14px;
-            background: rgba(255, 255, 255, 0.7);
+            padding: 10px 40px 10px 16px;
+            background: rgba(255, 255, 255, 0.85);
             border: 1px solid var(--border-dark);
-            border-radius: 10px;
+            border-radius: 12px;
             color: var(--text);
             font-family: inherit;
-            font-size: .85rem;
+            font-size: .9rem;
             cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
             outline: none;
+            transition: all 0.25s;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 16px;
+            box-shadow: var(--shadow-sm);
+            min-height: 46px;
+        }
+
+        .style-select:hover {
+            border-color: var(--green);
+            background: #fff;
+            box-shadow: var(--shadow-md);
         }
 
         .style-select:focus {
@@ -496,12 +514,15 @@
             padding: 9px 14px;
             background: rgba(255, 255, 255, 0.7);
             border: 1px dashed rgba(99, 102, 241, 0.5);
-            border-radius: 10px;
+            border-radius: 12px;
             color: var(--muted);
             font-family: inherit;
             font-size: .85rem;
             cursor: pointer;
             transition: .2s;
+            min-height: 46px;
+            display: flex;
+            align-items: center;
         }
 
         .file-input-wrap input[type=file]:hover {
@@ -510,18 +531,20 @@
         }
 
         .btn {
-            padding: 10px 18px;
+            padding: 10px 20px;
             border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: .85rem;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: .88rem;
             cursor: pointer;
             font-family: inherit;
             display: inline-flex;
             align-items: center;
-            gap: 7px;
+            justify-content: center;
+            gap: 8px;
             transition: all .2s;
             text-decoration: none;
+            min-height: 46px;
         }
 
         .btn-green {
@@ -552,12 +575,11 @@
             filter: brightness(1.05);
         }
 
-        /* TABLE */
+        /* TABLE — Bootstrap table enhanced */
         .table-wrap {
             overflow-x: auto;
             overflow-y: auto;
             max-height: 480px;
-            /* Cuộn dọc nếu nhiều dòng */
             border-radius: 10px;
             border: 1px solid var(--border);
             box-shadow: var(--shadow-sm);
@@ -565,10 +587,9 @@
 
         .table-wrap table {
             width: max-content;
-            /* Không ép co cột */
             min-width: 100%;
-            border-collapse: collapse;
             font-size: .82rem;
+            margin-bottom: 0;
         }
 
         .table-wrap thead th {
@@ -1303,7 +1324,7 @@
                             <option value="Giải pháp">💡 Giải pháp & Khuyến nghị (Hành động)</option>
                         </select>
                         <div class="file-input-wrap">
-                            <input type="file" name="file" accept=".xlsx,.xls" required>
+                            <input type="file" name="file" class="form-control-file" accept=".xlsx,.xls" required>
                         </div>
                         <button type="submit" class="btn btn-green"><i class="fas fa-wand-magic-sparkles"></i> Phân
                             tích</button>
@@ -1358,9 +1379,7 @@
                             <img src="{{ chart_path }}" alt="Biểu đồ chính" onclick="openLightbox(this.src)">
                         </div>
                         {% endif %}
-                        <!-- Plotly Interactive Chart -->
-                        <div id="plotly-chart" class="chart-card"
-                            style="display: none; min-height: 500px; background: #0f172a;"></div>
+
                         {% if extra_charts %}
                         {% for ec in extra_charts %}
                         <div class="chart-card">
@@ -1434,7 +1453,7 @@
                     </div>
                 </div>
                 <div class="chat-input-row">
-                    <input type="text" id="userQuestion" class="chat-input" placeholder="Nhập câu hỏi của bạn...">
+                    <input type="text" id="userQuestion" class="form-control chat-input" placeholder="Nhập câu hỏi của bạn...">
                     <button id="btnAsk" class="btn btn-green" onclick="askAI()"><i class="fas fa-paper-plane"></i>
                         Gửi</button>
                 </div>
@@ -1581,16 +1600,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             updateRowCount();
 
-            // Vẽ biểu đồ Plotly nếu có dữ liệu sẵn từ server render
-            const plotlyDataRaw = '{{ plotly_json | safe if plotly_json else "" }}';
-            if (plotlyDataRaw) {
-                const plotlyBox = document.getElementById('plotly-chart');
-                if (plotlyBox) {
-                    plotlyBox.style.display = 'block';
-                    const plotData = JSON.parse(plotlyDataRaw);
-                    Plotly.newPlot('plotly-chart', plotData.data, plotData.layout, { responsive: true, displayModeBar: false });
-                }
-            }
+
         });
 
         function toggleHints() {
@@ -1954,6 +1964,8 @@
             modal.style.display = 'flex';
         }
     </script>
+    <!-- Bootstrap JS (local) -->
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
 </body>
 
 </html>

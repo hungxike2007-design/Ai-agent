@@ -520,11 +520,6 @@ def generate_plotly_json(df):
     """
     Tạo cấu trúc JSON cho biểu đồ Plotly dựa trên phân tích dữ liệu.
     """
-    from services.data_processor import _analyze_dataframe, _PALETTE, _safe_label
-    import plotly.express as px
-    import plotly.utils
-    import json
-
     info = _analyze_dataframe(df)
     chart_type = info.get("chart_type", "none")
     

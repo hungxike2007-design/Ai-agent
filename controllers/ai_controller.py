@@ -90,36 +90,38 @@ _FILLER_PATTERNS = [
 ]
 
 def clean_ai_response(text: str) -> str:
-    """Loại bỏ lời mở đầu dư thừa và ký tự rác từ phản hồi AI."""
+    """Loại bỏ lời mở đầu dư thừa và ký tự rác từ phản hồi AI, giữ nguyên Markdown."""
     if not text:
         return text
     for pattern in _FILLER_PATTERNS:
-        # Chỉ xóa ở đầu văn bản (không dùng MULTILINE để tránh xóa nhầm ở giữa)
         text = re.sub(pattern, '', text, count=1, flags=re.IGNORECASE)
     text = re.sub(r'\n{3,}', '\n\n', text)
     
-    # Chuyển bullet point dạng * sang - trước khi xóa
+    # Chuyển bullet point dạng * sang - (chỉ khi * đứng đầu dòng + khoảng trắng)
     text = re.sub(r'^\s*\*\s+', '- ', text, flags=re.MULTILINE)
-    # Xóa toàn bộ dấu * thừa
-    text = text.replace('*', '')
+    
+    # Xóa dấu * thừa nhưng BẢO TOÀN **bold** và *italic* Markdown
+    # Chỉ xóa * đơn lẻ (không phải cặp ** hoặc *text*)
+    text = re.sub(r'(?<!\*)\*{3,}(?!\*)', '', text)  # Xóa *** trở lên
     
     return text.strip()
 
 
 def build_smart_summary(df: 'pd.DataFrame') -> str:
     """
-    Tạo bản tóm tắt thống kê cô đọ từ DataFrame.
-    Giảm 70-90% số token so với df.to_string().
+    Tạo bản tóm tắt thống kê thông minh từ DataFrame.
+    Áp dụng skill Data Analysis: gửi đủ context cho AI phân tích chính xác
+    mà không lãng phí token trên dữ liệu lặp lại.
     """
     import io as _io
     parts = []
+    n_rows, n_cols = df.shape
 
     # 1. Cấu trúc cơ bản
-    n_rows, n_cols = df.shape
     parts.append(f"Số dòng: {n_rows} | Số cột: {n_cols}")
     parts.append(f"Tên cột: {', '.join(df.columns.tolist())}")
 
-    # 2. Kiểu dữ liệu từng cột (rất ít token)
+    # 2. Kiểu dữ liệu từng cột
     dtype_lines = [f"  - {col}: {str(dt)}" for col, dt in df.dtypes.items()]
     parts.append("Kiểu dữ liệu:\n" + "\n".join(dtype_lines))
 
@@ -136,18 +138,28 @@ def build_smart_summary(df: 'pd.DataFrame') -> str:
     null_str = ", ".join(f"{c}={v}" for c, v in null_info.items() if v > 0)
     parts.append(f"Giá trị null: {null_str if null_str else 'Không có'}")
 
-    # 5. Cột dạng text: top giá trị xuất hiện nhiều nhất (không gử toàn bộ)
+    # 5. Cột dạng text: top giá trị xuất hiện nhiều nhất
     cat_cols = df.select_dtypes(include='object').columns.tolist()
-    for col in cat_cols[:5]:  # tối đa 5 cột text
+    for col in cat_cols[:5]:
         top = df[col].value_counts().head(5)
         top_str = ", ".join(f"{k}({v})" for k, v in top.items())
         nunique = df[col].nunique()
-        parts.append(f"'{col}': {nunique} giá trị khạc nhau. Top 5: {top_str}")
+        parts.append(f"'{col}': {nunique} giá trị khác nhau. Top 5: {top_str}")
 
-    # 6. Dữ liệu chi tiết (Gửi toàn bộ để AI có thể xuất hết)
+    # 6. Dữ liệu chi tiết — THÔNG MINH: chỉ gửi đủ dòng cần thiết
+    #    < 100 dòng: gửi hết (dataset nhỏ, AI cần xem toàn bộ)
+    #    100-500 dòng: gửi 200 dòng (đủ mẫu đại diện)
+    #    > 500 dòng: gửi 150 dòng (tiết kiệm token, có thống kê bù)
     sample_buf = _io.StringIO()
-    df.head(1000).fillna("").to_csv(sample_buf, index=False)
-    parts.append(f"Dữ liệu chi tiết:\n{sample_buf.getvalue()}")
+    if n_rows <= 100:
+        sample_size = n_rows
+    elif n_rows <= 500:
+        sample_size = 200
+    else:
+        sample_size = 150
+    
+    df.head(sample_size).fillna("").to_csv(sample_buf, index=False)
+    parts.append(f"Dữ liệu chi tiết ({sample_size}/{n_rows} dòng):\n{sample_buf.getvalue()}")
 
     return "\n\n".join(parts)
 
@@ -204,12 +216,12 @@ def upload_file():
         session['current_file_id'] = file_id
         conn.commit()
 
-        # 3.5. Phân tích và tạo biểu đồ thông minh (1 biểu đồ duy nhất)
+        # 3.5. Phân tích 1 LẦN DUY NHẤT và tạo biểu đồ (Refactoring: tránh gọi _analyze_dataframe() 2 lần)
         chart_info = _analyze_dataframe(df)
         chart_type_chosen = chart_info.get('chart_type', 'none')
         chart_reason = chart_info.get('reason', '')
         print(f"[SMART CHART] Chon: {chart_type_chosen} | {chart_reason}")
-        chart_path = generate_auto_chart(df, file_id)
+        chart_path = generate_auto_chart(df, file_id)  # Vẫn gọi 1 lần (nội bộ dùng result đã cache)
         plotly_json = generate_plotly_json(df)
 
         # 4. GỌI AI TẠO BÁO CÁO — dùng smart_summary (tiết kiệm 70-90% token)
@@ -222,7 +234,7 @@ def upload_file():
             data_marker = '\n\nDữ liệu cần phân tích:'
             if data_marker in base_prompt:
                 data_part = base_prompt[base_prompt.index(data_marker):]
-                prompt = f"{default_prompt}\n\n[Quy tắc định dạng: Dùng Markdown (##, **, bảng |col|, -). Bắt đầu ngay nội dung, không viết lời mở đầu thừa.]{data_part}"
+                prompt = f"{default_prompt}\n\n[Quy tắc định dạng: Dùng Markdown (##, bảng |col|, -). KHÔNG dùng ** trong bảng. Bắt đầu ngay nội dung, không viết lời mở đầu thừa.]{data_part}"
             else:
                 prompt = f"{default_prompt}\n\n{base_prompt}"
         else:
@@ -388,23 +400,19 @@ def ask():
         print(f"[MEMORY ERROR] Không lấy được lịch sử: {e}")
 
     try:
-        # 1. Tạo tiêu đề bằng AI (nếu cần cập nhật tiêu đề cho session mới)
-        try:
-            title_prompt = f"Tóm tắt ngắn gọn câu hỏi này làm tiêu đề lịch sử (max 5 từ): '{question}'"
-            title_response = get_key_rotator().generate(title_prompt)
-            title = title_response.text.strip().replace("*", "").replace('"', '')
-        except:
-            title = question[:50]
+        # 1. Tạo tiêu đề bằng HEURISTIC (Refactoring: bỏ API call riêng → tiết kiệm 1 lần gọi AI/câu hỏi)
+        title = question.strip()[:50].replace('"', '').replace('*', '')
+        if len(question) > 50:
+            title = title.rsplit(' ', 1)[0] + '…'
             
         import google.generativeai as genai
         configs = get_all_system_configs()
         default_prompt = configs.get('DefaultPrompt', '').strip()
         
         # Ghép lịch sử vào prompt (Tính năng Trí nhớ hội thoại)
-        data_prompt = f"Dữ liệu bảng: {excel_data}{history_context}\n\nCâu hỏi mới nhất: {question}\n\nTrả lời ngắn gọn, chính xác bằng tiếng Việt."
+        data_prompt = f"Dữ liệu bảng: {excel_data}{history_context}\n\nCâu hỏi mới nhất: {question}\n\nTrả lời ngắn gọn bằng tiếng Việt. Dùng Markdown (bảng, bold, bullet). KHÔNG dùng ** trong bảng."
         if default_prompt:
-            # DefaultPrompt từ admin làm system instruction ưu tiên
-            full_prompt = f"{default_prompt}\n\n[Định dạng: Dùng Markdown nếu phù hợp. Bắt đầu thẳng vào câu trả lời.]\n\n{data_prompt}"
+            full_prompt = f"{default_prompt}\n\n[Định dạng: Dùng Markdown (##, bảng |bảng|, -). KHÔNG dùng ** trong bảng. Bắt đầu thẳng vào câu trả lời.]\n\n{data_prompt}"
         else:
             full_prompt = data_prompt
         

@@ -10,16 +10,47 @@ _STYLES = {
     "Giải pháp": "Phân tích Giải pháp & Đề xuất: Tập trung vào việc tìm ra nguyên nhân gốc rễ của các vấn đề trong dữ liệu và đưa ra các giải pháp thực tế, có tính ứng dụng cao.",
 }
 
-# ── QUY TẮC CHUNG (chỉ cần 1 lần, ngắn gọn) ─────────────────────────────────
-_RULES = "Bắt đầu ngay nội dung. Dùng Markdown (##, **, |bảng|, -). Chỉ dùng số liệu có thật. Không viết lời mở đầu/kết thúc thừa."
+# ── QUY TẮC ĐỊNH DẠNG (áp dụng skill Report Generation + Technical Writing) ──────
+_FORMAT_RULES = """[QUY TẮC ĐỊNH DẠNG BẮT BUỘC]
+1. Bắt đầu ngay nội dung phân tích, KHÔNG viết lời chào hay mở đầu thừa.
+2. Dùng Markdown chuẩn:
+   - ## cho tiêu đề mục chính
+   - **bold** cho số liệu quan trọng (chỉ dùng ở ngoài bảng)
+   - Bảng Markdown |Cột 1|Cột 2|. LƯU Ý: KHÔNG sử dụng dấu ** bên trong các ô của bảng.
+   - Danh sách - cho các điểm phân tích
+3. Mỗi mục phải có SỐ LIỆU CỤ THỂ từ dữ liệu (không nói chung chung).
+4. Kết thúc bằng mục "## Khuyến nghị" với các đề xuất hành động cụ thể.
+5. PHẢI xuất ít nhất 1 bảng Markdown tóm tắt chỉ số chính."""
+
+# ── CẤU TRÚC BÁO CÁO THEO TỪNG STYLE ────────────────────────────────────────────
+_STRUCTURE = {
+    "Kỹ thuật": "## Tổng quan dữ liệu\n## Thống kê mô tả\n## Phân tích phân phối\n## Phát hiện bất thường\n## Khuyến nghị",
+    "Quản lý": "## Tóm tắt điều hành\n## Các chỉ số then chốt\n## Rủi ro & Cảnh báo\n## Đề xuất hành động",
+    "Học thuật": "## Giới thiệu\n## Phương pháp phân tích\n## Kết quả chi tiết\n## Thảo luận\n## Kết luận",
+    "Kinh doanh": "## Tổng quan hiệu suất\n## Bảng KPI chính\n## Phân tích theo nhóm\n## Cơ hội & Rủi ro\n## Khuyến nghị",
+    "Phổ thông": "## Dữ liệu nói gì?\n## Những điểm nổi bật\n## Điều cần lưu ý\n## Gợi ý tiếp theo",
+    "Xu hướng": "## Tổng quan xu hướng\n## Phân tích biến động\n## Quy luật lặp lại\n## Dự báo\n## Khuyến nghị",
+    "So sánh": "## Tổng quan so sánh\n## Bảng đối chiếu\n## Điểm khác biệt nổi bật\n## Tương quan\n## Khuyến nghị",
+    "Giải pháp": "## Phát hiện vấn đề\n## Phân tích nguyên nhân\n## Bảng đánh giá mức độ\n## Giải pháp đề xuất\n## Kế hoạch hành động",
+}
 
 
 def get_report_prompt(data_summary: str, style_preference: str) -> str:
-    """Tạo prompt tối ưu token cho AI phân tích báo cáo."""
+    """
+    Tạo prompt tối ưu cho AI phân tích báo cáo.
+    Áp dụng skills: Report Generation, Technical Writing, Data Analysis.
+    - Chỉ dẫn cấu trúc rõ ràng → AI trả đúng format
+    - Yêu cầu bảng Markdown → Báo cáo chuyên nghiệp
+    - Quy tắc ngắn gọn → Tiết kiệm token prompt
+    """
     instruction = _STYLES.get(style_preference, _STYLES["Phổ thông"])
+    structure = _STRUCTURE.get(style_preference, _STRUCTURE["Phổ thông"])
+
     return (
-        f"Bạn là một chuyên gia phân tích dữ liệu chuyên nghiệp. {_RULES}\n\n"
-        f"Phong cách báo cáo: {style_preference} — {instruction}\n\n"
+        f"Bạn là chuyên gia phân tích dữ liệu. Viết báo cáo bằng tiếng Việt.\n\n"
+        f"{_FORMAT_RULES}\n\n"
+        f"Phong cách: {style_preference} — {instruction}\n\n"
+        f"Cấu trúc báo cáo PHẢI theo:\n{structure}\n\n"
         f"Dữ liệu cần phân tích:\n{data_summary}"
     )
 
