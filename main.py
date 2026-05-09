@@ -24,15 +24,23 @@ from database import init_db_schema
 
 # Tự động cập nhật cấu trúc database (nếu cần)
 init_db_schema()
+print("App starting - main.py")
 
 
-app = Flask(__name__)
+import os
+app = Flask(__name__, 
+            static_folder='static',
+            static_url_path='/static')
 
 
 app.secret_key = "hung_store_key_bi_mat"
 
 # Đảm bảo JSON trả về là tiếng Việt chuẩn (không bị mã hóa \uXXXX)
 app.config['JSON_AS_ASCII'] = False
+
+from datetime import timedelta
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.config['SESSION_PERMANENT'] = True
 
 @app.after_request
 def enforce_utf8_charset(response):

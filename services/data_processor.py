@@ -12,6 +12,7 @@ import matplotlib.ticker as mticker
 import matplotlib.font_manager as fm
 import os
 import numpy as np
+from openpyxl.utils import get_column_letter
 
 # ── CẤU HÌNH FONT ──────────────────────────────────────────────────────────
 matplotlib.rcParams.update({
@@ -56,6 +57,66 @@ def get_cleaning_suggestions(df):
                 "action": "Xoa dong rac hoac lay gia tri tuyet doi"
             })
     return suggestions
+
+
+def auto_clean_data(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Skill: Excel Analysis - Tự động làm sạch dữ liệu.
+    - Loại bỏ trùng lặp.
+    - Xử lý khoảng trắng thừa.
+    - Điền giá trị mặc định cho ô trống.
+    """
+    df = df.copy()
+    
+    # 1. Xóa dòng trùng lặp hoàn toàn
+    df = df.drop_duplicates()
+    
+    # 2. Xử lý khoảng trắng thừa cho các cột văn bản
+    for col in df.select_dtypes(include=['object']).columns:
+        df[col] = df[col].astype(str).str.strip()
+        
+    # 3. Điền giá trị mặc định
+    # Cột số -> 0, Cột chữ -> "N/A"
+    num_cols = df.select_dtypes(include=['number']).columns
+    df[num_cols] = df[num_cols].fillna(0)
+    
+    obj_cols = df.select_dtypes(include=['object']).columns
+    df[obj_cols] = df[obj_cols].fillna("N/A")
+    
+    return df
+
+
+def export_excel_styled(df: pd.DataFrame, output_path: str):
+    """
+    Skill: Excel Analysis - Xuất Excel với định dạng chuyên nghiệp.
+    - Tự động căn chỉnh độ rộng cột (Auto-adjust width).
+    - In đậm tiêu đề (Bold header).
+    """
+    writer = pd.ExcelWriter(output_path, engine='openpyxl')
+    df.to_excel(writer, index=False, sheet_name='Data_Analysis')
+    
+    workbook = writer.book
+    worksheet = writer.sheets['Data_Analysis']
+    
+    # Tự động căn chỉnh độ rộng cột dựa trên nội dung dài nhất
+    for col in worksheet.columns:
+        max_length = 0
+        column = col[0].column_letter # Lấy chữ cái tên cột
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = (max_length + 2)
+        worksheet.column_dimensions[column].width = adjusted_width
+        
+    # In đậm hàng tiêu đề
+    from openpyxl.styles import Font
+    for cell in worksheet[1]:
+        cell.font = Font(bold=True)
+        
+    writer.close()
 
 
 # ── BẢNG MÀU CHUYÊN NGHIỆP ──────────────────────────────────────────────────

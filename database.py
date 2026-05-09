@@ -1,22 +1,23 @@
 import pyodbc
 
 # Chuỗi kết nối đến SQL Server của Hùng
-CONN_STR = r"Driver={SQL Server};Server=TOM\SQLEXPRESS;Database=QuanLyAIAgent;Trusted_Connection=yes;"
+CONN_STR = r"Driver={SQL Server};Server=LAPTOP-355TS2QT\HUY_DEV;Database=QuanLyAIAgent;Trusted_Connection=yes;"
 
 # --- CẤU HÌNH GEMINI TẬP TRUNG ---
 # Thêm tất cả API Keys vào danh sách bên dưới.
 # Hệ thống sẽ tự động xoay vòng sang key tiếp theo khi key hiện tại hết quota.
 GEMINI_API_KEYS = [
-    "",  # thay key ở đây
-    "",  # thay key ở đây
-    ""   # thay key ở đây
+    "AIzaSyBGrqchQTH2KndqruPovp9A6LatWjz94DY",  # thay key ở đây
+    "AIzaSyCKy03ZJmghDdD0d9X7ka6ZfyW1PPa6B1A",  # thay key ở đây
+    "AIzaSyDzx4R_3AOOxHwxvjNozk5hj_TSlLimUp0"   # thay key ở đây
 ]
 GEMINI_MODEL_NAME = "gemini-flash-latest"  # quota miễn phí cao hơn gemini-2.0-flash
 
-# Danh sách lỗi cho biết key đã hết hạn mức hoặc bị giới hạn tốc độ
-_QUOTA_ERROR_KEYWORDS = [
+# Danh sách lỗi cho biết key cần được xoay vòng (hết quota, hết hạn, hoặc không hợp lệ)
+_ROTATABLE_ERROR_KEYWORDS = [
     'quota', 'resource exhausted', '429',
     'rate limit', 'rateLimitExceeded', 'too many requests',
+    'expired', 'invalid', 'unauthenticated', '400'
 ]
 
 
@@ -61,9 +62,9 @@ class GeminiKeyRotator:
         self._apply_current_key()
 
     @staticmethod
-    def _is_quota_error(err: Exception) -> bool:
+    def _is_rotatable_error(err: Exception) -> bool:
         err_str = str(err).lower()
-        return any(kw in err_str for kw in _QUOTA_ERROR_KEYWORDS)
+        return any(kw in err_str for kw in _ROTATABLE_ERROR_KEYWORDS)
 
     # ------------------------------------------------------------------
     # Public API
@@ -71,6 +72,10 @@ class GeminiKeyRotator:
     def get_model(self):
         """Trả về GenerativeModel đang dùng."""
         return self._model
+
+    def get_current_api_key(self):
+        """Trả về API key hiện tại đang dùng (để cho LangChain sử dụng)."""
+        return self._keys[self._index]
 
     def generate(self, prompt: str, generation_config=None):
         """
@@ -87,8 +92,8 @@ class GeminiKeyRotator:
                     return self._model.generate_content(prompt, generation_config=generation_config)
                 return self._model.generate_content(prompt)
             except Exception as e:
-                if self._is_quota_error(e):
-                    print(f"[KeyRotator] Key #{self._index + 1} hết quota → thử key tiếp theo…")
+                if self._is_rotatable_error(e):
+                    print(f"[KeyRotator] Key #{self._index + 1} gặp lỗi hoặc hết quota → thử key tiếp theo…")
                     last_err = e
                     self._rotate()
                     attempts += 1
@@ -99,9 +104,9 @@ class GeminiKeyRotator:
                     raise  # lỗi khác (invalid key, network, ...) → ném ra ngay
 
         raise Exception(
-            f"Tất cả {len(self._keys)} API key đều đã hết quota.\n"
-            "Hãy thêm key mới hoặc đợi đến 07:00 sáng hôm sau để quota reset.\n"
-            f"Lỗi gốc: {last_err}"
+            f"Tất cả {len(self._keys)} API key đều gặp lỗi hoặc hết quota.\n"
+            "Hãy kiểm tra lại danh sách key trong database.py hoặc đợi quota reset.\n"
+            f"Lỗi cuối cùng: {last_err}"
         )
 
 
@@ -231,12 +236,15 @@ def save_report(user_id, title, query_text, ai_response, tokens=0):
     """Lưu lịch sử báo cáo mà AI đã sinh ra"""
     conn = get_connection()
     cursor = conn.cursor()
+    # LƯU Ý: Bảng Reports hiện tại có cấu trúc khác (FileID thay vì UserID/Title)
+    # Hàm này có vẻ là code cũ, tạm thời để lại nhưng tránh sử dụng nếu không khớp schema
     query = """
-        INSERT INTO Reports (UserID, Title, QueryText, AiResponse, TokenUsed)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO Reports (FileID, [Content], CreatedDate, Summary)
+        VALUES (?, ?, GETDATE(), ?)
     """
     try:
-        cursor.execute(query, (user_id, title, query_text, ai_response, tokens))
+        # Giả định query_text là file_id nếu gọi theo kiểu mới
+        cursor.execute(query, (query_text, ai_response, title))
         conn.commit()
     except Exception as e:
         print(f"Lỗi save_report: {e}")

@@ -469,7 +469,8 @@
             align-items: center;
             flex-wrap: wrap;
             padding-bottom: 4px;
-            row-gap: 12px; /* Ensure vertical gap when wrapped */
+            row-gap: 12px;
+            /* Ensure vertical gap when wrapped */
         }
 
         .style-select {
@@ -1453,7 +1454,8 @@
                     </div>
                 </div>
                 <div class="chat-input-row">
-                    <input type="text" id="userQuestion" class="form-control chat-input" placeholder="Nhập câu hỏi của bạn...">
+                    <input type="text" id="userQuestion" class="form-control chat-input"
+                        placeholder="Nhập câu hỏi của bạn...">
                     <button id="btnAsk" class="btn btn-green" onclick="askAI()"><i class="fas fa-paper-plane"></i>
                         Gửi</button>
                 </div>
@@ -1552,6 +1554,11 @@
     </div>
 
     <script>
+        // Sử dụng url_for để đảm bảo đường dẫn luôn đúng (tránh lỗi 404)
+        const getSessionUrlBase = "{{ url_for('ai.get_session', session_id=0) }}".replace('/0', '');
+        const exportReportUrl = "{{ url_for('ai.export_report') }}";
+        const exportExcelUrl = "{{ url_for('ai.export_excel') }}";
+
         const chatBox = document.getElementById('chatBox');
         const chatContent = document.getElementById('chat-content');
         const questionInput = document.getElementById('userQuestion');
@@ -1613,78 +1620,96 @@
         async function loadChatSession(sessionId) {
             const dataSection = document.getElementById('data-section');
             const chatSection = document.getElementById('chat-section');
-            dataSection.style.display = 'block';
-            chatSection.style.display = 'flex';
-            chatContent.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;"><i class="fas fa-spinner fa-spin"></i> Đang nạp dữ liệu...</div>';
-
-            const res = await fetch(`/ai/get_session/${sessionId}`);
-            const data = await res.json();
-            if (data.error) { alert(data.error); return; }
-
-            currentSessionId = sessionId;
-
-            const btnWord = document.querySelector('.btn-word');
-            const btnPdf = document.querySelector('.btn-export');
-            if (btnWord) btnWord.href = `/ai/export_report?format=word&session_id=${sessionId}`;
-            if (btnPdf) btnPdf.href = `/ai/export_report?format=pdf&session_id=${sessionId}`;
-
             const tableDiv = document.getElementById('excel-table-content');
-            if (tableDiv && data.table_html) {
-                tableDiv.innerHTML = data.table_html;
-                document.getElementById('tableInfo').style.display = 'block';
-                updateRowCount();
-            }
-
             const chartBoxEl = document.getElementById('chart-content');
-            const plotlyBox = document.getElementById('plotly-chart');
-            if (chartBoxEl) {
-                if (data.chart_path || data.plotly_json) {
-                    chartBoxEl.style.display = 'block';
+            const tableInfo = document.getElementById('tableInfo');
 
-                    // Xử lý Plotly nếu có
-                    if (data.plotly_json) {
-                        plotlyBox.style.display = 'block';
-                        const plotData = JSON.parse(data.plotly_json);
-                        Plotly.newPlot('plotly-chart', plotData.data, plotData.layout, { responsive: true, displayModeBar: false });
-                    } else {
-                        plotlyBox.style.display = 'none';
-                    }
+            // 1. RESET GIAO DIỆN NGAY LẬP TỨC
+            if (dataSection) dataSection.style.display = 'block';
+            if (chatSection) chatSection.style.display = 'flex';
+            if (tableInfo) tableInfo.style.display = 'none';
 
-                    // Hiển thị biểu đồ chính (PNG)
-                    const grid = document.querySelector('.charts-grid');
-                    let imagesHtml = '';
-                    if (data.chart_path) {
-                        imagesHtml += `<div class="chart-card"><img src="${data.chart_path}" alt="Biểu đồ chính" onclick="openLightbox(this.src)"></div>`;
-                    }
-                    // Giữ lại container cho plotly
-                    grid.innerHTML = imagesHtml + `<div id="plotly-chart" class="chart-card" style="${data.plotly_json ? '' : 'display:none;'} min-height:500px; background:#0f172a;"></div>`;
+            // Xóa sạch bảng và biểu đồ cũ để tránh hiện tượng "bóng ma" dữ liệu cũ
+            if (tableDiv) tableDiv.innerHTML = '<div class="p-4 text-center text-muted"><i class="fas fa-spinner fa-spin"></i> Đang nạp bảng dữ liệu...</div>';
+            if (chartBoxEl) chartBoxEl.style.display = 'none';
 
-                    // Vẽ lại sau khi innerHTML thay đổi
-                    if (data.plotly_json) {
-                        const plotData = JSON.parse(data.plotly_json);
-                        Plotly.newPlot('plotly-chart', plotData.data, plotData.layout, { responsive: true, displayModeBar: false });
-                    }
-                } else {
-                    chartBoxEl.style.display = 'none';
+            chatContent.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px;"><i class="fas fa-spinner fa-spin fa-2x"></i><br><br>Đang đồng bộ hội thoại...</div>';
+
+            try {
+                const res = await fetch(`${getSessionUrlBase}/${sessionId}`);
+
+                const contentType = res.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    throw new Error("Server không trả về dữ liệu JSON (Có thể phiên làm việc hết hạn).");
                 }
-            }
 
-            chatContent.innerHTML = '';
-            if (data.messages && data.messages.length > 0) {
-                data.messages.forEach(msg => {
-                    const isAI = msg.role.toLowerCase() === 'assistant' || msg.role.toLowerCase() === 'ai';
-                    const body = isAI
-                        ? `<div class="md-body">${marked.parse(msg.content)}</div>`
-                        : msg.content;
-                    chatContent.innerHTML += `<div class="bubble ${isAI ? 'ai-bubble' : 'user-bubble'}" ${isAI ? 'style="max-width:100%"' : ''}>
-                <strong><i class="fas ${isAI ? 'fa-robot' : 'fa-user'}"></i> ${isAI ? 'AI Agent' : 'Bạn'}</strong>
-                ${body}
-            </div>`;
-                });
-            } else {
-                chatContent.innerHTML = '<p style="color:var(--muted);font-size:.85rem;text-align:center;">Phiên này chưa có tin nhắn.</p>';
+                const data = await res.json();
+                if (data.error) {
+                    chatContent.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                    return;
+                }
+
+                currentSessionId = sessionId;
+
+                // Cập nhật link xuất báo cáo
+                const btnWord = document.querySelector('.btn-word');
+                const btnPdf = document.querySelector('.btn-export');
+                const btnExcel = document.querySelector('.btn-excel');
+                if (btnWord) btnWord.href = `${exportReportUrl}?format=word&session_id=${sessionId}`;
+                if (btnPdf) btnPdf.href = `${exportReportUrl}?format=pdf&session_id=${sessionId}`;
+                if (btnExcel) btnExcel.href = `${exportExcelUrl}?session_id=${sessionId}`;
+
+                // 2. NẠP BẢNG DỮ LIỆU
+                if (tableDiv && data.table_html) {
+                    tableDiv.innerHTML = data.table_html;
+                    if (tableInfo) tableInfo.style.display = 'block';
+                    updateRowCount();
+                }
+
+                // 3. NẠP BIỂU ĐỒ
+                if (chartBoxEl) {
+                    if (data.chart_path || data.plotly_json) {
+                        chartBoxEl.style.display = 'block';
+                        const grid = document.querySelector('.charts-grid');
+
+                        let imagesHtml = '';
+                        if (data.chart_path) {
+                            imagesHtml += `<div class="chart-card"><img src="${data.chart_path}" alt="Biểu đồ" onclick="openLightbox(this.src)"></div>`;
+                        }
+
+                        // Container cho Plotly (nếu có)
+                        grid.innerHTML = imagesHtml + `<div id="plotly-chart" class="chart-card" style="${data.plotly_json ? '' : 'display:none;'} min-height:500px; background:#0f172a;"></div>`;
+
+                        if (data.plotly_json) {
+                            const plotData = JSON.parse(data.plotly_json);
+                            Plotly.newPlot('plotly-chart', plotData.data, plotData.layout, { responsive: true, displayModeBar: false });
+                        }
+                    } else {
+                        chartBoxEl.style.display = 'none';
+                    }
+                }
+
+                // 4. NẠP TIN NHẮN CHAT
+                chatContent.innerHTML = '';
+                if (data.messages && data.messages.length > 0) {
+                    data.messages.forEach(msg => {
+                        const isAI = msg.role.toLowerCase() === 'assistant' || msg.role.toLowerCase() === 'ai';
+                        const body = isAI ? `<div class="md-body">${marked.parse(msg.content)}</div>` : msg.content;
+                        chatContent.innerHTML += `
+                            <div class="bubble ${isAI ? 'ai-bubble' : 'user-bubble'}" ${isAI ? 'style="max-width:100%"' : ''}>
+                                <strong><i class="fas ${isAI ? 'fa-robot' : 'fa-user'}"></i> ${isAI ? 'AI Agent' : 'Bạn'}</strong>
+                                ${body}
+                            </div>`;
+                    });
+                } else {
+                    chatContent.innerHTML = '<p style="color:var(--muted);font-size:.85rem;text-align:center;padding:20px;">Phiên này chưa có tin nhắn.</p>';
+                }
+
+                if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+
+            } catch (err) {
+                chatContent.innerHTML = `<div class="alert alert-danger">Lỗi kết nối: ${err}</div>`;
             }
-            if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
         }
 
         async function askAI() {

@@ -4,13 +4,21 @@ import io
 import os
 import uuid
 from docx import Document
-from services.data_processor import get_cleaning_suggestions, generate_auto_chart, generate_multi_charts, _analyze_dataframe, generate_plotly_json
+from services.data_processor import (
+    get_cleaning_suggestions, 
+    auto_clean_data, # Thêm skill làm sạch tự động
+    generate_auto_chart, 
+    generate_multi_charts, 
+    _analyze_dataframe, 
+    generate_plotly_json
+)
 from services.report_service import get_report_prompt, get_available_styles
 from database import get_connection, get_all_system_configs
 
 ai_bp = Blueprint('ai', __name__)
 
 from database import configure_ai, get_key_rotator
+print("ai_controller.py module imported")
 
 def get_model():
     """
@@ -165,6 +173,7 @@ def build_smart_summary(df: 'pd.DataFrame') -> str:
 
 @ai_bp.route('/dashboard')
 def dashboard():
+    print("dashboard route called")
     return render_template('dashboard.html')
 
 @ai_bp.route('/upload', methods=['POST'])
@@ -179,12 +188,17 @@ def upload_file():
     try:
         # 1. Đọc và xử lý Excel
         df = pd.read_excel(file, dtype=str)
+        
+        # Skill: Excel Analysis - Tự động làm sạch dữ liệu ngay khi upload
+        df = auto_clean_data(df)
+        
         filename = file.filename
         
         # Save the file to disk for later retrieval
         import os
         os.makedirs('uploads', exist_ok=True)
         file.seek(0)
+        # Lưu bản gốc nhưng AI sẽ làm việc với bản đã clean
         file.save(os.path.join('uploads', filename))
         
         cleaning_hints = get_cleaning_suggestions(df)
@@ -343,6 +357,7 @@ def ask():
             if s_row: file_id = s_row[0]
         except: pass
 
+    df = None
     excel_data = "Không có dữ liệu bảng."
     if file_id:
         try:
@@ -409,20 +424,33 @@ def ask():
         configs = get_all_system_configs()
         default_prompt = configs.get('DefaultPrompt', '').strip()
         
-        # Ghép lịch sử vào prompt (Tính năng Trí nhớ hội thoại)
-        data_prompt = f"Dữ liệu bảng: {excel_data}{history_context}\n\nCâu hỏi mới nhất: {question}\n\nTrả lời ngắn gọn bằng tiếng Việt. Dùng Markdown (bảng, bold, bullet). KHÔNG dùng ** trong bảng."
-        if default_prompt:
-            full_prompt = f"{default_prompt}\n\n[Định dạng: Dùng Markdown (##, bảng |bảng|, -). KHÔNG dùng ** trong bảng. Bắt đầu thẳng vào câu trả lời.]\n\n{data_prompt}"
+        # --- SỬ DỤNG PANDAS AGENT (CODE INTERPRETER) ---
+        if df is not None:
+            # Nếu có dữ liệu bảng, gọi LangChain Pandas Agent thay vì gửi text
+            from services.pandas_agent import ask_pandas_agent
+            
+            agent_prompt = f"{history_context}\n\nCâu hỏi mới nhất: {question}"
+            if default_prompt:
+                agent_prompt = f"Quy tắc từ Admin: {default_prompt}\n\n{agent_prompt}"
+                
+            answer = ask_pandas_agent(df, agent_prompt)
+            # Làm sạch kết quả trả về
+            answer = clean_ai_response(answer)
         else:
-            full_prompt = data_prompt
-        
-        _gen_cfg = genai.types.GenerationConfig(
-            temperature=configs.get("Temperature", 0.7),
-            max_output_tokens=int(configs.get("MaxTokens", 2048))
-        )
-        # Dùng rotator.generate() — tự xoay key khi gặp quota
-        response = get_key_rotator().generate(full_prompt, generation_config=_gen_cfg)
-        answer = clean_ai_response(response.text)
+            # --- FALLBACK CHAT BÌNH THƯỜNG (Không có file) ---
+            data_prompt = f"Dữ liệu bảng: {excel_data}{history_context}\n\nCâu hỏi mới nhất: {question}\n\nTrả lời ngắn gọn bằng tiếng Việt. Dùng Markdown (bảng, bold, bullet). KHÔNG dùng ** trong bảng."
+            if default_prompt:
+                full_prompt = f"{default_prompt}\n\n[Định dạng: Dùng Markdown (##, bảng |bảng|, -). KHÔNG dùng ** trong bảng. Bắt đầu thẳng vào câu trả lời.]\n\n{data_prompt}"
+            else:
+                full_prompt = data_prompt
+            
+            _gen_cfg = genai.types.GenerationConfig(
+                temperature=configs.get("Temperature", 0.7),
+                max_output_tokens=int(configs.get("MaxTokens", 2048))
+            )
+            # Dùng rotator.generate() — tự xoay key khi gặp quota
+            response = get_key_rotator().generate(full_prompt, generation_config=_gen_cfg)
+            answer = clean_ai_response(response.text)
         
         # 3. LƯU VÀO DATABASE (Cả SessionTitle và ChatMessages)
         conn = get_connection()
@@ -549,6 +577,69 @@ def export_report():
     res.headers['Content-Disposition'] = 'attachment; filename=Bao_cao_AI.html'
     res.headers['Content-Type'] = 'text/html; charset=utf-8'
     return res
+
+
+@ai_bp.route('/export_excel')
+def export_excel():
+    """
+    Skill: Excel Analysis - Xuất dữ liệu đã làm sạch ra file Excel có định dạng đẹp.
+    Hỗ trợ xuất từ phiên chat hiện tại hoặc từ lịch sử thông qua session_id.
+    """
+    session_id = request.args.get('session_id')
+    file_id = None
+    
+    # 1. Nếu có session_id, tìm FileID tương ứng trong DB
+    if session_id:
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT FileID FROM ChatSessions WHERE SessionID = ?", (session_id,))
+            row = cursor.fetchone()
+            if row:
+                file_id = row[0]
+            conn.close()
+        except: pass
+        
+    # 2. Nếu không có session_id hoặc không tìm thấy, lấy từ session hiện tại
+    if not file_id:
+        file_id = session.get('current_file_id')
+        
+    if not file_id:
+        return "Không tìm thấy file để xuất!", 404
+        
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT FileName, FilePath FROM ExcelFiles WHERE FileID = ?", (file_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if not row or not os.path.exists(row[1]):
+            return "File không tồn tại trên hệ thống!", 404
+            
+        filename, filepath = row[0], row[1]
+        
+        # 1. Đọc dữ liệu
+        df = pd.read_excel(filepath)
+        
+        # 2. Tự động làm sạch (Skill từ Excel Analysis)
+        df_cleaned = auto_clean_data(df)
+        
+        # 3. Tạo file Excel có định dạng (Styled)
+        output_filename = f"Cleaned_{filename}"
+        if not output_filename.endswith('.xlsx'):
+            output_filename = output_filename.rsplit('.', 1)[0] + '.xlsx'
+            
+        temp_path = os.path.join('uploads', f"temp_{uuid.uuid4()}.xlsx")
+        from services.data_processor import export_excel_styled
+        export_excel_styled(df_cleaned, temp_path)
+        
+        # 4. Gửi file và xóa file tạm
+        return send_file(temp_path, as_attachment=True, download_name=output_filename)
+        
+    except Exception as e:
+        print(f"[EXPORT EXCEL ERROR] {e}")
+        return f"Lỗi khi xuất file Excel: {e}", 500
 
 
 # ── HÀM HỖ TRỢ XUẤT FILE ────────────────────────────────────────────────────
@@ -852,6 +943,7 @@ def get_user_chat_history(user_id):
 
 @ai_bp.route('/get_session/<int:session_id>')
 def get_session(session_id):
+    print(f"get_session route called for id: {session_id}")
     user_id = session.get('user_id')
     if not user_id: 
         return jsonify({"error": "Unauthorized"}), 401
@@ -875,23 +967,28 @@ def get_session(session_id):
         messages = [{"role": row[0], "content": row[1]} for row in cursor.fetchall()]
 
         # 2.5 Lấy báo cáo phân tích ban đầu (từ bảng Reports) và chèn vào đầu danh sách
+        plotly_json = None
         if file_data and file_data[2]:
             file_id = file_data[2]
             cursor.execute("SELECT [Content], PlotlyJSON FROM Reports WHERE FileID = ?", (file_id,))
             report_row = cursor.fetchone()
-            plotly_json = None
             if report_row:
                 # Chèn báo cáo phân tích ban đầu vào đầu danh sách tin nhắn
                 messages.insert(0, {"role": "assistant", "content": report_row[0]})
                 plotly_json = report_row[1]
 
-        # 3. Đọc dữ liệu Excel để hiển thị lại bảng
+        # 3. Đọc dữ liệu Excel (TỐI ƯU: Chỉ đọc đúng 20 dòng từ ổ cứng bằng nrows)
         table_html = ""
         chart_path = None
         if file_data and os.path.exists(file_data[0]):
-            df = pd.read_excel(file_data[0], dtype=str)  # Đọc ALL cột là string để tránh Mã SV bị 2.36e+09
-            df = df.fillna("")
-            table_html = df.to_html(classes='table table-hover', index=False)
+            try:
+                # nrows=20 giúp Pandas dừng đọc ngay sau khi có đủ 20 dòng, cực kỳ nhanh
+                df_preview = pd.read_excel(file_data[0], dtype=str, nrows=20).fillna("")
+                table_html = df_preview.to_html(classes='table table-hover', index=False)
+                table_html += '<div class="text-center p-2 text-muted" style="font-size:0.8rem;"><i>... Đang hiển thị bản xem trước 20 dòng đầu tiên ...</i></div>'
+            except Exception as read_err:
+                print(f"Lỗi đọc preview: {read_err}")
+                table_html = "<p class='text-danger'>Không thể hiển thị bản xem trước dữ liệu.</p>"
             
             file_id = file_data[2]
             session['current_file_id'] = file_id
@@ -911,6 +1008,7 @@ def get_session(session_id):
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
     
 # --- API ĐỔI TÊN PHIÊN CHAT ---
 @ai_bp.route('/rename_session/<int:session_id>', methods=['POST'])
