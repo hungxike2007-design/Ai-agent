@@ -1453,7 +1453,18 @@
                         {% endif %}
                     </div>
                 </div>
-                <div class="chat-input-row">
+                <!-- Quick Prompts -->
+                <div class="quick-prompts" id="quickPrompts" style="display:flex; gap:8px; padding:0 20px 10px; overflow-x:auto;">
+                    <button style="padding:6px 12px; border-radius:20px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:.8rem; font-weight:600; cursor:pointer; white-space:nowrap;" onmouseover="this.style.background='var(--brand-subtle)'; this.style.color='var(--brand)'; this.style.borderColor='var(--brand)'" onmouseout="this.style.background='var(--surface)'; this.style.color='var(--text)'; this.style.borderColor='var(--border)'" onclick="fillChat('Tóm tắt những thông tin quan trọng nhất từ dữ liệu này.')">📋 Tóm tắt</button>
+                    <button style="padding:6px 12px; border-radius:20px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:.8rem; font-weight:600; cursor:pointer; white-space:nowrap;" onmouseover="this.style.background='var(--brand-subtle)'; this.style.color='var(--brand)'; this.style.borderColor='var(--brand)'" onmouseout="this.style.background='var(--surface)'; this.style.color='var(--text)'; this.style.borderColor='var(--border)'" onclick="fillChat('Có xu hướng hay điểm bất thường nào trong dữ liệu không?')">📉 Tìm xu hướng</button>
+                    <button style="padding:6px 12px; border-radius:20px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:.8rem; font-weight:600; cursor:pointer; white-space:nowrap;" onmouseover="this.style.background='var(--brand-subtle)'; this.style.color='var(--brand)'; this.style.borderColor='var(--brand)'" onmouseout="this.style.background='var(--surface)'; this.style.color='var(--text)'; this.style.borderColor='var(--border)'" onclick="fillChat('Phân tích chi tiết và đưa ra đề xuất hành động.')">💡 Phân tích sâu</button>
+                </div>
+                <div class="chat-input-row" style="align-items:center;">
+                    <!-- Model Selector -->
+                    <select id="aiModelSelect" style="padding:12px; border-radius:10px; border:1px solid var(--border); background:#f8fafc; color:var(--text); font-size:.85rem; font-weight:600; outline:none; margin-right:8px; cursor:pointer;">
+                        <option value="fast">⚡ AI Fast</option>
+                        <option value="pro">🧠 AI Pro</option>
+                    </select>
                     <input type="text" id="userQuestion" class="form-control chat-input"
                         placeholder="Nhập câu hỏi của bạn...">
                     <button id="btnAsk" class="btn btn-green" onclick="askAI()"><i class="fas fa-paper-plane"></i>
@@ -1712,8 +1723,15 @@
             }
         }
 
+        function fillChat(text) {
+            const input = document.getElementById('userQuestion');
+            input.value = text;
+            input.focus();
+        }
+
         async function askAI() {
             const question = questionInput.value.trim();
+            const modelChoice = document.getElementById('aiModelSelect').value;
             if (!question) return;
             chatContent.innerHTML += `<div class="bubble user-bubble"><strong><i class="fas fa-user"></i> Bạn</strong>${question}</div>`;
             if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
@@ -1725,7 +1743,7 @@
                 const res = await fetch("{{ url_for('ai.ask') }}", {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ question })
+                    body: JSON.stringify({ question, model: modelChoice })
                 });
                 const data = await res.json();
                 chatContent.innerHTML += `<div class="bubble ai-bubble" style="max-width:100%"><strong><i class="fas fa-robot"></i> AI Agent</strong><div class="md-body">${marked.parse(data.answer)}</div></div>`;

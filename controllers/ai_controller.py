@@ -343,6 +343,9 @@ def upload_file():
 def ask():
     data = request.json
     question = data.get('question')
+    model_choice = data.get('model', 'fast')
+    target_model_name = "gemini-2.0-flash" if model_choice == 'fast' else "gemini-1.5-pro"
+    
     session_id = session.get('current_session_id') # Lấy ID phiên từ lúc upload
     file_id = session.get('current_file_id')
 
@@ -433,7 +436,7 @@ def ask():
             if default_prompt:
                 agent_prompt = f"Quy tắc từ Admin: {default_prompt}\n\n{agent_prompt}"
                 
-            answer = ask_pandas_agent(df, agent_prompt)
+            answer = ask_pandas_agent(df, agent_prompt, target_model=target_model_name)
             # Làm sạch kết quả trả về
             answer = clean_ai_response(answer)
         else:
@@ -449,7 +452,7 @@ def ask():
                 max_output_tokens=int(configs.get("MaxTokens", 2048))
             )
             # Dùng rotator.generate() — tự xoay key khi gặp quota
-            response = get_key_rotator().generate(full_prompt, generation_config=_gen_cfg)
+            response = get_key_rotator().generate(full_prompt, generation_config=_gen_cfg, target_model=target_model_name)
             answer = clean_ai_response(response.text)
         
         # 3. LƯU VÀO DATABASE (Cả SessionTitle và ChatMessages)

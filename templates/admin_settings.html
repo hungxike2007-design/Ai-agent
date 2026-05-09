@@ -152,6 +152,18 @@
                         <input type="number" name="max_tokens" min="256" max="8192" step="256"
                             value="{{ configs.get('MaxTokens', 2048) }}">
                     </div>
+                    
+                    <!-- API Keys -->
+                    <div class="config-card" style="grid-column: 1 / -1;">
+                        <div class="config-card-header">
+                            <div class="config-icon" style="background:var(--brand-subtle);color:var(--brand)"><i class="fas fa-key"></i></div>
+                            <div>
+                                <div class="config-card-title">Gemini API Keys</div>
+                            </div>
+                        </div>
+                        <div class="config-card-desc">Nhập danh sách API Keys (Mỗi key 1 dòng). Hệ thống sẽ tự xoay vòng khi hết quota.</div>
+                        <textarea name="api_keys" rows="3" placeholder="AIzaSy...&#10;AIzaSy...">{{ configs.get('APIKeys', '') }}</textarea>
+                    </div>
 
                     <!-- System Prompt -->
                     <div class="config-card">

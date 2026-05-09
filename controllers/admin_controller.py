@@ -18,7 +18,7 @@ def dashboard():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 1. Danh s\xc3\xa1ch ng\xc6\xb0\xe1\xbb\x9di d\xc3\xb9ng
+    # 1. Danh sách người dùng
     cursor.execute("SELECT UserID, Username, FullName, Email, Role FROM Users")
     users = cursor.fetchall()
 
@@ -39,7 +39,7 @@ def dashboard():
     """)
     sessions = cursor.fetchall()
 
-    # 4. Th\xe1\xbb\u2018ng k\xc3\xaa
+    # 4. Thống kê
     cursor.execute("SELECT SUM(TokensUsed) FROM TokenLogs")
     total_tokens = cursor.fetchone()[0] or 0
     
@@ -73,7 +73,7 @@ def update_role():
 
         return jsonify({"status": "success"})
     except Exception as e:
-        print(f"L\xe1\xbb\u2014i update_role: {e}")
+        print(f"Lỗi update_role: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 @admin_bp.route('/settings', methods=['GET', 'POST'])
 def settings():
@@ -87,10 +87,20 @@ def settings():
         new_prompt = request.form.get('system_prompt', '')
         temperature = request.form.get('temperature', '0.7')
         max_tokens = request.form.get('max_tokens', '2048')
+        api_keys = request.form.get('api_keys', '')
         
-        cursor.execute("UPDATE SystemConfigs SET ConfigValue = ? WHERE ConfigKey = 'DefaultPrompt'", (new_prompt,))
-        cursor.execute("UPDATE SystemConfigs SET ConfigValue = ? WHERE ConfigKey = 'Temperature'", (temperature,))
-        cursor.execute("UPDATE SystemConfigs SET ConfigValue = ? WHERE ConfigKey = 'MaxTokens'", (max_tokens,))
+        def upsert(k, v):
+            cursor.execute("SELECT 1 FROM SystemConfigs WHERE ConfigKey = ?", (k,))
+            if cursor.fetchone():
+                cursor.execute("UPDATE SystemConfigs SET ConfigValue = ? WHERE ConfigKey = ?", (v, k))
+            else:
+                cursor.execute("INSERT INTO SystemConfigs (ConfigKey, ConfigValue) VALUES (?, ?)", (k, v))
+                
+        upsert('DefaultPrompt', new_prompt)
+        upsert('Temperature', temperature)
+        upsert('MaxTokens', max_tokens)
+        upsert('APIKeys', api_keys)
+        
         conn.commit()
         flash("Cập nhật thành công!", "success")
 
@@ -106,7 +116,7 @@ def delete_session(session_id):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 1. L\xe1\xba\xa5y th\xc3\xb4ng tin file tr\xc6\xb0\xe1\xbb\u203ac khi x\xc3\xb3a session
+        # 1. Lấy thông tin file trước khi xóa session
         cursor.execute("""
             SELECT f.FilePath, f.FileID 
             FROM ChatSessions s
@@ -115,7 +125,7 @@ def delete_session(session_id):
         """, (session_id,))
         info = cursor.fetchone()
         
-        # 2. X\xc3\xb3a Session (ChatMessages s\xe1\xba\xbd t\xe1\xbb\xb1 x\xc3\xb3a nh\xe1\xbb\x9d ON DELETE CASCADE)
+        # 2. Xóa Session (ChatMessages sẽ tự xóa nhờ ON DELETE CASCADE)
         cursor.execute("DELETE FROM ChatSessions WHERE SessionID = ?", (session_id,))
         
         if info:
@@ -123,16 +133,16 @@ def delete_session(session_id):
             file_id = info[1]
             
             if file_id:
-                # 3. X\xc3\xb3a b\xe1\xba\xa3n ghi trong Reports v\xc3\xa0 ExcelFiles
+                # 3. Xóa bản ghi trong Reports và ExcelFiles
                 cursor.execute("DELETE FROM Reports WHERE FileID = ?", (file_id,))
                 cursor.execute("DELETE FROM ExcelFiles WHERE FileID = ?", (file_id,))
                 
-                # 4. X\xc3\xb3a file v\xe1\xba\xadt l\xc3\xbd tr\xc3\xaan server
+                # 4. Xóa file vật lý trên server
                 if file_path and os.path.exists(file_path):
                     try: os.remove(file_path)
                     except: pass
                 
-                # 5. X\xc3\xb3a bi\xe1\xbb\u0192u \xc4\u2018\xe1\xbb\u201c
+                # 5. Xóa biểu đồ
                 chart_file = os.path.join(os.getcwd(), 'static', 'charts', f"chart_{file_id}.png")
                 if os.path.exists(chart_file):
                     try: os.remove(chart_file)
@@ -140,11 +150,11 @@ def delete_session(session_id):
 
         conn.commit()
         conn.close()
-        return jsonify({"status": "success", "message": "\u0110\xe3 x\xf3a s\u1ea1ch phi\xean chat v\xe0 c\xe1c t\u1ec7p li\xean quan!"})
+        return jsonify({"status": "success", "message": "Đã xóa sạch phiên chat và các tệp liên quan!"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# --- CH\xe1\xbb\xa8C N\xc4\u201aNG XEM CHI TI\xe1\xba\xbeT PHI\xc3\u0160N CHAT ---
+# --- CHỨC NĂNG XEM CHI TIẾT PHIÊN CHAT ---
 @admin_bp.route('/get_session_chat/<int:session_id>')
 def get_session_chat(session_id):
     if session.get('role') != 'Admin': return jsonify({"error": "Forbidden"}), 403
@@ -158,7 +168,7 @@ def get_session_chat(session_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- CH\xe1\xbb\xa8C N\xc4\u201aNG TH\xe1\xbb\x90NG K\xc3\u0160 (API) ---
+# --- CHỨC NĂNG THỐNG KÊ (API) ---
 @admin_bp.route('/stats_data')
 def stats_data():
     if session.get('role') != 'Admin':
@@ -168,13 +178,13 @@ def stats_data():
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # 1. Th\xe1\xbb\u2018ng k\xc3\xaa ng\xc6\xb0\xe1\xbb\x9di d\xc3\xb9ng m\xe1\xbb\u203ai trong 7 ng\xc3\xa0y qua
+        # 1. Thống kê người dùng mới trong 7 ngày qua
         user_stats = []
         for i in range(6, -1, -1):
             date_obj = datetime.now() - timedelta(days=i)
             date_str = date_obj.strftime('%Y-%m-%d')
             try:
-                # Group by date of CreatedAt (gi\xe1\xba\xa3 \xc4\u2018\xe1\xbb\u2039nh c\xc3\xb3 c\xe1\xbb\u2122t CreatedAt)
+                # Group by date of CreatedAt (giả định có cột CreatedAt)
                 cursor.execute("""
                     SELECT COUNT(*) FROM Users 
                     WHERE CAST(CreatedAt AS DATE) = ?
@@ -184,7 +194,7 @@ def stats_data():
                 count = 0
             user_stats.append({"date": date_obj.strftime('%d/%m'), "count": count})
 
-        # 2. Th\xe1\xbb\u2018ng k\xc3\xaa tr\xe1\xba\xa1ng th\xc3\xa1i x\xe1\xbb\xad l\xc3\xbd file Excel (Success vs Failed)
+        # 2. Thống kê trạng thái xử lý file Excel (Success vs Failed)
         cursor.execute("SELECT Status, COUNT(*) FROM ExcelFiles GROUP BY Status")
         file_rows = cursor.fetchall()
         file_stats = [{"status": str(row[0]), "count": row[1]} for row in file_rows]
@@ -195,11 +205,11 @@ def stats_data():
             "files": file_stats
         })
     except Exception as e:
-        print(f"L\xe1\xbb\u2014i stats_data: {e}")
+        print(f"Lỗi stats_data: {e}")
         return jsonify({"error": str(e)}), 500
 
 def _internal_delete_file(cursor, file_id):
-    """H\xc3\xa0m n\xe1\xbb\u2122i b\xe1\xbb\u2122 \xc4\u2018\xe1\xbb\u0192 x\xc3\xb3a file v\xc3\xa0 d\xe1\xbb\xaf li\xe1\xbb\u2021u li\xc3\xaan quan, d\xc3\xb9ng cho c\xe1\xba\xa3 x\xc3\xb3a \xc4\u2018\xc6\xa1n v\xc3\xa0 x\xc3\xb3a nhi\xe1\xbb\x81u"""
+    """Hàm nội bộ để xóa file và dữ liệu liên quan, dùng cho cả xóa đơn và xóa nhiều"""
     import os
     cursor.execute("SELECT FilePath FROM ExcelFiles WHERE FileID = ?", (file_id,))
     row = cursor.fetchone()
@@ -218,7 +228,7 @@ def _internal_delete_file(cursor, file_id):
         return True
     return False
 
-# --- CH\xe1\xbb\xa8C N\xc4\u201aNG X\xc3\u201cA FILE H\xe1\xbb\u2020 TH\xe1\xbb\x90NG ---
+# --- CHỨC NĂNG XÓA FILE HỆ THỐNG ---
 @admin_bp.route('/delete_file/<int:file_id>', methods=['DELETE'])
 def delete_file(file_id):
     if session.get('role') != 'Admin': return jsonify({"error": "Forbidden"}), 403
@@ -228,13 +238,13 @@ def delete_file(file_id):
         if _internal_delete_file(cursor, file_id):
             conn.commit()
             conn.close()
-            return jsonify({"status": "success", "message": "\u0110\xe3 x\xf3a file th\xe0nh c\xf4ng!"})
+            return jsonify({"status": "success", "message": "Đã xóa file thành công!"})
         conn.close()
-        return jsonify({"status": "error", "message": "Kh\xf4ng t\xecm th\u1ea5y file!"}), 404
+        return jsonify({"status": "error", "message": "Không tìm thấy file!"}), 404
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# --- CH\xe1\xbb\xa8C N\xc4\u201aNG X\xc3\u201cA NHI\xe1\xbb\u20acU FILE ---
+# --- CHỨC NĂNG XÓA NHIỀU FILE ---
 @admin_bp.route('/bulk_delete_files', methods=['POST'])
 def bulk_delete_files():
     if session.get('role') != 'Admin': return jsonify({"error": "Forbidden"}), 403
@@ -242,7 +252,7 @@ def bulk_delete_files():
         data = request.json
         file_ids = data.get('file_ids', [])
         if not file_ids:
-            return jsonify({"status": "error", "message": "Kh\xf4ng c\xf3 file n\xe0o \u0111\u01b0\u1ee3c ch\u1ecdn!"}), 400
+            return jsonify({"status": "error", "message": "Không có file nào được chọn!"}), 400
         
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -253,7 +263,7 @@ def bulk_delete_files():
         
         conn.commit()
         conn.close()
-        return jsonify({"status": "success", "message": f"\xc4\x90\xc3\xa3 x\xc3\xb3a th\xc3\xa0nh c\xc3\xb4ng {success_count} t\u1ec7p tin!"})
+        return jsonify({"status": "success", "message": f"Đã xóa thành công {success_count} tệp tin!"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 

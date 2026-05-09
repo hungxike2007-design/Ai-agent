@@ -7,11 +7,11 @@ CONN_STR = r"Driver={SQL Server};Server=TOM\SQLEXPRESS;Database=QuanLyAIAgent;Tr
 # Thêm tất cả API Keys vào danh sách bên dưới.
 # Hệ thống sẽ tự động xoay vòng sang key tiếp theo khi key hiện tại hết quota.
 GEMINI_API_KEYS = [
-    "AIzaSyDwPmLqrgjFLLXRAWYYEBR-JuBLUclCwH0",  # thay key ở đây
-    "AIzaSyA00h1V8oDvYSfllTPgPG-CR2a2lh5hSD4",  # thay key ở đây
-    "AIzaSyDrZY6-qZZcn4u1UsoZMeI76oLNSrHCSY0"   # thay key ở đây
+    "AIzaSyBV9utkOZLYTlHX-qEc2jPVIJ7hmdX8Wpo",  # thay key ở đây
+    "AIzaSyAHiCIJivD8S5qdFnLKwVId6L3-oT5VDa4",  # thay key ở đây
+    "AIzaSyAhlDUhBKlWCrUjijL8c2rGUVTWBDJjO58"   # thay key ở đây
 ]
-GEMINI_MODEL_NAME = "gemini-flash-latest"  # quota miễn phí cao hơn gemini-2.0-flash
+GEMINI_MODEL_NAME = "gemini-2.0-flash"  # Model mặc định (nhanh, quota miễn phí cao)
 
 # Danh sách lỗi cho biết key cần được xoay vòng (hết quota, hết hạn, hoặc không hợp lệ)
 _ROTATABLE_ERROR_KEYWORDS = [
@@ -34,11 +34,24 @@ class GeminiKeyRotator:
     def __init__(self, keys: list = None, model_name: str = None):
         import google.generativeai as genai
         self._genai = genai
-        self._keys = [k for k in (keys or GEMINI_API_KEYS) if k and 'REPLACE_WITH' not in k]
+        
+        db_keys = []
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT ConfigValue FROM SystemConfigs WHERE ConfigKey = 'APIKeys'")
+            row = cursor.fetchone()
+            if row and row[0]:
+                db_keys = [k.strip() for k in row[0].replace('\r', '').split('\n') if k.strip()]
+            conn.close()
+        except:
+            pass
+
+        self._keys = [k for k in (keys or db_keys or GEMINI_API_KEYS) if k and 'REPLACE_WITH' not in k]
         if not self._keys:
             raise ValueError(
                 "Chưa cấu hình Gemini API Key! "
-                "Hãy thêm ít nhất 1 key hợp lệ vào danh sách GEMINI_API_KEYS trong database.py"
+                "Hãy thêm ít nhất 1 key hợp lệ vào Cấu hình AI hoặc trong database.py"
             )
         self._model_name = model_name or GEMINI_MODEL_NAME
         self._index = 0          # index key đang dùng
@@ -77,10 +90,11 @@ class GeminiKeyRotator:
         """Trả về API key hiện tại đang dùng (để cho LangChain sử dụng)."""
         return self._keys[self._index]
 
-    def generate(self, prompt: str, generation_config=None):
+    def generate(self, prompt: str, generation_config=None, target_model=None):
         """
         Gọi model.generate_content(). Nếu gặp lỗi quota thì tự xoay sang key
         tiếp theo và thử lại (tối đa quay hết 1 vòng tất cả keys).
+        Nếu target_model bị lỗi NOT_FOUND, tự động fallback về model mặc định.
         """
         start_index = self._index
         attempts = 0
@@ -88,10 +102,22 @@ class GeminiKeyRotator:
 
         while attempts < len(self._keys):
             try:
+                model_to_use = self._model
+                if target_model:
+                    model_to_use = self._genai.GenerativeModel(target_model)
+                
                 if generation_config:
-                    return self._model.generate_content(prompt, generation_config=generation_config)
-                return self._model.generate_content(prompt)
+                    return model_to_use.generate_content(prompt, generation_config=generation_config)
+                return model_to_use.generate_content(prompt)
             except Exception as e:
+                err_str = str(e).lower()
+                # Nếu model bị 404 NOT_FOUND → fallback về model mặc định
+                if 'not_found' in err_str or '404' in err_str:
+                    if target_model and target_model != self._model_name:
+                        print(f"[KeyRotator] Model '{target_model}' không tồn tại → Fallback về '{self._model_name}'")
+                        target_model = None  # Reset để dùng self._model (model mặc định)
+                        continue
+                
                 if self._is_rotatable_error(e):
                     print(f"[KeyRotator] Key #{self._index + 1} gặp lỗi hoặc hết quota → thử key tiếp theo…")
                     last_err = e
@@ -105,7 +131,7 @@ class GeminiKeyRotator:
 
         raise Exception(
             f"Tất cả {len(self._keys)} API key đều gặp lỗi hoặc hết quota.\n"
-            "Hãy kiểm tra lại danh sách key trong database.py hoặc đợi quota reset.\n"
+            "Hãy kiểm tra lại danh sách key trong Cấu hình AI hoặc đợi quota reset.\n"
             f"Lỗi cuối cùng: {last_err}"
         )
 
@@ -268,7 +294,8 @@ def get_all_system_configs():
     configs = {
         "DefaultPrompt": "",
         "Temperature": 0.7,
-        "MaxTokens": 4096
+        "MaxTokens": 4096,
+        "APIKeys": ""
     }
     try:
         conn = get_connection()

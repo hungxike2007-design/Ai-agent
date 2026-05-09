@@ -3,7 +3,7 @@ from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe
 from langchain_google_genai import ChatGoogleGenerativeAI
 from database import get_key_rotator, GEMINI_MODEL_NAME
 
-def ask_pandas_agent(df: pd.DataFrame, question: str) -> str:
+def ask_pandas_agent(df: pd.DataFrame, question: str, target_model: str = None) -> str:
     """
     Sử dụng LangChain Pandas Agent (Code Interpreter) để phân tích bảng dữ liệu.
     Agent sẽ tự động sinh mã Python (Pandas) chạy dưới nền để tìm câu trả lời chính xác.
@@ -19,7 +19,7 @@ def ask_pandas_agent(df: pd.DataFrame, question: str) -> str:
             
             # Khởi tạo mô hình Chat của Langchain với Gemini
             llm = ChatGoogleGenerativeAI(
-                model=GEMINI_MODEL_NAME,
+                model=target_model or GEMINI_MODEL_NAME,
                 temperature=0,
                 google_api_key=api_key,
                 max_output_tokens=2048
@@ -50,6 +50,14 @@ def ask_pandas_agent(df: pd.DataFrame, question: str) -> str:
             
         except Exception as e:
             last_err = e
+            err_str = str(e).lower()
+            
+            # Nếu model bị 404 NOT_FOUND → fallback về model mặc định
+            if ('not_found' in err_str or '404' in err_str) and target_model and target_model != GEMINI_MODEL_NAME:
+                print(f"[PANDAS AGENT] Model '{target_model}' không tồn tại → Fallback về '{GEMINI_MODEL_NAME}'")
+                target_model = None  # Lần thử tiếp sẽ dùng GEMINI_MODEL_NAME
+                continue
+            
             # Sử dụng phương thức kiểm tra lỗi từ rotator
             if rotator._is_rotatable_error(e):
                 print(f"[PANDAS AGENT] Key #{rotator._index + 1} gặp lỗi ({str(e)[:50]}...) → Đang xoay key...")
