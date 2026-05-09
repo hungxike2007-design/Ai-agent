@@ -1,15 +1,15 @@
 import pyodbc
 
 # Chuỗi kết nối đến SQL Server của Hùng
-CONN_STR = r"Driver={SQL Server};Server=LAPTOP-355TS2QT\HUY_DEV;Database=QuanLyAIAgent;Trusted_Connection=yes;"
+CONN_STR = r"Driver={SQL Server};Server=TOM\SQLEXPRESS;Database=QuanLyAIAgent;Trusted_Connection=yes;"
 
 # --- CẤU HÌNH GEMINI TẬP TRUNG ---
 # Thêm tất cả API Keys vào danh sách bên dưới.
 # Hệ thống sẽ tự động xoay vòng sang key tiếp theo khi key hiện tại hết quota.
 GEMINI_API_KEYS = [
-    "AIzaSyBGrqchQTH2KndqruPovp9A6LatWjz94DY",  # thay key ở đây
-    "AIzaSyCKy03ZJmghDdD0d9X7ka6ZfyW1PPa6B1A",  # thay key ở đây
-    "AIzaSyDzx4R_3AOOxHwxvjNozk5hj_TSlLimUp0"   # thay key ở đây
+    "AIzaSyDwPmLqrgjFLLXRAWYYEBR-JuBLUclCwH0",  # thay key ở đây
+    "AIzaSyA00h1V8oDvYSfllTPgPG-CR2a2lh5hSD4",  # thay key ở đây
+    "AIzaSyDrZY6-qZZcn4u1UsoZMeI76oLNSrHCSY0"   # thay key ở đây
 ]
 GEMINI_MODEL_NAME = "gemini-flash-latest"  # quota miễn phí cao hơn gemini-2.0-flash
 

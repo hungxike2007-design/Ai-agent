@@ -995,7 +995,7 @@
             opacity: 1;
         }
 
-        .modal {
+        .custom-modal {
             background: var(--surface);
             width: 90%;
             max-width: 420px;
@@ -1007,7 +1007,7 @@
             overflow: hidden;
         }
 
-        .modal-overlay.active .modal {
+        .modal-overlay.active .custom-modal {
             transform: translateY(0);
         }
 
@@ -1467,7 +1467,7 @@
 
     <!-- FEEDBACK MODAL -->
     <div class="modal-overlay" id="feedbackModal">
-        <div class="modal" style="max-width:500px;">
+        <div class="custom-modal" style="max-width:500px;">
             <div class="modal-header"
                 style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:20px 20px 0 0;">
                 <i class="fas fa-star" style="color:#7c3aed;font-size:1.1rem;"></i>
@@ -1538,7 +1538,7 @@
 
     <!-- SHARE MODAL -->
     <div class="modal-overlay" id="shareModal">
-        <div class="modal">
+        <div class="custom-modal">
             <div class="modal-header"><i class="fas fa-link" style="color:var(--green);"></i> Chia sẻ Báo Cáo</div>
             <div class="modal-body">
                 Gửi link này cho đồng nghiệp để họ có thể xem báo cáo phân tích chi tiết.
