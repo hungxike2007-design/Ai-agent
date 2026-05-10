@@ -1,6 +1,10 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session,flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from authlib.integrations.flask_client import OAuth
 import database as db
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -8,8 +12,8 @@ auth_bp = Blueprint('auth', __name__)
 oauth = OAuth()
 google = oauth.register(
     name='google',
-    client_id='44095566122-91udbj167e4lf7re6g5i33t5ce5d1479.apps.googleusercontent.com',
-    client_secret='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', 
+    client_id=os.getenv("GOOGLE_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
     client_kwargs={'scope': 'openid email profile'}
 )

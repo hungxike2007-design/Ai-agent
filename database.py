@@ -1,17 +1,27 @@
 import pyodbc
+import os
+from dotenv import load_dotenv
 
-# Chuỗi kết nối đến SQL Server của Hùng
-CONN_STR = r"Driver={SQL Server};Server=TOM\SQLEXPRESS;Database=QuanLyAIAgent;Trusted_Connection=yes;"
+# Tải biến môi trường từ file .env
+load_dotenv()
+
+# Chuỗi kết nối đến SQL Server — đọc từ biến môi trường
+_DB_SERVER = os.getenv("DB_SERVER", "localhost")
+_DB_NAME   = os.getenv("DB_NAME",   "QuanLyAIAgent")
+_DB_TRUSTED = os.getenv("DB_TRUSTED_CONNECTION", "yes")
+CONN_STR = (
+    f"Driver={{SQL Server}};"
+    f"Server={_DB_SERVER};"
+    f"Database={_DB_NAME};"
+    f"Trusted_Connection={_DB_TRUSTED};"
+)
 
 # --- CẤU HÌNH GEMINI TẬP TRUNG ---
-# Thêm tất cả API Keys vào danh sách bên dưới.
-# Hệ thống sẽ tự động xoay vòng sang key tiếp theo khi key hiện tại hết quota.
-GEMINI_API_KEYS = [
-    "AIzaSyBV9utkOZLYTlHX-qEc2jPVIJ7hmdX8Wpo",  # thay key ở đây
-    "AIzaSyAHiCIJivD8S5qdFnLKwVId6L3-oT5VDa4",  # thay key ở đây
-    "AIzaSyAhlDUhBKlWCrUjijL8c2rGUVTWBDJjO58"   # thay key ở đây
-]
-GEMINI_MODEL_NAME = "gemini-2.0-flash"  # Model mặc định (nhanh, quota miễn phí cao)
+# Đọc danh sách API Keys từ biến môi trường GEMINI_API_KEYS
+# (các key phân cách nhau bằng dấu phẩy trong file .env)
+_raw_keys = os.getenv("GEMINI_API_KEYS", "")
+GEMINI_API_KEYS = [k.strip() for k in _raw_keys.split(",") if k.strip()]
+GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-flash-latest")
 
 # Danh sách lỗi cho biết key cần được xoay vòng (hết quota, hết hạn, hoặc không hợp lệ)
 _ROTATABLE_ERROR_KEYWORDS = [

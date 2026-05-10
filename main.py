@@ -33,7 +33,7 @@ app = Flask(__name__,
             static_url_path='/static')
 
 
-app.secret_key = "hung_store_key_bi_mat"
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "fallback_dev_key_change_in_production")
 
 # Đảm bảo JSON trả về là tiếng Việt chuẩn (không bị mã hóa \uXXXX)
 app.config['JSON_AS_ASCII'] = False

@@ -97,10 +97,12 @@ _FILLER_PATTERNS = [
     r'^---+\s*$',        # xoá đường kẻ --- thừa ở đầu
 ]
 
-def clean_ai_response(text: str) -> str:
+def clean_ai_response(text) -> str:
     """Loại bỏ lời mở đầu dư thừa và ký tự rác từ phản hồi AI, giữ nguyên Markdown."""
     if not text:
-        return text
+        return ""
+    if not isinstance(text, str):
+        text = str(text)
     for pattern in _FILLER_PATTERNS:
         text = re.sub(pattern, '', text, count=1, flags=re.IGNORECASE)
     text = re.sub(r'\n{3,}', '\n\n', text)

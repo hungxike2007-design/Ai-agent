@@ -1,0 +1,56 @@
+# ====================================================
+# .gitignore - Các file/thư mục KHÔNG push lên GitHub
+# ====================================================
+
+# --- BÍ MẬT & CẤU HÌNH MÔI TRƯỜNG ---
+.env
+*.env
+!.env.example
+
+# --- PYTHON ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# --- VIRTUAL ENVIRONMENT ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- UPLOADS (file người dùng tải lên) ---
+uploads/
+*.xlsx
+*.xls
+*.csv
+
+# --- LOGS ---
+*.log
+logs/
+
+# --- IDE & EDITOR ---
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# --- WINDOWS ---
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# --- FLASK ---
+instance/
+.webassets-cache
+
+# --- SCRATCH / TEMP ---
+scratch/
+*.tmp
+*.bak

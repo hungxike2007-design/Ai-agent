@@ -38,7 +38,7 @@ def ask_pandas_agent(df: pd.DataFrame, question: str, target_model: str = None) 
             agent = create_pandas_dataframe_agent(
                 llm,
                 df,
-                verbose=True,
+                verbose=False,
                 allow_dangerous_code=True,
                 agent_type="tool-calling",
                 handle_parsing_errors=True,
@@ -46,7 +46,19 @@ def ask_pandas_agent(df: pd.DataFrame, question: str, target_model: str = None) 
             )
             
             result = agent.invoke({"input": question})
-            return result["output"]
+            output = result.get("output", "")
+            
+            # Xử lý nếu AI trả về list các block (thường gặp ở model flash mới)
+            if isinstance(output, list):
+                clean_text = ""
+                for block in output:
+                    if isinstance(block, dict) and "text" in block:
+                        clean_text += block["text"]
+                    else:
+                        clean_text += str(block)
+                return clean_text.strip()
+                
+            return str(output)
             
         except Exception as e:
             last_err = e
