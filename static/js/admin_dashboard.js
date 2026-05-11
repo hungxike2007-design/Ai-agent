@@ -112,14 +112,34 @@ function viewChat(sessionId) {
         .then(function (r) { return r.json(); })
         .then(function (data) {
             var html = '';
-            data.forEach(function (msg) {
-                var isUser = msg.role.toLowerCase() === 'user';
-                html += '<div class="chat-msg ' + (isUser ? 'msg-user' : 'msg-ai') + '">' +
-                    '<div class="msg-role"><i class="fas ' + (isUser ? 'fa-user' : 'fa-robot') + '" aria-hidden="true"></i> ' + (isUser ? 'Người dùng' : 'AI Trợ lý') + '</div>' +
-                    '<div style="white-space:pre-wrap;">' + msg.content + '</div>' +
-                    '<div class="msg-time">' + msg.time + '</div></div>';
-            });
-            document.getElementById('chatContent').innerHTML = html || 'Không có tin nhắn.';
+            
+            // Render báo cáo ban đầu
+            if (data.report) {
+                html += '<div style="margin-bottom: 20px; padding: 15px; background: rgba(13, 148, 136, 0.05); border-left: 4px solid var(--admin-accent); border-radius: 4px;">';
+                html += '<h4 style="margin-top: 0; margin-bottom: 15px; color: var(--admin-accent); font-size: 1.1rem;"><i class="fas fa-file-alt"></i> Báo cáo phân tích gốc</h4>';
+                html += '<div class="markdown-body" style="font-size: 0.95rem;">' + marked.parse(data.report) + '</div>';
+                html += '</div>';
+            }
+            
+            // Render lịch sử chat
+            if (data.chat && data.chat.length > 0) {
+                html += '<h4 style="margin-top: 20px; margin-bottom: 15px; font-size: 1.1rem; color: var(--text); border-bottom: 1px solid var(--border-dark); padding-bottom: 8px;"><i class="fas fa-comments"></i> Lịch sử thảo luận</h4>';
+                data.chat.forEach(function (msg) {
+                    var isUser = msg.role.toLowerCase() === 'user';
+                    var parsedContent = marked.parse(msg.content);
+                    html += '<div class="chat-msg ' + (isUser ? 'msg-user' : 'msg-ai') + '">' +
+                        '<div class="msg-role"><i class="fas ' + (isUser ? 'fa-user' : 'fa-robot') + '" aria-hidden="true"></i> ' + (isUser ? 'Người dùng' : 'AI Trợ lý') + '</div>' +
+                        '<div class="markdown-body" style="font-size: 0.95rem;">' + parsedContent + '</div>' +
+                        '<div class="msg-time">' + msg.time + '</div></div>';
+                });
+            } else if (!data.report) {
+                html = '<p style="text-align:center;color:var(--muted);">Không có dữ liệu cho phiên này.</p>';
+            }
+            
+            document.getElementById('chatContent').innerHTML = html;
+        })
+        .catch(function(e) {
+            document.getElementById('chatContent').innerHTML = '<p style="color:var(--admin-danger);text-align:center;">Lỗi khi tải nội dung: ' + e.message + '</p>';
         });
 }
 

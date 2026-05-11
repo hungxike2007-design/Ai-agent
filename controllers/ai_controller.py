@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, session, send_file, make_response
+from flask import Blueprint, render_template, request, jsonify, session, send_file, make_response, redirect, url_for
 import pandas as pd
 import io
 import os
@@ -305,7 +305,7 @@ def upload_file():
                 report_content = (
                     "## 🚫 Lỗi Tên Model\n\n"
                     "Tên model sai. Đảm bảo `GEMINI_MODEL_NAME` trong `database.py` là:\n"
-                    "```\nGEMINI_MODEL_NAME = 'gemini-2.0-flash'\n```\n"
+                    "```\nGEMINI_MODEL_NAME = 'gemini-flash-latest'\n```\n"
                     f"> Lỗi gốc: `{ai_err}`"
                 )
             else:
@@ -346,7 +346,7 @@ def ask():
     data = request.json
     question = data.get('question')
     model_choice = data.get('model', 'fast')
-    target_model_name = "gemini-2.0-flash" if model_choice == 'fast' else "gemini-1.5-pro"
+    target_model_name = "gemini-flash-latest" if model_choice == 'fast' else "gemini-1.5-pro"
     
     session_id = session.get('current_session_id') # Lấy ID phiên từ lúc upload
     file_id = session.get('current_file_id')
@@ -1252,14 +1252,27 @@ def view_shared(token):
         if not os.path.exists(os.path.join(os.getcwd(), chart_path.lstrip("/"))):
             chart_path = None
 
-        # Đọc dữ liệu Excel để hiển thị bảng xem trước (preview) cho người xem
+        # 4. Đọc dữ liệu Excel để hiển thị bảng xem trước (preview) cho người xem
         table_html = ""
         if os.path.exists(file_path):
             try:
+                import pandas as pd
                 df = pd.read_excel(file_path, dtype=str)
-                table_html = df.fillna("").to_html(classes='table table-bordered table-striped', index=False)
+                # Chỉ lấy tối đa 15 dòng để xem trước cho nhẹ
+                table_html = df.head(15).fillna("").to_html(classes='table table-bordered table-striped', index=False)
             except Exception as e:
                 table_html = f"<p>Không thể hiển thị bản xem trước dữ liệu: {e}</p>"
+
+        # 5. Lấy lịch sử chat liên quan (tìm session đầu tiên gắn với file này)
+        cursor.execute("SELECT SessionID FROM ChatSessions WHERE FileID = ? ORDER BY StartTime ASC", (file_id,))
+        sess_row = cursor.fetchone()
+        
+        chat_messages = []
+        if sess_row:
+            session_id = sess_row[0]
+            cursor.execute("SELECT Role, [Content], CreatedAt FROM ChatMessages WHERE SessionID = ? ORDER BY CreatedAt ASC", (session_id,))
+            msg_rows = cursor.fetchall()
+            chat_messages = [{"role": m[0], "content": m[1], "time": m[2].strftime('%H:%M %d/%m/%Y')} for m in msg_rows]
 
         conn.close()
 
@@ -1269,7 +1282,9 @@ def view_shared(token):
                                filename=filename, 
                                date=created_date, 
                                table_preview=table_html,
-                               chart_path=chart_path)
+                               chart_path=chart_path,
+                               chat_history=chat_messages,
+                               token=token)
 
     except Exception as e:
         return f"Lỗi hệ thống khi tải báo cáo: {str(e)}", 500
@@ -1302,3 +1317,79 @@ def submit_feedback():
     if ok:
         return jsonify({"success": True, "message": "Cảm ơn bạn đã gửi phản hồi! 🎉"})
     return jsonify({"error": "Lưu phản hồi thất bại, vui lòng thử lại!"}), 500
+
+@ai_bp.route('/continue_shared/<token>')
+def continue_shared(token):
+    user_id = session.get('user_id')
+    if not user_id:
+        # Nếu chưa đăng nhập, chuyển hướng sang login
+        return redirect(url_for('auth.login', next=request.url))
+    
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # 1. Tìm thông tin báo cáo gốc từ Token
+        sql = """
+            SELECT r.FileID, f.FileName, f.FilePath, r.[Content], r.Summary, r.PlotlyJSON
+            FROM Reports r
+            JOIN ExcelFiles f ON r.FileID = f.FileID
+            WHERE r.ShareToken = ? AND r.IsPublic = 1
+        """
+        cursor.execute(sql, (token,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return "Link chia sẻ không hợp lệ hoặc đã bị gỡ bỏ", 404
+        
+        orig_file_id, filename, file_path, report_content, summary, plotly_json = row
+        
+        # 2. Tạo bản sao cho người dùng mới
+        # 2.1 Copy File record
+        cursor.execute("""
+            INSERT INTO ExcelFiles (UserID, FileName, FilePath, UploadDate, Status) 
+            OUTPUT INSERTED.FileID 
+            VALUES (?, ?, ?, GETDATE(), 'Success')""", 
+            (user_id, filename, file_path))
+        new_file_id = cursor.fetchone()[0]
+        
+        # 2.2 Copy Report content (Bao gồm cả Summary và PlotlyJSON để không mất biểu đồ)
+        cursor.execute("""
+            INSERT INTO Reports (FileID, [Content], CreatedDate, Summary, PlotlyJSON) 
+            VALUES (?, ?, GETDATE(), ?, ?)""", 
+            (new_file_id, report_content, summary, plotly_json))
+            
+        # 2.3 Tạo Session mới cho người dùng hiện tại
+        cursor.execute("""
+            INSERT INTO ChatSessions (UserID, FileID, StartTime, SessionTitle) 
+            OUTPUT INSERTED.SessionID 
+            VALUES (?, ?, GETDATE(), ?)""", 
+            (user_id, new_file_id, f"Tiếp tục: {filename}"))
+        new_session_id = cursor.fetchone()[0]
+        
+        # 2.4 Copy các tin nhắn cũ sang session mới
+        cursor.execute("SELECT SessionID FROM ChatSessions WHERE FileID = ? ORDER BY StartTime ASC", (orig_file_id,))
+        orig_sess_row = cursor.fetchone()
+        if orig_sess_row:
+            orig_session_id = orig_sess_row[0]
+            cursor.execute("SELECT Role, [Content] FROM ChatMessages WHERE SessionID = ? ORDER BY CreatedAt ASC", (orig_session_id,))
+            messages = cursor.fetchall()
+            for m_role, m_content in messages:
+                cursor.execute("INSERT INTO ChatMessages (SessionID, Role, [Content], CreatedAt) VALUES (?, ?, ?, GETDATE())",
+                               (new_session_id, m_role, m_content))
+        
+        # 2.5 Copy file biểu đồ vật lý (PNG) để dashboard hiển thị được
+        import shutil
+        orig_chart_path = os.path.join(os.getcwd(), 'static', 'charts', f"chart_{orig_file_id}.png")
+        new_chart_path = os.path.join(os.getcwd(), 'static', 'charts', f"chart_{new_file_id}.png")
+        if os.path.exists(orig_chart_path):
+            shutil.copy2(orig_chart_path, new_chart_path)
+
+        conn.commit()
+        conn.close()
+        
+        # Chuyển hướng về Dashboard và tự động load session này qua hash
+        return redirect(f"/ai/dashboard#session_{new_session_id}")
+        
+    except Exception as e:
+        return f"Lỗi hệ thống khi tiếp tục hội thoại: {str(e)}", 500

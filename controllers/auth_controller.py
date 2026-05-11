@@ -47,24 +47,33 @@ def register():
         flash(f"Lỗi đăng ký: {str(e)}", "danger")
         return redirect(url_for('auth.index'))
 
-@auth_bp.route('/login', methods=['POST'])
+@auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    email = request.form.get('email')
-    password = request.form.get('password')
-    user = db.check_login(email, password)
-    if user:
-        session['user_id'] = user[0] 
-        session['username'] = user[3] # Cột Fullname trong SQL
-        session['role'] = user.Role if hasattr(user, 'Role') else 'User' # Đảm bảo có Role trong session
-        return redirect(url_for('ai.dashboard'))
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        next_url = request.form.get('next') or url_for('ai.dashboard')
+        
+        user = db.check_login(email, password)
+        if user:
+            session['user_id'] = user[0] 
+            session['username'] = user[3] # Cột Fullname trong SQL
+            session['role'] = user.Role if hasattr(user, 'Role') else 'User' # Đảm bảo có Role trong session
+            return redirect(next_url)
+        
+        flash("Sai tài khoản hoặc mật khẩu!", "danger")
+        return redirect(url_for('auth.index', next=next_url))
     
-    flash("Sai tài khoản hoặc mật khẩu!", "danger")
-    return redirect(url_for('auth.index'))
+    # Nếu là GET (ví dụ từ link share redirect sang), chuyển về trang chủ và giữ tham số next
+    return redirect(url_for('auth.index', next=request.args.get('next')))
 
 # --- LOGIC ĐĂNG NHẬP GOOGLE & KẾT NỐI SQL ---
 
 @auth_bp.route('/login/google')
 def google_login():
+    next_url = request.args.get('next')
+    if next_url:
+        session['next_url'] = next_url
     redirect_uri = 'http://127.0.0.1:5000/google/callback' 
     return google.authorize_redirect(redirect_uri)
 
@@ -104,7 +113,9 @@ def google_callback():
         session['username'] = user[3] # FullName từ bảng Users
         session['avatar'] = picture
         
-        return redirect(url_for('ai.dashboard'))
+        # 3. Đăng nhập thành công, chuyển hướng về trang yêu cầu (nếu có)
+        next_url = session.pop('next_url', url_for('ai.dashboard'))
+        return redirect(next_url)
     
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():

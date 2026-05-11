@@ -161,10 +161,29 @@ def get_session_chat(session_id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # 1. Lấy Báo cáo phân tích ban đầu từ bảng Reports
+        cursor.execute("SELECT FileID FROM ChatSessions WHERE SessionID = ?", (session_id,))
+        file_row = cursor.fetchone()
+        
+        report_content = None
+        if file_row and file_row[0]:
+            file_id = file_row[0]
+            cursor.execute("SELECT [Content] FROM Reports WHERE FileID = ? ORDER BY CreatedDate DESC", (file_id,))
+            report_row = cursor.fetchone()
+            if report_row:
+                report_content = report_row[0]
+                
+        # 2. Lấy lịch sử chat
         cursor.execute("SELECT Role, [Content], CreatedAt FROM ChatMessages WHERE SessionID = ? ORDER BY CreatedAt ASC", (session_id,))
         messages = cursor.fetchall()
         conn.close()
-        return jsonify([{"role": row[0], "content": row[1], "time": str(row[2])} for row in messages])
+        
+        chat_data = [{"role": row[0], "content": row[1], "time": str(row[2])} for row in messages]
+        return jsonify({
+            "report": report_content,
+            "chat": chat_data
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

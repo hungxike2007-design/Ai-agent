@@ -3,62 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Báo cáo: {{ filename }}</title>
-    <meta name="description" content="Báo cáo phân tích AI được chia sẻ công khai">
+    <title>{{ filename }} - AI Agent Analytics</title>
+    <meta name="description" content="Phiên thảo luận AI được chia sẻ">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Bootstrap CSS (local) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/shared_view.css') }}?v=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/shared_view.css') }}?v=2.0">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
-<body>
-    <canvas id="bg-canvas"></canvas>
-
-    <div class="report-container">
-        <!-- Report Header -->
-        <div class="report-header">
-            <div class="report-brand">
-                <div class="brand-icon"><i class="fas fa-brain"></i></div>
-                <span class="brand-name">AI Agent Analytics — Báo cáo chia sẻ</span>
-                <span class="ai-badge"><i class="fas fa-robot"></i> AI Generated</span>
+<body class="gemini-style">
+    <div class="gemini-container">
+        <!-- Brand Header -->
+        <header class="gemini-header">
+            <div class="header-left">
+                <span class="brand-text">AI Agent</span>
             </div>
-            <h1><i class="fas fa-chart-bar" style="color:var(--brand);margin-right:.5rem"></i>{{ filename }}</h1>
-            <div class="meta-row">
-                <div class="meta-item"><i class="fas fa-calendar-days"></i> Ngày tạo: <strong>{{ date }}</strong></div>
-                <div class="meta-item"><i class="fas fa-robot"></i> Được tạo bởi <strong>AI Agent</strong></div>
-                <div class="meta-item"><i class="fas fa-globe"></i> <strong>Chia sẻ công khai</strong></div>
+            <div class="header-right">
+                <div class="user-avatar-placeholder">N</div>
             </div>
-        </div>
+        </header>
 
-        <!-- Content -->
-        <div class="content-card">
-            <div class="section-title"><i class="fas fa-file-lines"></i> Nội dung báo cáo phân tích</div>
+        <!-- Main Content Area -->
+        <main class="gemini-main">
+            <section class="share-info">
+                <h1 class="session-title">{{ filename }}</h1>
+                <div class="session-url">{{ request.url }} <i class="far fa-copy" style="cursor:pointer" title="Copy link"></i></div>
+                <div class="session-meta">
+                    Được tạo bằng <strong>AI Agent</strong> vào lúc {{ date }}
+                </div>
+            </section>
 
-            {% if chart_path %}
-            <div class="chart-wrap">
-                <img src="{{ chart_path }}" alt="Biểu đồ phân tích">
+            <div class="chat-thread">
+                <!-- AI Report as the first "message" if exists -->
+                <div class="gemini-msg msg-ai">
+                    <div class="msg-icon"><i class="fas fa-sparkles" style="color: #4285f4;"></i></div>
+                    <div class="msg-content-wrap">
+                        <div class="markdown-body">{{ content }}</div>
+                        {% if chart_path %}
+                        <div class="shared-chart">
+                            <img src="{{ chart_path }}" alt="Biểu đồ phân tích">
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Chat History -->
+                {% if chat_history %}
+                    {% for msg in chat_history %}
+                    <div class="gemini-msg {% if msg.role == 'user' %}msg-user{% else %}msg-ai{% endif %}">
+                        <div class="msg-icon">
+                            {% if msg.role == 'user' %}
+                                <i class="far fa-user-circle"></i>
+                            {% else %}
+                                <i class="fas fa-sparkles" style="color: #4285f4;"></i>
+                            {% endif %}
+                        </div>
+                        <div class="msg-content-wrap">
+                            <div class="markdown-body">{{ msg.content }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
             </div>
-            {% endif %}
 
-            <div class="report-body">{{ content | safe }}</div>
-        </div>
-
-        {% if table_preview %}
-        <div class="table-card">
-            <div class="section-title"><i class="fas fa-table"></i> Dữ liệu nguồn (15 dòng đầu)</div>
-            <div class="table-wrap">{{ table_preview | safe }}</div>
-        </div>
-        {% endif %}
-
-        <div class="page-footer">
-            <div class="watermark"><i class="fas fa-brain"></i> AI Agent Analytics</div>
-            <div>Báo cáo được tạo bởi <a href="/">AI Agent Analytics</a> &bull; Được chia sẻ công khai</div>
-        </div>
+            <div class="continue-action">
+                <a href="/ai/continue_shared/{{ token }}" class="btn-continue">Tiếp tục cuộc trò chuyện này</a>
+                <p class="disclaimer">AI Agent có thể đưa ra thông tin không chính xác, kể cả thông tin về con người, vì vậy hãy xác minh các câu trả lời của AI.</p>
+            </div>
+        </main>
     </div>
 
-    <script src="{{ url_for('static', filename='js/shared_view.js') }}?v=1.0"></script>
-    <!-- Bootstrap JS (local) -->
-    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    <script>
+        // Render markdown
+        document.querySelectorAll('.markdown-body').forEach(el => {
+            const rawContent = el.textContent.trim();
+            el.innerHTML = marked.parse(rawContent);
+        });
+
+        // Copy link functionality
+        document.querySelector('.far.fa-copy').onclick = function() {
+            navigator.clipboard.writeText(window.location.href);
+            alert('Đã copy link chia sẻ!');
+        };
+    </script>
 </body>
 </html>

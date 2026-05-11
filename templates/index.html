@@ -79,6 +79,7 @@
                     <!-- Login Form -->
                     <div id="login-form" role="tabpanel">
                         <form action="{{ url_for('auth.login') }}" method="POST">
+                            <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
                             <div class="input-wrap mb-3">
                                 <i class="fas fa-envelope input-icon"></i>
                                 <input type="email" name="email" class="form-control" placeholder="Email của bạn" required autocomplete="email">
@@ -123,7 +124,7 @@
                         <hr class="flex-grow-1 divider-line">
                     </div>
 
-                    <a href="{{ url_for('auth.google_login') }}" class="btn btn-google d-flex align-items-center justify-content-center" style="gap: 8px;">
+                    <a href="{{ url_for('auth.google_login', next=request.args.get('next', '')) }}" class="btn btn-google d-flex align-items-center justify-content-center" style="gap: 8px;">
                         <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="" width="18" aria-hidden="true">
                         Tiếp tục với Google
                     </a>

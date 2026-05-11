@@ -412,6 +412,16 @@ function openLightbox(src) {
 document.addEventListener('DOMContentLoaded', () => {
     updateRowCount();
     loadSidebarHistory();
+    
+    // Kiểm tra nếu có session_id trong hash (ví dụ #session_123) để tự động load
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#session_')) {
+        const sid = hash.replace('#session_', '');
+        loadChatSession(sid);
+        // Xóa hash để tránh load lại khi F5 (tùy chọn)
+        // window.history.replaceState(null, null, ' ');
+    }
+
     document.addEventListener('click', () => {
         document.querySelectorAll('.drop-menu').forEach(el => el.classList.remove('open'));
     });
