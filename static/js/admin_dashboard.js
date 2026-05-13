@@ -93,15 +93,63 @@ async function loadStats() {
     } catch (e) { console.error(e); }
 }
 
+function showUserRoleAlert(message, action) {
+    const alertBox = document.getElementById('userRoleAlertContainer');
+    document.getElementById('userRoleAlertMessage').innerText = message;
+    
+    alertBox.style.background = 'rgba(13, 148, 136, 0.1)';
+    alertBox.style.borderColor = 'var(--admin-accent)';
+    
+    const icon = document.getElementById('userRoleAlertIcon');
+    if (icon) {
+        icon.className = 'fas fa-info-circle';
+        icon.style.color = 'var(--admin-accent)';
+    }
+    
+    const confirmBtn = document.getElementById('confirmRoleBtn');
+    confirmBtn.style.display = 'inline-block';
+    confirmBtn.innerHTML = 'Xác nhận';
+    confirmBtn.disabled = false;
+    
+    const newConfirmBtn = confirmBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+    newConfirmBtn.addEventListener('click', action);
+    
+    alertBox.style.display = 'flex';
+}
+
+function hideUserRoleAlert() {
+    const alertBox = document.getElementById('userRoleAlertContainer');
+    if (alertBox) alertBox.style.display = 'none';
+}
+
 function updateRole(userId, newRole) {
-    if (!confirm('Thay đổi quyền User #' + userId + ' thành ' + newRole + '?')) return;
-    fetch('/admin/update_role', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, new_role: newRole })
-    }).then(function (r) { return r.json(); }).then(function (d) {
-        if (d.status === 'success') location.reload();
-        else alert('Lỗi: ' + d.message);
+    showUserRoleAlert('Thay đổi quyền User #' + userId + ' thành ' + newRole + '?', function() {
+        const confirmBtn = document.getElementById('confirmRoleBtn');
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+        confirmBtn.disabled = true;
+
+        fetch('/admin/update_role', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId, new_role: newRole })
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (d.status === 'success') {
+                const icon = document.getElementById('userRoleAlertIcon');
+                if (icon) { icon.className = 'fas fa-check-circle'; icon.style.color = 'var(--admin-success)'; }
+                document.getElementById('userRoleAlertContainer').style.borderColor = 'var(--admin-success)';
+                document.getElementById('userRoleAlertContainer').style.background = 'var(--admin-success-soft)';
+                document.getElementById('userRoleAlertMessage').innerText = 'Đã cập nhật quyền thành công!';
+                confirmBtn.style.display = 'none';
+                setTimeout(function() { location.reload(); }, 1200);
+            } else {
+                alert('Lỗi: ' + d.message);
+                hideUserRoleAlert();
+            }
+        }).catch(function() {
+            alert('Có lỗi xảy ra.');
+            hideUserRoleAlert();
+        });
     });
 }
 
@@ -145,13 +193,73 @@ function viewChat(sessionId) {
 
 function closeModal() { document.getElementById('chatModal').classList.remove('open'); }
 
+function showDeleteAlert(message, action) {
+    const alertBox = document.getElementById('deleteAlertContainer');
+    document.getElementById('deleteAlertMessage').innerText = message;
+    
+    alertBox.style.background = 'var(--admin-danger-soft)';
+    alertBox.style.borderColor = 'var(--admin-danger)';
+    
+    const icon = document.getElementById('deleteAlertIcon');
+    if (icon) {
+        icon.className = 'fas fa-exclamation-circle';
+        icon.style.color = 'var(--admin-danger)';
+    }
+    
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+    confirmBtn.style.display = 'inline-block';
+    confirmBtn.innerHTML = 'Xác nhận';
+    confirmBtn.disabled = false;
+    
+    const newConfirmBtn = confirmBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+    newConfirmBtn.addEventListener('click', action);
+    
+    alertBox.style.display = 'flex';
+}
+
+function hideDeleteAlert() {
+    const alertBox = document.getElementById('deleteAlertContainer');
+    if (alertBox) alertBox.style.display = 'none';
+}
+
+function showSuccessInlineAlert(message) {
+    const alertBox = document.getElementById('deleteAlertContainer');
+    alertBox.style.background = 'var(--admin-success-soft)';
+    alertBox.style.borderColor = 'var(--admin-success)';
+    
+    const icon = document.getElementById('deleteAlertIcon');
+    if (icon) {
+        icon.className = 'fas fa-check-circle';
+        icon.style.color = 'var(--admin-success)';
+    }
+    
+    document.getElementById('deleteAlertMessage').innerText = message;
+    
+    document.getElementById('confirmDeleteBtn').style.display = 'none';
+    alertBox.style.display = 'flex';
+}
+
 function deleteFile(fileId) {
-    if (!confirm('Xóa tệp này sẽ xóa toàn bộ báo cáo và phiên chat liên quan?')) return;
-    fetch('/admin/delete_file/' + fileId, { method: 'DELETE' })
-        .then(function (r) { return r.json(); }).then(function (d) {
-            if (d.status === 'success') location.reload();
-            else alert(d.message);
-        });
+    showDeleteAlert('Xóa tệp này sẽ xóa toàn bộ báo cáo và phiên chat liên quan?', function() {
+        const confirmBtn = document.getElementById('confirmDeleteBtn');
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xóa...';
+        confirmBtn.disabled = true;
+        
+        fetch('/admin/delete_file/' + fileId, { method: 'DELETE' })
+            .then(function (r) { return r.json(); }).then(function (d) {
+                if (d.status === 'success') {
+                    showSuccessInlineAlert('Đã xóa thành công 1 tệp tin!');
+                    setTimeout(function() { location.reload(); }, 1200);
+                } else {
+                    alert(d.message);
+                    hideDeleteAlert();
+                }
+            }).catch(function() {
+                alert('Có lỗi xảy ra.');
+                hideDeleteAlert();
+            });
+    });
 }
 
 function toggleSelectAll() {
@@ -167,20 +275,30 @@ function updateBulkBtn() {
 
 function bulkDeleteFiles() {
     var selectedIds = Array.from(document.querySelectorAll('.file-checkbox:checked')).map(function (cb) { return cb.value; });
-    if (!confirm('Bạn có chắc chắn muốn xóa ' + selectedIds.length + ' tệp tin đã chọn?')) return;
+    if (selectedIds.length === 0) return;
+    
+    showDeleteAlert('Bạn có chắc chắn muốn xóa ' + selectedIds.length + ' tệp tin đã chọn?', function() {
+        const confirmBtn = document.getElementById('confirmDeleteBtn');
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xóa...';
+        confirmBtn.disabled = true;
 
-    fetch('/admin/bulk_delete_files', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file_ids: selectedIds })
-    })
-        .then(function (r) { return r.json(); })
-        .then(function (d) {
-            if (d.status === 'success') {
-                alert(d.message);
-                location.reload();
-            } else {
-                alert('Lỗi: ' + d.message);
-            }
-        });
+        fetch('/admin/bulk_delete_files', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ file_ids: selectedIds })
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.status === 'success') {
+                    showSuccessInlineAlert('Đã xóa thành công ' + selectedIds.length + ' tệp tin!');
+                    setTimeout(function() { location.reload(); }, 1200);
+                } else {
+                    alert('Lỗi: ' + d.message);
+                    hideDeleteAlert();
+                }
+            }).catch(function() {
+                alert('Có lỗi xảy ra.');
+                hideDeleteAlert();
+            });
+    });
 }

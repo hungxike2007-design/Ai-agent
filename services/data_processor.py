@@ -43,18 +43,30 @@ def get_cleaning_suggestions(df):
     null_data = df.isnull().sum()
     for col, count in null_data.items():
         if count > 0:
+            # Check if column is numeric for mean option
+            is_numeric = pd.to_numeric(df[col], errors='coerce').notnull().sum() > 0
+            actions = [{"type": "drop_nulls", "label": "Xóa dòng rác"}]
+            if is_numeric:
+                actions.append({"type": "fill_mean", "label": "Điền giá trị trung bình"})
+                
             suggestions.append({
                 "column": col,
-                "issue": f"Co {count} o trong",
-                "action": "Dien gia tri trung binh hoac xoa dong"
+                "issue": f"Có {count} dòng bị trống (NULL)",
+                "action": "Điền giá trị trung bình hoặc xóa dòng rác",
+                "actions": actions
             })
+            
     for col in df.select_dtypes(include=['number']).columns:
         neg_count = (df[col] < 0).sum()
         if neg_count > 0:
             suggestions.append({
                 "column": col,
-                "issue": f"Co {neg_count} gia tri am",
-                "action": "Xoa dong rac hoac lay gia tri tuyet doi"
+                "issue": f"Có {neg_count} giá trị âm không hợp lệ",
+                "action": "Xóa dòng rác hoặc lấy giá trị tuyệt đối",
+                "actions": [
+                    {"type": "drop_negatives", "label": "Xóa dòng số âm"},
+                    {"type": "abs_values", "label": "Lấy giá trị tuyệt đối"}
+                ]
             })
     return suggestions
 

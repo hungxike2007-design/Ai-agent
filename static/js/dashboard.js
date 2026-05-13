@@ -26,9 +26,23 @@ function closeShareModal() {
 
 function copyShareLink() {
     const input = document.getElementById('shareLinkInput');
-    input.select(); 
-    document.execCommand('copy');
-    alert("Đã copy link!");
+    if (!input.value) return;
+    
+    // Use modern clipboard API if available
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(input.value).then(() => {
+            showToast('success', '<i class="fas fa-check-circle"></i> Đã copy link chia sẻ!');
+        }).catch(() => {
+            input.select();
+            document.execCommand('copy');
+            showToast('success', '<i class="fas fa-check-circle"></i> Đã copy link chia sẻ!');
+        });
+    } else {
+        // Fallback for older browsers
+        input.select();
+        document.execCommand('copy');
+        showToast('success', '<i class="fas fa-check-circle"></i> Đã copy link chia sẻ!');
+    }
 }
 
 function toggleSidebar() {
@@ -547,3 +561,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+async function quickClean(column, action) {
+    try {
+        const btn = event.currentTarget;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+        btn.disabled = true;
+
+        const res = await fetch('/ai/quick_clean', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ column, action })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            showToast('success', '<i class="fas fa-check-circle"></i> ' + data.message);
+            // Optionally, reload the table content by re-loading the session
+            if (currentSessionId) {
+                loadChatSession(currentSessionId);
+            } else {
+                location.reload();
+            }
+        } else {
+            showToast('error', '<i class="fas fa-exclamation-circle"></i> ' + data.error);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    } catch (e) {
+        showToast('error', '<i class="fas fa-exclamation-circle"></i> Lỗi kết nối server!');
+    }
+}

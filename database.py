@@ -359,10 +359,10 @@ def save_feedback(user_id, rating, comment, category='Chung', session_id=None):
     try:
         cursor.execute(query, (user_id, session_id, rating, category, comment))
         conn.commit()
-        return True
+        return True, ""
     except Exception as e:
         print(f"Lỗi save_feedback: {e}")
-        return False
+        return False, str(e)
     finally:
         conn.close()
 

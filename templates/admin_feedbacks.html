@@ -152,7 +152,7 @@
                             <td style="white-space:nowrap;font-size:.78rem;color:var(--muted)">{{ fb[8].strftime('%H:%M %d/%m/%Y') if fb[8] else 'N/A' }}</td>
                             <td style="display:flex;gap:6px;flex-wrap:wrap">
                                 <button onclick="openUpdateModal({{ fb[0] }}, '{{ fb[6] }}', `{{ fb[7] or '' }}`)" class="btn-sm btn-view"><i class="fas fa-pen"></i> Xử lý</button>
-                                <button onclick="deleteFeedback({{ fb[0] }})" class="btn-sm btn-del"><i class="fas fa-trash"></i></button>
+                                <button onclick="deleteFeedback({{ fb[0] }}, this)" class="btn-sm btn-del"><i class="fas fa-trash"></i></button>
                             </td>
                         </tr>
                         {% endfor %}

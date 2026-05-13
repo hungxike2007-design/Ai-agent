@@ -188,11 +188,8 @@ def upload_file():
     if not user_id: return "Vui lòng đăng nhập lại!"
 
     try:
-        # 1. Đọc và xử lý Excel
-        df = pd.read_excel(file, dtype=str)
-        
-        # Skill: Excel Analysis - Tự động làm sạch dữ liệu ngay khi upload
-        df = auto_clean_data(df)
+        # 1. Đọc và xử lý Excel (không dùng dtype=str để tự động nhận diện cột số)
+        df = pd.read_excel(file)
         
         filename = file.filename
         
@@ -200,9 +197,9 @@ def upload_file():
         import os
         os.makedirs('uploads', exist_ok=True)
         file.seek(0)
-        # Lưu bản gốc nhưng AI sẽ làm việc với bản đã clean
         file.save(os.path.join('uploads', filename))
         
+        # Lấy gợi ý sửa lỗi trước khi clean tự động
         cleaning_hints = get_cleaning_suggestions(df)
         df_display = df.fillna("")
 
@@ -339,6 +336,47 @@ def upload_file():
                                chart_reason=chart_reason)
     except Exception as e:
         return f"Loi he thong: {e}"
+
+@ai_bp.route('/quick_clean', methods=['POST'])
+def quick_clean():
+    data = request.json
+    column = data.get('column')
+    action = data.get('action')
+    file_id = session.get('current_file_id')
+    
+    if not file_id:
+        return jsonify({"error": "Không tìm thấy file_id trong session"}), 400
+        
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT FilePath FROM ExcelFiles WHERE FileID = ?", (file_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row and row[0] and os.path.exists(row[0]):
+            df = pd.read_excel(row[0])
+            
+            if action == 'drop_nulls':
+                df = df.dropna(subset=[column])
+            elif action == 'fill_mean':
+                df[column] = pd.to_numeric(df[column], errors='coerce')
+                mean_val = df[column].mean()
+                df[column] = df[column].fillna(mean_val)
+            elif action == 'drop_negatives':
+                df[column] = pd.to_numeric(df[column], errors='coerce')
+                df = df[df[column] >= 0]
+            elif action == 'abs_values':
+                df[column] = pd.to_numeric(df[column], errors='coerce')
+                df[column] = df[column].abs()
+                
+            # Ghi đè lại file đã clean
+            df.to_excel(row[0], index=False)
+            
+            return jsonify({"success": True, "message": f"Đã áp dụng '{action}' cho cột '{column}'"})
+        return jsonify({"error": "Không tìm thấy file trên hệ thống"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @ai_bp.route('/ask', methods=['POST'])
@@ -1307,7 +1345,7 @@ def submit_feedback():
         return jsonify({"error": "Điểm đánh giá không hợp lệ (1-5 sao)!"}), 400
 
     from database import save_feedback
-    ok = save_feedback(
+    ok, err_msg = save_feedback(
         user_id=user_id,
         rating=int(rating),
         comment=comment,
@@ -1316,7 +1354,7 @@ def submit_feedback():
     )
     if ok:
         return jsonify({"success": True, "message": "Cảm ơn bạn đã gửi phản hồi! 🎉"})
-    return jsonify({"error": "Lưu phản hồi thất bại, vui lòng thử lại!"}), 500
+    return jsonify({"error": f"Lưu phản hồi thất bại: {err_msg}"}), 500
 
 @ai_bp.route('/continue_shared/<token>')
 def continue_shared(token):
