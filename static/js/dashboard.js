@@ -210,11 +210,39 @@ async function handleRename(event, id) {
     if (dropMenu) dropMenu.classList.remove('open');
 
     const old = document.getElementById(`title-${id}`).innerText;
-    const newTitle = prompt('Nhập tên mới:', old);
-    if (newTitle && newTitle !== old) {
-        const res = await fetch(`/ai/rename_session/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ new_title: newTitle }) });
-        if ((await res.json()).success) document.getElementById(`title-${id}`).innerText = newTitle;
-    }
+    const input = document.getElementById('renameInput');
+    input.value = old;
+
+    openInlineAlert('renameAlert');
+    setTimeout(() => { input.focus(); input.select(); }, 150);
+
+    // Set up confirm handler
+    const confirmBtn = document.getElementById('renameConfirmBtn');
+    const newHandler = async () => {
+        const newTitle = input.value.trim();
+        if (!newTitle || newTitle === old) {
+            closeInlineAlert('renameAlert');
+            return;
+        }
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+        try {
+            const res = await fetch(`/ai/rename_session/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ new_title: newTitle }) });
+            if ((await res.json()).success) {
+                document.getElementById(`title-${id}`).innerText = newTitle;
+                closeInlineAlert('renameAlert');
+                showToast('success', '<i class="fas fa-check-circle"></i> Đã đổi tên thành công!');
+            }
+        } catch (e) {
+            showToast('error', '<i class="fas fa-exclamation-circle"></i> Lỗi kết nối server!');
+        } finally {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="fas fa-check"></i> Lưu';
+        }
+    };
+    confirmBtn.onclick = newHandler;
+    // Also allow Enter key in input
+    input.onkeydown = (e) => { if (e.key === 'Enter') newHandler(); };
 }
 
 async function handleShare(event, id) {
@@ -222,14 +250,26 @@ async function handleShare(event, id) {
     const dropMenu = document.getElementById(`drop-${id}`);
     if (dropMenu) dropMenu.classList.remove('open');
 
-    const res = await fetch(`/ai/share_session/${id}`, { method: 'POST' });
-    const data = await res.json();
-    if (data.share_url) {
-        const url = window.location.origin + data.share_url;
-        if (confirm(`Link chia sẻ:\n${url}\n\nNhấn OK để copy!`)) {
-            navigator.clipboard.writeText(url);
-            alert('Đã copy link!');
+    const linkInput = document.getElementById('shareAlertLink');
+    const copyBtn = document.getElementById('shareAlertCopyBtn');
+    linkInput.value = 'Đang tạo link chia sẻ...';
+    copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+    copyBtn.classList.remove('copied');
+
+    openInlineAlert('shareAlert');
+
+    try {
+        const res = await fetch(`/ai/share_session/${id}`, { method: 'POST' });
+        const data = await res.json();
+        if (data.share_url) {
+            linkInput.value = window.location.origin + data.share_url;
+        } else {
+            linkInput.value = 'Lỗi: không thể tạo link';
+            showToast('error', '<i class="fas fa-exclamation-circle"></i> ' + (data.error || 'Không thể tạo link chia sẻ'));
         }
+    } catch (e) {
+        linkInput.value = 'Lỗi kết nối server';
+        showToast('error', '<i class="fas fa-exclamation-circle"></i> Lỗi kết nối server!');
     }
 }
 
@@ -238,30 +278,92 @@ async function handleDelete(event, id) {
     const dropMenu = document.getElementById(`drop-${id}`);
     if (dropMenu) dropMenu.classList.remove('open');
 
-    if (!confirm('Xóa phiên này và toàn bộ dữ liệu liên quan?')) return;
+    openInlineAlert('deleteAlert');
 
-    const item = document.getElementById(`item-${id}`);
-    if (item) item.style.opacity = '0.4';
+    const confirmBtn = document.getElementById('deleteConfirmBtn');
+    confirmBtn.onclick = async () => {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xóa...';
 
-    try {
-        const res = await fetch(`/ai/delete_session/${id}`, { method: 'DELETE' });
-        const data = await res.json();
-        if (data.success) {
-            if (item) item.remove();
-            if (currentSessionId == id) {
-                currentSessionId = "";
-                document.getElementById('data-section').style.display = 'none';
-                document.getElementById('chat-section').style.display = 'none';
+        const item = document.getElementById(`item-${id}`);
+        if (item) item.style.opacity = '0.4';
+
+        try {
+            const res = await fetch(`/ai/delete_session/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+                closeInlineAlert('deleteAlert');
+                if (item) {
+                    item.style.transition = 'all 0.3s ease';
+                    item.style.transform = 'translateX(-100%)';
+                    item.style.opacity = '0';
+                    setTimeout(() => item.remove(), 300);
+                }
+                if (currentSessionId == id) {
+                    currentSessionId = "";
+                    document.getElementById('data-section').style.display = 'none';
+                    document.getElementById('chat-section').style.display = 'none';
+                }
+                showToast('success', '<i class="fas fa-check-circle"></i> Đã xóa phiên chat thành công!');
+            } else {
+                if (item) item.style.opacity = '1';
+                showToast('error', '<i class="fas fa-exclamation-circle"></i> ' + (data.error || 'Lỗi khi xóa phiên chat.'));
             }
-        } else {
+        } catch (e) {
             if (item) item.style.opacity = '1';
-            alert(data.error || 'Lỗi khi xóa phiên chat.');
+            showToast('error', '<i class="fas fa-exclamation-circle"></i> Lỗi kết nối server: ' + e.message);
+        } finally {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="fas fa-trash"></i> Xóa vĩnh viễn';
         }
-    } catch (e) {
-        if (item) item.style.opacity = '1';
-        alert('Lỗi kết nối server: ' + e.message);
-    }
+    };
 }
+
+// ===== INLINE ALERT UTILITIES =====
+function openInlineAlert(id) {
+    const overlay = document.getElementById(id);
+    if (overlay) overlay.classList.add('active');
+}
+
+function closeInlineAlert(id) {
+    const overlay = document.getElementById(id);
+    if (overlay) overlay.classList.remove('active');
+}
+
+function showToast(type, html) {
+    const toast = document.createElement('div');
+    toast.className = `inline-toast ${type}`;
+    toast.innerHTML = html;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.transition = 'opacity .3s ease';
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3500);
+}
+
+function copyShareAlertLink() {
+    const input = document.getElementById('shareAlertLink');
+    const btn = document.getElementById('shareAlertCopyBtn');
+    if (!input.value || input.value.startsWith('Đang') || input.value.startsWith('Lỗi')) return;
+
+    navigator.clipboard.writeText(input.value).then(() => {
+        btn.innerHTML = '<i class="fas fa-check"></i> Đã copy!';
+        btn.classList.add('copied');
+        showToast('success', '<i class="fas fa-check-circle"></i> Đã copy link vào clipboard!');
+        setTimeout(() => {
+            btn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+            btn.classList.remove('copied');
+        }, 2500);
+    }).catch(() => {
+        // Fallback for older browsers
+        input.select();
+        document.execCommand('copy');
+        btn.innerHTML = '<i class="fas fa-check"></i> Đã copy!';
+        btn.classList.add('copied');
+    });
+}
+
 
 // BULK DELETE LOGIC
 let isBulkMode = false;
@@ -428,4 +530,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (questionInput) {
         questionInput.addEventListener('keypress', e => { if (e.key === 'Enter') askAI(); });
     }
+
+    // Close inline alerts when clicking the overlay background
+    document.querySelectorAll('.inline-alert-overlay').forEach(overlay => {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.classList.remove('active');
+        });
+    });
+
+    // Close inline alerts with Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.inline-alert-overlay.active').forEach(overlay => {
+                overlay.classList.remove('active');
+            });
+        }
+    });
 });

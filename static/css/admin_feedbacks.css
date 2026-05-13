@@ -107,3 +107,106 @@ tbody tr:hover td{background:oklch(.97 .02 168)}
 .btn-save{padding:.75rem 1.5rem;background:linear-gradient(135deg,var(--aa),var(--brand-dark));color:#fff;border:none;border-radius:10px;font-weight:700;font-size:.875rem;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px var(--brand-glow);transition:.2s}
 .btn-save:hover{transform:translateY(-1px);filter:brightness(1.05)}
 .btn-cancel{padding:.75rem 1.25rem;background:var(--as);color:var(--text);border:1px solid var(--border-dark);border-radius:10px;font-weight:600;font-size:.875rem;cursor:pointer;font-family:inherit}
+
+/* ═══════════════════════════════════════════
+   DARK MODE OVERRIDES — Admin Feedbacks
+   ═══════════════════════════════════════════ */
+:root[data-theme="dark"] {
+    --as: oklch(18% 0.006 168);
+    --am: oklch(16% 0.008 168);
+    --aas: oklch(22% 0.06 168);
+    --danger-s: oklch(18% 0.04 25);
+    --amber-s: oklch(18% 0.04 75);
+    --purple-s: oklch(18% 0.04 285);
+    --info-s: oklch(18% 0.04 250);
+}
+
+:root[data-theme="dark"] .app-sidebar {
+    background: oklch(14% 0.008 168);
+}
+
+:root[data-theme="dark"] .sb-footer {
+    background: oklch(14% 0.006 168);
+}
+
+:root[data-theme="dark"] .back-btn {
+    background: oklch(18% 0.006 168);
+}
+
+:root[data-theme="dark"] .kpi-card {
+    background: oklch(18% 0.006 168);
+}
+
+:root[data-theme="dark"] .chart-panel {
+    background: oklch(18% 0.006 168);
+}
+
+:root[data-theme="dark"] .bar-track {
+    background: oklch(24% 0.01 168);
+}
+
+:root[data-theme="dark"] .table-card {
+    background: oklch(18% 0.006 168);
+}
+
+:root[data-theme="dark"] .table-card-hdr {
+    background: oklch(16% 0.008 168);
+}
+
+:root[data-theme="dark"] th {
+    background: oklch(14% 0.006 168);
+}
+
+:root[data-theme="dark"] tbody tr:hover td {
+    background: oklch(22% 0.02 168);
+}
+
+:root[data-theme="dark"] .filter-btn {
+    background: oklch(18% 0.006 168);
+}
+
+:root[data-theme="dark"] .modal-overlay {
+    background: oklch(0.08 0.02 168 / 0.65);
+}
+
+:root[data-theme="dark"] .modal-box {
+    background: oklch(18% 0.006 168);
+}
+
+:root[data-theme="dark"] .modal-header {
+    background: oklch(16% 0.006 168);
+}
+
+:root[data-theme="dark"] .modal-footer {
+    background: oklch(16% 0.006 168);
+}
+
+:root[data-theme="dark"] .modal-close {
+    background: oklch(20% 0.008 168);
+}
+
+:root[data-theme="dark"] .form-group select,
+:root[data-theme="dark"] .form-group textarea {
+    background: oklch(14% 0.006 168 / 0.8);
+    color: var(--text);
+}
+
+:root[data-theme="dark"] .btn-cancel {
+    background: oklch(20% 0.008 168);
+}
+
+:root[data-theme="dark"] .b-new {
+    border-color: oklch(32% 0.08 25);
+}
+
+:root[data-theme="dark"] .b-seen {
+    border-color: oklch(32% 0.08 75);
+}
+
+:root[data-theme="dark"] .b-done {
+    border-color: oklch(32% 0.06 168);
+}
+
+:root[data-theme="dark"] .b-cat {
+    border-color: oklch(32% 0.06 285);
+}

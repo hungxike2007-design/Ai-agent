@@ -346,6 +346,76 @@
         </div>
     </div>
 
+    <!-- INLINE ALERT: Rename -->
+    <div class="inline-alert-overlay" id="renameAlert">
+        <div class="inline-alert">
+            <div class="inline-alert-strip rename"></div>
+            <div class="inline-alert-header">
+                <div class="inline-alert-icon rename"><i class="fas fa-pen-to-square"></i></div>
+                <div>
+                    <div class="inline-alert-title">Đổi tên phiên chat</div>
+                    <div class="inline-alert-subtitle">Nhập tên mới cho cuộc trò chuyện</div>
+                </div>
+            </div>
+            <div class="inline-alert-body">
+                <input type="text" class="inline-alert-input" id="renameInput" placeholder="Nhập tên mới...">
+            </div>
+            <div class="inline-alert-footer">
+                <button class="ia-btn ia-btn-ghost" onclick="closeInlineAlert('renameAlert')"><i class="fas fa-xmark"></i> Hủy</button>
+                <button class="ia-btn ia-btn-primary" id="renameConfirmBtn"><i class="fas fa-check"></i> Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INLINE ALERT: Share -->
+    <div class="inline-alert-overlay" id="shareAlert">
+        <div class="inline-alert">
+            <div class="inline-alert-strip share"></div>
+            <div class="inline-alert-header">
+                <div class="inline-alert-icon share"><i class="fas fa-share-nodes"></i></div>
+                <div>
+                    <div class="inline-alert-title">Chia sẻ phiên chat</div>
+                    <div class="inline-alert-subtitle">Gửi link cho đồng nghiệp để xem báo cáo</div>
+                </div>
+            </div>
+            <div class="inline-alert-body">
+                <div class="inline-alert-link-box">
+                    <input type="text" class="inline-alert-link-input" id="shareAlertLink" readonly placeholder="Đang tạo link...">
+                    <button class="inline-alert-copy-btn" id="shareAlertCopyBtn" onclick="copyShareAlertLink()">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+            </div>
+            <div class="inline-alert-footer">
+                <button class="ia-btn ia-btn-ghost" onclick="closeInlineAlert('shareAlert')"><i class="fas fa-xmark"></i> Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INLINE ALERT: Delete -->
+    <div class="inline-alert-overlay" id="deleteAlert">
+        <div class="inline-alert">
+            <div class="inline-alert-strip delete"></div>
+            <div class="inline-alert-header">
+                <div class="inline-alert-icon delete"><i class="fas fa-trash-can"></i></div>
+                <div>
+                    <div class="inline-alert-title">Xác nhận xóa</div>
+                    <div class="inline-alert-subtitle">Hành động này không thể hoàn tác</div>
+                </div>
+            </div>
+            <div class="inline-alert-body">
+                <div class="inline-alert-warning">
+                    <i class="fas fa-triangle-exclamation"></i>
+                    <span>Xóa phiên này sẽ xóa toàn bộ lịch sử trò chuyện, dữ liệu phân tích và biểu đồ liên quan. Bạn có chắc chắn?</span>
+                </div>
+            </div>
+            <div class="inline-alert-footer">
+                <button class="ia-btn ia-btn-ghost" onclick="closeInlineAlert('deleteAlert')"><i class="fas fa-xmark"></i> Hủy</button>
+                <button class="ia-btn ia-btn-danger" id="deleteConfirmBtn"><i class="fas fa-trash"></i> Xóa vĩnh viễn</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Config script -->
     <script>
         window.DASHBOARD_CONFIG = {
@@ -358,6 +428,7 @@
         };
     </script>
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/theme-toggle.js') }}?v=1.0"></script>
     <!-- Bootstrap JS (local) -->
     <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
 </body>

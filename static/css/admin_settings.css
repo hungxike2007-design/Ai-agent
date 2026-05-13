@@ -64,3 +64,60 @@ input[type=range]{flex:1;accent-color:var(--brand);cursor:pointer;height:4px}
 .presets{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.875rem}
 .preset-chip{padding:.375rem .875rem;border-radius:20px;border:1px solid var(--border-dark);background:var(--am);color:var(--muted);font-size:.78rem;font-weight:600;cursor:pointer;transition:.15s;font-family:inherit}
 .preset-chip:hover{background:var(--aas);color:var(--aa);border-color:var(--aa)}
+
+/* ═══════════════════════════════════════════
+   DARK MODE OVERRIDES — Admin Settings
+   ═══════════════════════════════════════════ */
+:root[data-theme="dark"] {
+    --as: oklch(18% 0.006 168);
+    --am: oklch(16% 0.008 168);
+    --aas: oklch(22% 0.06 168);
+}
+
+:root[data-theme="dark"] .config-card {
+    background: oklch(18% 0.006 168 / 0.9);
+    border-color: oklch(28% 0.012 168);
+}
+
+:root[data-theme="dark"] .config-card:hover {
+    border-color: oklch(38% 0.015 168);
+}
+
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] input[type=number] {
+    background: oklch(14% 0.006 168 / 0.8);
+    border-color: oklch(28% 0.012 168);
+    color: var(--text);
+}
+
+:root[data-theme="dark"] .config-icon.amber {
+    background: oklch(20% 0.04 75);
+}
+
+:root[data-theme="dark"] .config-icon.purple {
+    background: oklch(20% 0.04 285);
+}
+
+:root[data-theme="dark"] .app-sidebar {
+    background: oklch(14% 0.008 168);
+}
+
+:root[data-theme="dark"] .sb-footer {
+    background: oklch(14% 0.006 168);
+}
+
+:root[data-theme="dark"] .back-btn {
+    background: oklch(18% 0.006 168);
+}
+
+:root[data-theme="dark"] .flash.success {
+    background: oklch(18% 0.04 155);
+    border-color: oklch(30% 0.08 155);
+    color: oklch(72% 0.14 155);
+}
+
+:root[data-theme="dark"] .flash.danger {
+    background: oklch(18% 0.03 25);
+    border-color: oklch(30% 0.08 25);
+    color: oklch(72% 0.14 25);
+}

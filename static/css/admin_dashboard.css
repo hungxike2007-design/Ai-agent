@@ -656,3 +656,105 @@ input[type="checkbox"] {
 .markdown-body th { background-color: var(--admin-surface-muted); }
 .markdown-body strong { font-weight: 600; }
 .markdown-body code { background: var(--admin-surface-muted); padding: 0.2em 0.4em; border-radius: 3px; font-family: monospace; font-size: 0.9em; }
+
+/* ═══════════════════════════════════════════
+   DARK MODE OVERRIDES — Admin Dashboard
+   ═══════════════════════════════════════════ */
+:root[data-theme="dark"] {
+    --admin-surface-raised: oklch(18% 0.006 168);
+    --admin-surface-muted: oklch(16% 0.008 168);
+    --admin-accent-soft: oklch(22% 0.06 168);
+    --admin-success-soft: oklch(18% 0.04 155);
+    --admin-warning-soft: oklch(18% 0.04 75);
+    --admin-danger-soft: oklch(18% 0.04 25);
+    --admin-info-soft: oklch(18% 0.04 250);
+}
+
+:root[data-theme="dark"] .app-sidebar {
+    background: oklch(14% 0.008 168);
+    border-right-color: oklch(24% 0.010 168);
+}
+
+:root[data-theme="dark"] .sb-brand {
+    border-bottom-color: oklch(24% 0.010 168);
+}
+
+:root[data-theme="dark"] .kpi-panel {
+    background: linear-gradient(180deg, oklch(22% 0.04 168) 0%, oklch(18% 0.006 168) 42%, oklch(18% 0.006 168) 100%);
+}
+
+:root[data-theme="dark"] .chart-panel {
+    background: oklch(18% 0.006 168);
+}
+
+:root[data-theme="dark"] .table-card {
+    background: oklch(18% 0.006 168);
+}
+
+:root[data-theme="dark"] .table-card-header {
+    background: oklch(16% 0.008 168);
+}
+
+:root[data-theme="dark"] th {
+    background: oklch(14% 0.006 168);
+}
+
+:root[data-theme="dark"] tbody tr:hover td {
+    background: oklch(22% 0.02 168);
+}
+
+:root[data-theme="dark"] .badge-admin {
+    border-color: oklch(35% 0.06 25);
+}
+
+:root[data-theme="dark"] .badge-user {
+    border-color: oklch(35% 0.06 250);
+}
+
+:root[data-theme="dark"] .btn-admin {
+    border-color: oklch(35% 0.06 25);
+}
+
+:root[data-theme="dark"] .back-btn {
+    background: oklch(18% 0.006 168);
+    border-color: oklch(26% 0.010 168);
+}
+
+:root[data-theme="dark"] .back-btn:hover {
+    background: oklch(22% 0.008 168);
+}
+
+:root[data-theme="dark"] .sb-footer {
+    background: oklch(14% 0.006 168);
+    border-top-color: oklch(24% 0.010 168);
+}
+
+:root[data-theme="dark"] .modal-box {
+    background: oklch(18% 0.006 168);
+}
+
+:root[data-theme="dark"] .modal-header {
+    background: oklch(16% 0.006 168);
+}
+
+:root[data-theme="dark"] .modal-close {
+    background: oklch(20% 0.008 168);
+    border-color: oklch(28% 0.010 168);
+}
+
+:root[data-theme="dark"] .modal-close:hover {
+    background: oklch(24% 0.008 168);
+}
+
+:root[data-theme="dark"] .modal-body {
+    background: oklch(18% 0.006 168);
+}
+
+:root[data-theme="dark"] .mobile-bar {
+    background: oklch(16% 0.006 168);
+}
+
+:root[data-theme="dark"] .mobile-bar button {
+    background: oklch(20% 0.008 168);
+    border-color: oklch(28% 0.010 168);
+}

@@ -1,5 +1,6 @@
 import pyodbc
 import os
+import bcrypt
 from dotenv import load_dotenv
 
 # Tải biến môi trường từ file .env
@@ -189,17 +190,30 @@ def init_db_schema():
 
 # --- PHẦN 1: QUẢN LÝ NGƯỜI DÙNG (USERS) ---
 
+def _hash_password(plain_password: str) -> str:
+    """Mã hóa mật khẩu bằng bcrypt (salt tự động)."""
+    return bcrypt.hashpw(plain_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def _verify_password(plain_password: str, hashed_password: str) -> bool:
+    """So sánh mật khẩu người dùng nhập với mật khẩu đã mã hóa trong DB."""
+    try:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except (ValueError, TypeError):
+        # Nếu hash không hợp lệ (ví dụ: password cũ lưu plain text) → so sánh trực tiếp
+        return plain_password == hashed_password
+
 def register_user(username, password, fullname, email, avatar=None):
     """Hàm lưu người dùng mới (Hỗ trợ cả avatar từ Google)"""
     conn = get_connection()
     cursor = conn.cursor()
-    # Cập nhật query để hỗ trợ cột Avatar nếu Hùng đã thêm vào bảng
+    # Mã hóa mật khẩu trước khi lưu vào DB (trừ tài khoản Google dùng marker 'GOOGLE')
+    stored_password = password if password == 'GOOGLE' else _hash_password(password)
     query = """
         INSERT INTO Users (Username, Password, FullName, Email, Role, Avatar) 
         VALUES (?, ?, ?, ?, ?, ?)
     """
     try:
-        cursor.execute(query, (username, password, fullname, email, 'User', avatar))
+        cursor.execute(query, (username, stored_password, fullname, email, 'User', avatar))
         conn.commit()
     except Exception as e:
         print(f"Lỗi register_user: {e}")
@@ -207,14 +221,18 @@ def register_user(username, password, fullname, email, avatar=None):
         conn.close()
 
 def check_login(email, password):
-    """Hàm kiểm tra đăng nhập truyền thống"""
+    """Hàm kiểm tra đăng nhập truyền thống (hỗ trợ cả bcrypt hash và plain text cũ)"""
     conn = get_connection()
     cursor = conn.cursor()
-    query = "SELECT UserID, Username, FullName, Role FROM Users WHERE Email = ? AND Password = ?"
-    cursor.execute(query, (email, password))
+    # Lấy user theo email trước, rồi verify password bằng bcrypt
+    query = "SELECT UserID, Username, FullName, Role, Password FROM Users WHERE Email = ?"
+    cursor.execute(query, (email,))
     user = cursor.fetchone()
     conn.close()
-    return user
+    if user and _verify_password(password, user[4]):
+        # Trả về tuple KHÔNG chứa Password (giữ nguyên format cũ)
+        return (user[0], user[1], user[2], user[3])
+    return None
 
 def get_user_by_email(email):
     conn = get_connection()
@@ -246,10 +264,12 @@ def get_user_by_google_id(google_id):
     return user
 
 def update_user_password(email, new_password):
+    """Cập nhật mật khẩu đã mã hóa bcrypt cho user"""
     conn = get_connection()
     cursor = conn.cursor()
+    hashed = _hash_password(new_password)
     query = "UPDATE Users SET Password = ? WHERE Email = ?"
-    cursor.execute(query, (new_password, email))
+    cursor.execute(query, (hashed, email))
     conn.commit()
     conn.close()
 

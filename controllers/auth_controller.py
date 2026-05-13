@@ -57,8 +57,8 @@ def login():
         user = db.check_login(email, password)
         if user:
             session['user_id'] = user[0] 
-            session['username'] = user[3] # Cột Fullname trong SQL
-            session['role'] = user.Role if hasattr(user, 'Role') else 'User' # Đảm bảo có Role trong session
+            session['username'] = user[2] # Cột FullName (index 2 trong tuple)
+            session['role'] = user[3]     # Cột Role (index 3 trong tuple)
             return redirect(next_url)
         
         flash("Sai tài khoản hoặc mật khẩu!", "danger")

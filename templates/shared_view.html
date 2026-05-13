@@ -10,6 +10,7 @@
     <!-- Bootstrap CSS (local) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/impeccable-theme.css') }}?v=2.1">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/shared_view.css') }}?v=2.0">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
@@ -88,5 +89,6 @@
             alert('Đã copy link chia sẻ!');
         };
     </script>
+    <script src="{{ url_for('static', filename='js/theme-toggle.js') }}?v=1.0"></script>
 </body>
 </html>

@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 from flask import Blueprint, render_template, session, redirect, url_for, flash, request, jsonify
-import pyodbc
 from datetime import datetime, timedelta
+from database import get_connection
 
 admin_bp = Blueprint('admin', __name__)
 
 def get_db_connection():
-    conn_str = r'DRIVER={SQL Server};SERVER=TOM\SQLEXPRESS;DATABASE=QuanLyAIAgent;Trusted_Connection=yes;'
-    return pyodbc.connect(conn_str)
+    return get_connection()
 
 @admin_bp.route('/dashboard') 
 def dashboard():
