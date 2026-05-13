@@ -54,7 +54,11 @@
             {% endfor %}{% endif %}
             {% endwith %}
 
-            <form action="/admin/settings" method="POST">
+            <form action="/admin/settings" method="POST" style="margin-bottom: 2.5rem;">
+                <input type="hidden" name="config_type" value="model">
+                <div style="margin-bottom: 1rem; font-weight: 700; color: var(--text); font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-brain" style="color: var(--brand);"></i> Cấu hình Mô hình & Prompt
+                </div>
                 <div class="config-bento">
                     <!-- Temperature -->
                     <div class="config-card">
@@ -85,21 +89,9 @@
                         <input type="number" name="max_tokens" min="256" max="8192" step="256"
                             value="{{ configs.get('MaxTokens', 2048) }}">
                     </div>
-                    
-                    <!-- API Keys -->
-                    <div class="config-card" style="grid-column: 1 / -1;">
-                        <div class="config-card-header">
-                            <div class="config-icon" style="background:var(--brand-subtle);color:var(--brand)"><i class="fas fa-key"></i></div>
-                            <div>
-                                <div class="config-card-title">Gemini API Keys</div>
-                            </div>
-                        </div>
-                        <div class="config-card-desc">Nhập danh sách API Keys (Mỗi key 1 dòng). Hệ thống sẽ tự xoay vòng khi hết quota.</div>
-                        <textarea name="api_keys" rows="3" placeholder="AIzaSy...&#10;AIzaSy...">{{ configs.get('APIKeys', '') }}</textarea>
-                    </div>
 
                     <!-- System Prompt -->
-                    <div class="config-card">
+                    <div class="config-card" style="grid-column: 1 / -1;">
                         <div class="config-card-header">
                             <div class="config-icon teal"><i class="fas fa-brain"></i></div>
                             <div style="flex:1">
@@ -130,8 +122,34 @@
                 </div>
 
                 <div class="save-row">
-                    <button type="submit" class="btn-save" id="saveBtn">
-                        <i class="fas fa-floppy-disk"></i> Lưu cấu hình
+                    <button type="submit" class="btn-save" id="saveModelBtn">
+                        <i class="fas fa-floppy-disk"></i> Lưu cấu hình AI
+                    </button>
+                </div>
+            </form>
+
+            <form action="/admin/settings" method="POST">
+                <input type="hidden" name="config_type" value="api_keys">
+                <div style="margin-bottom: 1rem; font-weight: 700; color: var(--text); font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-key" style="color: var(--brand);"></i> Quản lý API Keys
+                </div>
+                <div class="config-bento" style="display: block;">
+                    <!-- API Keys -->
+                    <div class="config-card">
+                        <div class="config-card-header">
+                            <div class="config-icon" style="background:var(--brand-subtle);color:var(--brand)"><i class="fas fa-key"></i></div>
+                            <div>
+                                <div class="config-card-title">Gemini API Keys</div>
+                            </div>
+                        </div>
+                        <div class="config-card-desc">Nhập danh sách API Keys (Mỗi key 1 dòng). Hệ thống sẽ tự xoay vòng khi hết quota.</div>
+                        <textarea name="api_keys" rows="3" placeholder="AIzaSy...&#10;AIzaSy...">{{ configs.get('APIKeys', '') }}</textarea>
+                    </div>
+                </div>
+
+                <div class="save-row">
+                    <button type="submit" class="btn-save" id="saveKeysBtn" style="background: linear-gradient(135deg, oklch(60% 0.15 250), oklch(50% 0.15 250)); box-shadow: 0 4px 12px oklch(60% 0.15 250 / 0.3);">
+                        <i class="fas fa-floppy-disk"></i> Lưu API Keys
                     </button>
                 </div>
             </form>

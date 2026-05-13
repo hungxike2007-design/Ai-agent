@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 admin_bp = Blueprint('admin', __name__)
 
 def get_db_connection():
-    conn_str = r'DRIVER={SQL Server};SERVER=LAPTOP-FOEQL0GL;DATABASE=QuanLyAIAgent;Trusted_Connection=yes;'
+    conn_str = r'DRIVER={SQL Server};SERVER=TOM\SQLEXPRESS;DATABASE=QuanLyAIAgent;Trusted_Connection=yes;'
     return pyodbc.connect(conn_str)
 
 @admin_bp.route('/dashboard') 
@@ -84,10 +84,7 @@ def settings():
     cursor = conn.cursor()
 
     if request.method == 'POST':
-        new_prompt = request.form.get('system_prompt', '')
-        temperature = request.form.get('temperature', '0.7')
-        max_tokens = request.form.get('max_tokens', '2048')
-        api_keys = request.form.get('api_keys', '')
+        config_type = request.form.get('config_type')
         
         def upsert(k, v):
             cursor.execute("SELECT 1 FROM SystemConfigs WHERE ConfigKey = ?", (k,))
@@ -96,13 +93,21 @@ def settings():
             else:
                 cursor.execute("INSERT INTO SystemConfigs (ConfigKey, ConfigValue) VALUES (?, ?)", (k, v))
                 
-        upsert('DefaultPrompt', new_prompt)
-        upsert('Temperature', temperature)
-        upsert('MaxTokens', max_tokens)
-        upsert('APIKeys', api_keys)
+        if config_type == 'api_keys':
+            api_keys = request.form.get('api_keys', '')
+            upsert('APIKeys', api_keys)
+            flash("Cập nhật API Keys thành công!", "success")
+        else:
+            new_prompt = request.form.get('system_prompt', '')
+            temperature = request.form.get('temperature', '0.7')
+            max_tokens = request.form.get('max_tokens', '2048')
+            
+            upsert('DefaultPrompt', new_prompt)
+            upsert('Temperature', temperature)
+            upsert('MaxTokens', max_tokens)
+            flash("Cập nhật cấu hình AI thành công!", "success")
         
         conn.commit()
-        flash("Cập nhật thành công!", "success")
 
     conn.close()
     configs = get_all_system_configs()
