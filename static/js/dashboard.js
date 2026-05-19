@@ -20,14 +20,14 @@ function showShareModal() {
         });
 }
 
-function closeShareModal() { 
-    document.getElementById('shareModal').classList.remove('active'); 
+function closeShareModal() {
+    document.getElementById('shareModal').classList.remove('active');
 }
 
 function copyShareLink() {
     const input = document.getElementById('shareLinkInput');
     if (!input.value) return;
-    
+
     // Use modern clipboard API if available
     if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(input.value).then(() => {
@@ -108,10 +108,15 @@ async function loadChatSession(sessionId) {
         if (btnPdf) btnPdf.href = `${window.DASHBOARD_CONFIG.exportReportUrl}?format=pdf&session_id=${sessionId}`;
         if (btnExcel) btnExcel.href = `${window.DASHBOARD_CONFIG.exportExcelUrl}?session_id=${sessionId}`;
 
-        if (tableDiv && data.table_html) {
-            tableDiv.innerHTML = data.table_html;
-            if (tableInfo) tableInfo.style.display = 'block';
-            updateRowCount();
+        if (tableDiv) {
+            if (data.table_html) {
+                tableDiv.innerHTML = data.table_html;
+                if (tableInfo) tableInfo.style.display = 'block';
+                updateRowCount();
+            } else {
+                tableDiv.innerHTML = '<div class="p-4 text-center text-muted">Không tìm thấy dữ liệu bảng (có thể file đã bị xóa).</div>';
+                if (tableInfo) tableInfo.style.display = 'none';
+            }
         }
 
         if (chartBoxEl) {
@@ -121,10 +126,18 @@ async function loadChatSession(sessionId) {
 
                 let imagesHtml = '';
                 if (data.chart_path) {
-                    imagesHtml += `<div class="chart-card"><img src="${data.chart_path}" alt="Biểu đồ" onclick="openLightbox(this.src)"></div>`;
+                    imagesHtml += `
+                    <div class="chart-card">
+                        <img src="${data.chart_path}" alt="Biểu đồ" onclick="openLightbox(this.src)">
+                        <div class="chart-caption"><i class="fas fa-chart-pie"></i> Biểu đồ phân tích chính</div>
+                    </div>`;
                 }
 
-                grid.innerHTML = imagesHtml + `<div id="plotly-chart" class="chart-card" style="${data.plotly_json ? '' : 'display:none;'} min-height:500px; background:#0f172a;"></div>`;
+                grid.innerHTML = imagesHtml + `
+                <div class="chart-card" style="${data.plotly_json ? '' : 'display:none;'}">
+                    <div id="plotly-chart" style="min-height:500px; background:#0f172a;"></div>
+                    <div class="chart-caption"><i class="fas fa-chart-line"></i> Biểu đồ tương tác Plotly</div>
+                </div>`;
 
                 if (data.plotly_json) {
                     const plotData = JSON.parse(data.plotly_json);
@@ -425,11 +438,22 @@ async function executeBulkDelete() {
     const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
 
     if (selectedIds.length === 0) {
-        alert('Vui lòng chọn ít nhất một phiên chat để xóa!');
+        showToast('error', '<i class="fas fa-exclamation-circle"></i> Vui lòng chọn ít nhất một phiên chat để xóa!');
         return;
     }
 
-    if (confirm(`Bạn có chắc muốn xóa ${selectedIds.length} phiên chat đã chọn?`)) {
+    const msgSpan = document.getElementById('bulkDeleteAlertMsg');
+    if (msgSpan) {
+        msgSpan.innerText = `Bạn có chắc muốn xóa ${selectedIds.length} phiên chat đã chọn?`;
+    }
+
+    openInlineAlert('bulkDeleteAlert');
+
+    const confirmBtn = document.getElementById('bulkDeleteConfirmBtn');
+    confirmBtn.onclick = async () => {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xóa...';
+
         try {
             const res = await fetch('/ai/bulk_delete_sessions', {
                 method: 'POST',
@@ -438,14 +462,18 @@ async function executeBulkDelete() {
             });
             const data = await res.json();
             if (data.success) {
+                closeInlineAlert('bulkDeleteAlert');
                 location.reload();
             } else {
-                alert(data.error || "Lỗi xóa dữ liệu");
+                showToast('error', '<i class="fas fa-exclamation-circle"></i> ' + (data.error || "Lỗi xóa dữ liệu"));
             }
         } catch (e) {
-            alert('Lỗi kết nối server: ' + e.message);
+            showToast('error', '<i class="fas fa-exclamation-circle"></i> Lỗi kết nối server: ' + e.message);
+        } finally {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="fas fa-trash"></i> Xóa vĩnh viễn';
         }
-    }
+    };
 }
 
 // FEEDBACK STARS
@@ -528,7 +556,7 @@ function openLightbox(src) {
 document.addEventListener('DOMContentLoaded', () => {
     updateRowCount();
     loadSidebarHistory();
-    
+
     // Kiểm tra nếu có session_id trong hash (ví dụ #session_123) để tự động load
     const hash = window.location.hash;
     if (hash && hash.startsWith('#session_')) {
@@ -574,12 +602,11 @@ async function quickClean(column, action) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ column, action })
         });
-        
+
         const data = await res.json();
-        
+
         if (data.success) {
             showToast('success', '<i class="fas fa-check-circle"></i> ' + data.message);
-            // Optionally, reload the table content by re-loading the session
             if (currentSessionId) {
                 loadChatSession(currentSessionId);
             } else {
@@ -594,3 +621,78 @@ async function quickClean(column, action) {
         showToast('error', '<i class="fas fa-exclamation-circle"></i> Lỗi kết nối server!');
     }
 }
+
+// ===== LAZY REPORT GENERATION (Phase 2 + Phase 4) =====
+async function generateReport() {
+    const btn = document.getElementById('btnGenReport');
+    const loadingDiv = document.getElementById('reportLoading');
+    const templateSelect = document.getElementById('templateSelect');
+    const styleSelect = document.getElementById('styleSelect');
+
+    if (!btn) return;
+
+    const template = templateSelect ? templateSelect.value : 'full_analysis';
+    const style = styleSelect ? styleSelect.value : 'Kỹ thuật';
+    const fileId = window.DASHBOARD_CONFIG.currentFileId;
+    const customInstruction = (document.getElementById('customInstruction')?.value || '').trim();
+
+    if (!fileId) {
+        showToast('error', '<i class="fas fa-exclamation-circle"></i> Chưa upload file nào!');
+        return;
+    }
+
+    // UI: loading state
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tạo...';
+    if (loadingDiv) loadingDiv.style.display = 'block';
+
+    try {
+        const res = await fetch(window.DASHBOARD_CONFIG.generateReportUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ template, style, file_id: fileId, custom_instruction: customInstruction })
+        });
+        const data = await res.json();
+
+        if (data.success && data.report) {
+            // Hiển thị report trong chat
+            const chatContent = document.getElementById('chat-content');
+            const chatSection = document.getElementById('chat-section');
+            if (chatSection) chatSection.style.display = 'flex';
+
+            // Thêm bubble report vào chat
+            const reportBubble = document.createElement('div');
+            reportBubble.className = 'bubble ai-bubble';
+            reportBubble.style.maxWidth = '100%';
+            reportBubble.innerHTML = `
+                <strong><i class="fas fa-robot"></i> AI Agent</strong>
+                <div class="md-body">${marked.parse(data.report)}</div>
+            `;
+            chatContent.appendChild(reportBubble);
+
+            // Scroll to report
+            const chatBox = document.getElementById('chatBox');
+            if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Show export buttons
+            const exportRow = document.getElementById('exportRow');
+            if (exportRow) exportRow.style.display = 'flex';
+
+            showToast('success', '<i class="fas fa-check-circle"></i> Đã tạo báo cáo thành công!');
+
+            // Cache report content
+            report_cache_last = data.report;
+        } else {
+            showToast('error', '<i class="fas fa-exclamation-circle"></i> ' + (data.error || 'Lỗi tạo báo cáo'));
+        }
+    } catch (e) {
+        showToast('error', '<i class="fas fa-exclamation-circle"></i> Lỗi kết nối server: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> Tạo báo cáo AI';
+        if (loadingDiv) loadingDiv.style.display = 'none';
+    }
+}
+
+let report_cache_last = '';
+

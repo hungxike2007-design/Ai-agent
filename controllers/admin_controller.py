@@ -129,7 +129,9 @@ def delete_session(session_id):
         """, (session_id,))
         info = cursor.fetchone()
         
-        # 2. Xóa Session (ChatMessages sẽ tự xóa nhờ ON DELETE CASCADE)
+        # 2. Xóa Feedbacks trước (FK tham chiếu SessionID)
+        cursor.execute("DELETE FROM Feedbacks WHERE SessionID = ?", (session_id,))
+        # 3. Xóa Session (ChatMessages sẽ tự xóa nhờ ON DELETE CASCADE)
         cursor.execute("DELETE FROM ChatSessions WHERE SessionID = ?", (session_id,))
         
         if info:
@@ -239,6 +241,9 @@ def _internal_delete_file(cursor, file_id):
     if row:
         file_path = row[0]
         cursor.execute("DELETE FROM Reports WHERE FileID = ?", (file_id,))
+        # Xóa Feedbacks trước ChatSessions (FK constraint)
+        cursor.execute("DELETE FROM Feedbacks WHERE SessionID IN (SELECT SessionID FROM ChatSessions WHERE FileID = ?)", (file_id,))
+        cursor.execute("DELETE FROM ChatMessages WHERE SessionID IN (SELECT SessionID FROM ChatSessions WHERE FileID = ?)", (file_id,))
         cursor.execute("DELETE FROM ChatSessions WHERE FileID = ?", (file_id,))
         cursor.execute("DELETE FROM ExcelFiles WHERE FileID = ?", (file_id,))
         if file_path and os.path.exists(file_path):

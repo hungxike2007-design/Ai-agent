@@ -80,16 +80,6 @@
                 <div class="card-title"><i class="fas fa-file-import"></i> Nạp dữ liệu hệ thống</div>
                 <form action="{{ url_for('ai.upload_file') }}" method="POST" enctype="multipart/form-data">
                     <div class="upload-row">
-                        <select name="style_preference" class="style-select">
-                            <option value="Kỹ thuật" selected>📊 Phân tích Thống kê (Chi tiết)</option>
-                            <option value="Quản lý">📋 Tóm tắt cho Lãnh đạo (Ngắn gọn)</option>
-                            <option value="Học thuật">🎓 Nghiên cứu Chuyên sâu (Hàn lâm)</option>
-                            <option value="Kinh doanh">💼 Hiệu suất & Chỉ số (KPI)</option>
-                            <option value="Phổ thông">💬 Ngôn ngữ Đại chúng (Dễ hiểu)</option>
-                            <option value="Xu hướng">📈 Xu hướng & Biến động (Dự báo)</option>
-                            <option value="So sánh">🔍 So sánh & Đối chiếu (Đa chiều)</option>
-                            <option value="Giải pháp">💡 Giải pháp & Khuyến nghị (Hành động)</option>
-                        </select>
                         <div class="file-input-wrap">
                             <input type="file" name="file" class="form-control-file" accept=".xlsx,.xls" required>
                         </div>
@@ -98,6 +88,54 @@
                     </div>
                 </form>
             </div>
+
+            <!-- ★ CLEANING REPORT (Phase 1) -->
+            {% if cleaning_report and cleaning_report.status != 'clean' %}
+            <div class="card" id="cleaning-report-card" style="border-left:4px solid #10a37f;">
+                <div class="card-title"
+                    style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;"
+                    onclick="document.getElementById('cleaningDetails').classList.toggle('open')">
+                    <div><i class="fas fa-broom" style="color:#10a37f"></i> Lọc dữ liệu rác</div>
+                    <span style="font-size:.82rem;color:var(--green);font-weight:700;">{{ cleaning_report.summary
+                        }}</span>
+                </div>
+                <div class="cleaning-details" id="cleaningDetails">
+                    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px;">
+                        <div style="font-size:.82rem;color:var(--muted)"><strong>{{
+                                cleaning_report.rows_before|default(0) }}</strong> dòng gốc → <strong
+                                style="color:#10a37f">{{ cleaning_report.rows_after|default(0) }}</strong> sau lọc</div>
+                        {% if cleaning_report.rows_removed > 0 %}<div style="font-size:.82rem;color:#ef4444"><i
+                                class="fas fa-trash"></i> Xóa {{ cleaning_report.rows_removed }} dòng rác</div>{% endif
+                        %}
+                        {% if cleaning_report.cols_removed > 0 %}<div style="font-size:.82rem;color:#f59e0b"><i
+                                class="fas fa-table-columns"></i> Xóa {{ cleaning_report.cols_removed }} cột rỗng</div>
+                        {% endif %}
+                    </div>
+                    {% for action in cleaning_report.actions %}
+                    <div
+                        style="padding:6px 12px;margin:4px 0;background:var(--surface);border-radius:8px;border:1px solid var(--border);font-size:.82rem;display:flex;align-items:center;gap:8px;">
+                        <i class="fas {{ action.icon }}" style="color:#10a37f;width:16px;text-align:center"></i>
+                        <span>{{ action.text }}</span>
+                        {% if action.detail %}<span style="color:var(--muted);font-size:.75rem">— {{ action.detail
+                            }}</span>{% endif %}
+                    </div>
+                    {% endfor %}
+                    {% for warn in cleaning_report.warnings %}
+                    <div
+                        style="padding:6px 12px;margin:4px 0;background:#fef2f2;border-radius:8px;border:1px solid #fecaca;font-size:.82rem;display:flex;align-items:center;gap:8px;">
+                        <i class="fas {{ warn.icon }}" style="color:#ef4444;width:16px;text-align:center"></i>
+                        <span style="color:#991b1b">{{ warn.text }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% elif cleaning_report and cleaning_report.status == 'clean' %}
+            <div class="card"
+                style="border-left:4px solid #10a37f;padding:14px 20px;display:flex;align-items:center;gap:10px;">
+                <i class="fas fa-check-circle" style="color:#10a37f;font-size:1.1rem"></i>
+                <span style="font-size:.88rem;font-weight:600;color:#10a37f">{{ cleaning_report.summary }}</span>
+            </div>
+            {% endif %}
 
             <!-- DATA TABLE -->
             <div id="data-section" class="card" style="display:{% if table_html %}block{% else %}none{% endif %};">
@@ -144,6 +182,7 @@
                         {% if chart_path %}
                         <div class="chart-card">
                             <img src="{{ chart_path }}" alt="Biểu đồ chính" onclick="openLightbox(this.src)">
+                            <div class="chart-caption"><i class="fas fa-chart-pie"></i> Biểu đồ phân tích chính</div>
                         </div>
                         {% endif %}
 
@@ -151,6 +190,20 @@
                         {% for ec in extra_charts %}
                         <div class="chart-card">
                             <img src="{{ ec }}" alt="Biểu đồ bổ sung" onclick="openLightbox(this.src)">
+                            <div class="chart-caption"><i class="fas fa-chart-bar"></i> Biểu đồ bổ sung</div>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <!-- ★ CHART INSIGHTS (Phase 3) -->
+                    <div id="chart-insights" class="chart-insights-panel" {% if not chart_insights
+                        %}style="display:none" {% endif %}>
+                        {% if chart_insights %}
+                        <div style="font-size:.82rem;font-weight:700;color:var(--green);margin-bottom:8px;"><i
+                                class="fas fa-lightbulb"></i> Insight tự động</div>
+                        {% for insight in chart_insights %}
+                        <div style="font-size:.84rem;color:var(--text);padding:4px 0;line-height:1.5;">{{ insight }}
                         </div>
                         {% endfor %}
                         {% endif %}
@@ -163,7 +216,62 @@
                     <img id="lightboxImg">
                 </div>
 
-                <div class="export-row">
+                <!-- ★ TEMPLATE SELECTOR + GENERATE REPORT (Phase 2 + 4) -->
+                <div class="report-gen-section" id="reportGenSection">
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                        <span style="font-size:.85rem;font-weight:700;color:var(--text);"><i
+                                class="fas fa-file-lines"></i> Báo cáo AI:</span>
+                        <select id="templateSelect"
+                            style="padding:8px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;">
+                            <option value="full_analysis">📊 Phân tích Toàn diện</option>
+                            <option value="executive">📋 Tóm tắt </option>
+                            <option value="academic">🎓 Nghiên cứu </option>
+                            <option value="dashboard_kpi">📈 Dashboard KPI</option>
+                            <option value="quick_summary">⚡ Tóm tắt Nhanh</option>
+                            <option value="data_quality">🔍 Đánh giá Chất lượng Dữ liệu</option>
+                            <option value="comparative">⚖️ Phân tích So sánh</option>
+                            <option value="trend_forecast">🔮 Phân tích Xu hướng & Dự báo</option>
+                            <option value="customer_insight">👥 Thấu hiểu Hành vi (Insight)</option>
+                            <option value="financial_audit">💰 Kiểm toán & Hiệu quả Tài chính</option>
+                        </select>
+                        <select id="styleSelect"
+                            style="padding:8px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;">
+                            <option value="Kỹ thuật" {% if selected_style=='Kỹ thuật' %}selected{% endif %}>📊 Kỹ thuật
+                            </option>
+                            <option value="Quản lý" {% if selected_style=='Quản lý' %}selected{% endif %}>📋 Quản lý
+                            </option>
+                            <option value="Học thuật" {% if selected_style=='Học thuật' %}selected{% endif %}>🎓 Học
+                                thuật</option>
+                            <option value="Kinh doanh" {% if selected_style=='Kinh doanh' %}selected{% endif %}>💼 Kinh
+                                doanh</option>
+                            <option value="Phổ thông" {% if selected_style=='Phổ thông' %}selected{% endif %}>💬 Phổ
+                                thông</option>
+                        </select>
+                    </div>
+                    <!-- Ô nhập yêu cầu phân tích tự do -->
+                    <div style="margin-top:12px;">
+                        <textarea id="customInstruction" rows="2"
+                            placeholder="💡 Nhập yêu cầu cụ thể (VD: Phân tích doanh thu theo quý, so sánh chi nhánh A và B, tập trung vào chỉ số KPI...)"
+                            style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:inherit;font-size:.85rem;color:var(--text);background:var(--surface);resize:vertical;outline:none;transition:.2s;line-height:1.5;"
+                            onfocus="this.style.borderColor='var(--green)';this.style.boxShadow='0 0 0 3px var(--green-glow)'"
+                            onblur="this.style.borderColor='';this.style.boxShadow=''"></textarea>
+                    </div>
+                    <div style="margin-top:10px;display:flex;align-items:center;gap:10px;">
+                        <button class="btn btn-green" id="btnGenReport" onclick="generateReport()"
+                            style="white-space:nowrap;">
+                            <i class="fas fa-wand-magic-sparkles"></i> Tạo báo cáo AI
+                        </button>
+                        <span style="font-size:.75rem;color:var(--muted);">Để trống = AI tự phân tích toàn bộ dữ
+                            liệu</span>
+                    </div>
+                    <div id="reportLoading"
+                        style="display:none;padding:12px;text-align:center;color:var(--muted);font-size:.85rem;">
+                        <i class="fas fa-spinner fa-spin"></i> AI đang phân tích và tạo báo cáo... (có thể mất 10-30
+                        giây)
+                    </div>
+                </div>
+
+                <div class="export-row" id="exportRow">
                     <span class="export-label">Xuất báo cáo:</span>
                     <a href="{{ url_for('ai.export_report', format='word') }}" class="btn btn-word"><i
                             class="fas fa-file-word"></i> Word (.docx)</a>
@@ -185,10 +293,12 @@
                 <div class="hints-body" id="hintsBody">
                     <ul style="list-style:none; padding:0; margin:0;">
                         {% for h in cleaning_hints %}
-                        <li style="margin-bottom:12px; padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:8px;">
+                        <li
+                            style="margin-bottom:12px; padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:8px;">
                             <div>
                                 <i class="fas fa-circle-exclamation" style="color:var(--danger); margin-right:5px;"></i>
-                                <strong>Cột "{{ h.column }}":</strong> {{ h.issue }} &mdash; <em>Gợi ý: {{ h.action }}</em>
+                                <strong>Cột "{{ h.column }}":</strong> {{ h.issue }} &mdash; <em>Gợi ý: {{ h.action
+                                    }}</em>
                             </div>
                         </li>
                         {% endfor %}
@@ -248,7 +358,6 @@
                     <select id="aiModelSelect"
                         style="padding:12px; border-radius:10px; border:1px solid var(--border); background:#f8fafc; color:var(--text); font-size:.85rem; font-weight:600; outline:none; margin-right:8px; cursor:pointer;">
                         <option value="fast">⚡ AI Fast</option>
-                        <option value="pro">🧠 AI Pro</option>
                     </select>
                     <input type="text" id="userQuestion" class="form-control chat-input"
                         placeholder="Nhập câu hỏi của bạn...">
@@ -364,7 +473,8 @@
                 <input type="text" class="inline-alert-input" id="renameInput" placeholder="Nhập tên mới...">
             </div>
             <div class="inline-alert-footer">
-                <button class="ia-btn ia-btn-ghost" onclick="closeInlineAlert('renameAlert')"><i class="fas fa-xmark"></i> Hủy</button>
+                <button class="ia-btn ia-btn-ghost" onclick="closeInlineAlert('renameAlert')"><i
+                        class="fas fa-xmark"></i> Hủy</button>
                 <button class="ia-btn ia-btn-primary" id="renameConfirmBtn"><i class="fas fa-check"></i> Lưu</button>
             </div>
         </div>
@@ -383,14 +493,16 @@
             </div>
             <div class="inline-alert-body">
                 <div class="inline-alert-link-box">
-                    <input type="text" class="inline-alert-link-input" id="shareAlertLink" readonly placeholder="Đang tạo link...">
+                    <input type="text" class="inline-alert-link-input" id="shareAlertLink" readonly
+                        placeholder="Đang tạo link...">
                     <button class="inline-alert-copy-btn" id="shareAlertCopyBtn" onclick="copyShareAlertLink()">
                         <i class="fas fa-copy"></i> Copy
                     </button>
                 </div>
             </div>
             <div class="inline-alert-footer">
-                <button class="ia-btn ia-btn-ghost" onclick="closeInlineAlert('shareAlert')"><i class="fas fa-xmark"></i> Đóng</button>
+                <button class="ia-btn ia-btn-ghost" onclick="closeInlineAlert('shareAlert')"><i
+                        class="fas fa-xmark"></i> Đóng</button>
             </div>
         </div>
     </div>
@@ -409,12 +521,41 @@
             <div class="inline-alert-body">
                 <div class="inline-alert-warning">
                     <i class="fas fa-triangle-exclamation"></i>
-                    <span>Xóa phiên này sẽ xóa toàn bộ lịch sử trò chuyện, dữ liệu phân tích và biểu đồ liên quan. Bạn có chắc chắn?</span>
+                    <span>Xóa phiên này sẽ xóa toàn bộ lịch sử trò chuyện, dữ liệu phân tích và biểu đồ liên quan. Bạn
+                        có chắc chắn?</span>
                 </div>
             </div>
             <div class="inline-alert-footer">
-                <button class="ia-btn ia-btn-ghost" onclick="closeInlineAlert('deleteAlert')"><i class="fas fa-xmark"></i> Hủy</button>
-                <button class="ia-btn ia-btn-danger" id="deleteConfirmBtn"><i class="fas fa-trash"></i> Xóa vĩnh viễn</button>
+                <button class="ia-btn ia-btn-ghost" onclick="closeInlineAlert('deleteAlert')"><i
+                        class="fas fa-xmark"></i> Hủy</button>
+                <button class="ia-btn ia-btn-danger" id="deleteConfirmBtn"><i class="fas fa-trash"></i> Xóa vĩnh
+                    viễn</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INLINE ALERT: Bulk Delete -->
+    <div class="inline-alert-overlay" id="bulkDeleteAlert">
+        <div class="inline-alert">
+            <div class="inline-alert-strip delete"></div>
+            <div class="inline-alert-header">
+                <div class="inline-alert-icon delete"><i class="fas fa-trash-can"></i></div>
+                <div>
+                    <div class="inline-alert-title">Xác nhận xóa nhiều phiên chat</div>
+                    <div class="inline-alert-subtitle">Hành động này không thể hoàn tác</div>
+                </div>
+            </div>
+            <div class="inline-alert-body">
+                <div class="inline-alert-warning">
+                    <i class="fas fa-triangle-exclamation"></i>
+                    <span id="bulkDeleteAlertMsg">Bạn có chắc muốn xóa các phiên chat đã chọn?</span>
+                </div>
+            </div>
+            <div class="inline-alert-footer">
+                <button class="ia-btn ia-btn-ghost" onclick="closeInlineAlert('bulkDeleteAlert')"><i
+                        class="fas fa-xmark"></i> Hủy</button>
+                <button class="ia-btn ia-btn-danger" id="bulkDeleteConfirmBtn"><i class="fas fa-trash"></i> Xóa vĩnh
+                    viễn</button>
             </div>
         </div>
     </div>
@@ -425,9 +566,11 @@
             getSessionUrlBase: "{{ url_for('ai.get_session', session_id=0) }}".replace('/0', ''),
             exportReportUrl: "{{ url_for('ai.export_report') }}",
             exportExcelUrl: "{{ url_for('ai.export_excel') }}",
+            generateReportUrl: "{{ url_for('ai.generate_report') }}",
             askUrl: "{{ url_for('ai.ask') }}",
             historyUrl: "{{ url_for('ai.history') }}",
-            currentSessionId: "{{ session.get('current_session_id', '') }}"
+            currentSessionId: "{{ session.get('current_session_id', '') }}",
+            currentFileId: "{{ session.get('current_file_id', '') }}"
         };
     </script>
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>

@@ -6,13 +6,19 @@ import uuid
 from docx import Document
 from services.data_processor import (
     get_cleaning_suggestions, 
-    auto_clean_data, # Thêm skill làm sạch tự động
+    auto_clean_data,
+    deep_clean_data,
     generate_auto_chart, 
     generate_multi_charts, 
     _analyze_dataframe, 
-    generate_plotly_json
+    generate_plotly_json,
+    generate_chart_insight,
+    build_smart_summary_v2
 )
-from services.report_service import get_report_prompt, get_available_styles
+from services.report_service import (
+    get_report_prompt, get_available_styles,
+    get_available_templates, get_template_report_prompt
+)
 from database import get_connection, get_all_system_configs
 
 ai_bp = Blueprint('ai', __name__)
@@ -188,25 +194,24 @@ def upload_file():
     if not user_id: return "Vui lòng đăng nhập lại!"
 
     try:
-        # 1. Đọc và xử lý Excel (không dùng dtype=str để tự động nhận diện cột số)
-        df = pd.read_excel(file)
-        
+        # 1. Đọc Excel
+        df_raw = pd.read_excel(file)
         filename = file.filename
-        
-        # Save the file to disk for later retrieval
+
+        # Save file to disk
         import os
         os.makedirs('uploads', exist_ok=True)
         file.seek(0)
         file.save(os.path.join('uploads', filename))
-        
-        # Lấy gợi ý sửa lỗi trước khi clean tự động
-        cleaning_hints = get_cleaning_suggestions(df)
-        df_display = df.fillna("")
 
-        # Tạo bản tóm tắt thống kê (tiết kiệm 70-90% token so với df.to_string())
-        smart_summary = build_smart_summary(df)
-        
-        # 2. LƯU FILE VÀO DATABASE (Bảng ExcelFiles)
+        # ★ 2. LỌC DỮ LIỆU RÁC TRƯỚC KHI PHÂN TÍCH (Phase 1)
+        df, cleaning_report = deep_clean_data(df_raw)
+
+        # 3. Gợi ý sửa lỗi (trên dữ liệu đã lọc)
+        cleaning_hints = get_cleaning_suggestions(df)
+        df_display = df.head(50).fillna("")  # Client-side preview: chỉ 50 dòng
+
+        # 4. LƯU FILE VÀO DATABASE
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
@@ -215,10 +220,9 @@ def upload_file():
             VALUES (?, ?, ?, GETDATE(), 'Success')""", 
             (user_id, filename, f"uploads/{filename}"))
         file_id = cursor.fetchone()[0]
-        
-        # 3. ĐẶT TÊN PHIÊN TỪ TÊN FILE (không gọi AI riêng — tiết kiệm 1 lần API call)
-        short_title = filename.rsplit('.', 1)[0][:40]  # dùng tên file làm tiêu đề tạm
 
+        # 5. Tạo session
+        short_title = filename.rsplit('.', 1)[0][:40]
         cursor.execute("""
             INSERT INTO ChatSessions (UserID, FileID, StartTime, SessionTitle) 
             OUTPUT INSERTED.SessionID 
@@ -229,95 +233,27 @@ def upload_file():
         session['current_file_id'] = file_id
         conn.commit()
 
-        # 3.5. Phân tích 1 LẦN DUY NHẤT và tạo biểu đồ (Refactoring: tránh gọi _analyze_dataframe() 2 lần)
+        # 6. Phân tích & vẽ biểu đồ (trên dữ liệu ĐÃ LỌC SẠCH)
         chart_info = _analyze_dataframe(df)
         chart_type_chosen = chart_info.get('chart_type', 'none')
         chart_reason = chart_info.get('reason', '')
         print(f"[SMART CHART] Chon: {chart_type_chosen} | {chart_reason}")
-        chart_path = generate_auto_chart(df, file_id)  # Vẫn gọi 1 lần (nội bộ dùng result đã cache)
+        chart_path = generate_auto_chart(df, file_id)
         plotly_json = generate_plotly_json(df)
 
-        # 4. GỌI AI TẠO BÁO CÁO — dùng smart_summary (tiết kiệm 70-90% token)
-        configs = get_all_system_configs()
-        default_prompt = configs.get('DefaultPrompt', '').strip()
-        base_prompt = get_report_prompt(smart_summary, style)
-        if default_prompt:
-            # DefaultPrompt từ admin THAY THẾ phần role description, đặt làm system instruction ưu tiên
-            # Tách phần dữ liệu khỏi base_prompt để ghép lại
-            data_marker = '\n\nDữ liệu cần phân tích:'
-            if data_marker in base_prompt:
-                data_part = base_prompt[base_prompt.index(data_marker):]
-                prompt = f"{default_prompt}\n\n[Quy tắc định dạng: Dùng Markdown (##, bảng |col|, -). KHÔNG dùng ** trong bảng. Bắt đầu ngay nội dung, không viết lời mở đầu thừa.]{data_part}"
-            else:
-                prompt = f"{default_prompt}\n\n{base_prompt}"
-        else:
-            prompt = base_prompt
+        # ★ 7. Tạo insight biểu đồ (Phase 3 - không gọi AI)
+        chart_insights = generate_chart_insight(df, chart_info)
 
-        generation_config = {
-            "temperature": configs.get("Temperature", 0.5),
-            "max_output_tokens": int(configs.get("MaxTokens", 2048))
-        }
+        # ★ 8. LAZY REPORT — KHÔNG gọi AI ở đây (Phase 2)
+        # Người dùng sẽ bấm nút "Tạo báo cáo" để gọi AI sau
+        report_content = None
 
+        # Lưu plotly_json vào Reports (placeholder, content sẽ được tạo sau)
         try:
-            import google.generativeai as genai
-            _gen_cfg = genai.types.GenerationConfig(
-                temperature=configs.get("Temperature", 0.5),
-                max_output_tokens=int(configs.get("MaxTokens", 2048))
-            )
-            # Dùng rotator.generate() — tự xoay key khi gặp quota
-            response = get_key_rotator().generate(prompt, generation_config=_gen_cfg)
-            report_content = clean_ai_response(response.text)
-        except Exception as ai_err:
-            err_str = str(ai_err).lower()
-            # Trường hợp TẤT CẢ key đã hết quota (rotator đã thử hết vòng)
-            if 'tất cả' in str(ai_err) and 'api key' in err_str:
-                report_content = (
-                    "## ⚠️ Tất Cả API Key Đã Hết Quota\n\n"
-                    f"{ai_err}\n\n"
-                    "**Gợi ý:**\n"
-                    "- Thêm key mới từ account Google khác vào `GEMINI_API_KEYS` trong `database.py`\n"
-                    "- Hoặc đợi đến 07:00 sáng hôm sau để quota tự reset\n"
-                    "- Key miễn phí tại: [aistudio.google.com](https://aistudio.google.com)"
-                )
-            elif 'quota' in err_str or 'resource exhausted' in err_str or '429' in err_str:
-                report_content = (
-                    "## ⚠️ Hết Hạn Mức API (Quota Exceeded)\n\n"
-                    "Hệ thống đã tự động thử xoay vòng qua tất cả key nhưng đều hết quota.\n\n"
-                    "**Giải pháp:**\n"
-                    "- Thêm key mới vào danh sách `GEMINI_API_KEYS` trong `database.py`\n"
-                    "- Key miễn phí: [aistudio.google.com](https://aistudio.google.com) → Get API Key\n"
-                    "- Hoặc đợi reset lúc 07:00 sáng"
-                )
-            elif any(k in err_str for k in ['api_key', 'invalid', 'api key not valid', '400', 'unauthenticated']):
-                report_content = (
-                    "## 🔑 API Key Không Hợp Lệ\n\n"
-                    "Một hoặc nhiều key trong `GEMINI_API_KEYS` bị sai hoặc chưa kích hoạt.\n\n"
-                    "**Cách lấy key đúng:**\n"
-                    "1. Vào **aistudio.google.com** (đăng nhập Google)\n"
-                    "2. Click **Get API Key** → **Create API key in new project**\n"
-                    "3. Copy key → dán vào danh sách `GEMINI_API_KEYS` trong `database.py`\n\n"
-                    f"> Lỗi gốc: `{ai_err}`"
-                )
-            elif 'not found' in err_str or 'model' in err_str:
-                report_content = (
-                    "## 🚫 Lỗi Tên Model\n\n"
-                    "Tên model sai. Đảm bảo `GEMINI_MODEL_NAME` trong `database.py` là:\n"
-                    "```\nGEMINI_MODEL_NAME = 'gemini-flash-latest'\n```\n"
-                    f"> Lỗi gốc: `{ai_err}`"
-                )
-            else:
-                report_content = f"## ❌ Lỗi AI\n\n```\n{ai_err}\n```"
-
-        report_cache["last_response"] = report_content
-
-        # 5. LƯU NỘI DUNG BÁO CÁO VÀO BẢNG REPORTS
-        try:
-            summary_text = report_content[:200] + "..." if len(report_content) > 200 else report_content
-            sql_report = """
+            cursor.execute("""
                 INSERT INTO Reports (FileID, [Content], CreatedDate, Summary, PlotlyJSON) 
                 VALUES (?, ?, GETDATE(), ?, ?)
-            """
-            cursor.execute(sql_report, (file_id, report_content, summary_text, plotly_json))
+            """, (file_id, '', 'Chưa tạo báo cáo', plotly_json))
             conn.commit()
         except Exception as db_err:
             print(f"Loi khi luu vao bang Reports: {db_err}")
@@ -328,6 +264,8 @@ def upload_file():
                                table_html=df_display.to_html(classes='table table-hover', index=False),
                                ai_response=report_content,
                                cleaning_hints=cleaning_hints,
+                               cleaning_report=cleaning_report,
+                               chart_insights=chart_insights,
                                selected_style=style,
                                chart_path=chart_path,
                                plotly_json=plotly_json,
@@ -335,7 +273,126 @@ def upload_file():
                                chart_type_chosen=chart_type_chosen,
                                chart_reason=chart_reason)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return f"Loi he thong: {e}"
+
+# ── LAZY REPORT: Tạo báo cáo AI theo yêu cầu (Phase 2 + Phase 4) ─────────────
+@ai_bp.route('/generate_report', methods=['POST'])
+def generate_report():
+    """
+    Người dùng bấm nút → gọi AI tạo báo cáo.
+    Hỗ trợ chọn template (Phase 4) và dùng smart_summary_v2 (Phase 2).
+    """
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Vui lòng đăng nhập lại"}), 401
+
+    data = request.json or {}
+    template_key = data.get('template', 'full_analysis')
+    style = data.get('style', 'Kỹ thuật')
+    file_id = data.get('file_id') or session.get('current_file_id')
+    custom_instruction = data.get('custom_instruction', '').strip()
+
+    if not file_id:
+        return jsonify({"error": "Chưa upload file nào!"}), 400
+
+    try:
+        # 1. Đọc file Excel
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT FilePath FROM ExcelFiles WHERE FileID = ?", (file_id,))
+        row = cursor.fetchone()
+        if not row or not os.path.exists(row[0]):
+            conn.close()
+            return jsonify({"error": "File không tồn tại trên hệ thống"}), 404
+
+        df = pd.read_excel(row[0])
+
+        # 2. Lọc dữ liệu rác trước khi phân tích
+        from services.data_processor import deep_clean_data
+        df_clean, _ = deep_clean_data(df)
+
+        # 3. Tạo smart summary v2 (stratified sampling)
+        smart_summary = build_smart_summary_v2(df_clean)
+
+        # 4. Tạo prompt theo template (không ghép custom_instruction vào base_prompt)
+        configs = get_all_system_configs()
+        default_prompt = configs.get('DefaultPrompt', '').strip()
+
+        base_prompt = get_template_report_prompt(smart_summary, template_key, style)
+        if default_prompt:
+            data_marker = '\n\nDữ liệu cần phân tích:'
+            if data_marker in base_prompt:
+                data_part = base_prompt[base_prompt.index(data_marker):]
+                prompt = f"{default_prompt}\n\n[Quy tắc: Dùng Markdown. KHÔNG dùng ** trong bảng.]{data_part}"
+            else:
+                prompt = f"{default_prompt}\n\n{base_prompt}"
+        else:
+            prompt = base_prompt
+
+        # ★ Luôn chèn yêu cầu người dùng ở CUỐI prompt (không bao giờ bị cắt)
+        if custom_instruction:
+            prompt += (
+                f"\n\n{'='*50}\n"
+                f"⭐⭐⭐ YÊU CẦU QUAN TRỌNG NHẤT TỪ NGƯỜI DÙNG ⭐⭐⭐\n"
+                f"{custom_instruction}\n"
+                f"{'='*50}\n"
+                f"BẮT BUỘC: Hãy ưu tiên phân tích và trả lời theo yêu cầu trên. "
+                f"Toàn bộ báo cáo phải TẬP TRUNG vào nội dung người dùng yêu cầu."
+            )
+            print(f"[REPORT] Custom instruction: {custom_instruction[:100]}")
+
+        # 5. Gọi AI
+        try:
+            import google.generativeai as genai
+            _gen_cfg = genai.types.GenerationConfig(
+                temperature=configs.get("Temperature", 0.5),
+                max_output_tokens=int(configs.get("MaxTokens", 8192))
+            )
+            response = get_key_rotator().generate(prompt, generation_config=_gen_cfg)
+            report_content = clean_ai_response(response.text)
+        except Exception as ai_err:
+            err_str = str(ai_err).lower()
+            if 'quota' in err_str or 'resource exhausted' in err_str or '429' in err_str:
+                report_content = "## ⚠️ Hết Hạn Mức API\n\nVui lòng thêm key mới hoặc đợi quota reset."
+            elif any(k in err_str for k in ['api_key', 'invalid', 'unauthenticated']):
+                report_content = f"## 🔑 API Key Không Hợp Lệ\n\n> `{ai_err}`"
+            else:
+                report_content = f"## ❌ Lỗi AI\n\n```\n{ai_err}\n```"
+
+        report_cache["last_response"] = report_content
+
+        # 6. Cập nhật vào bảng Reports
+        try:
+            summary_text = report_content[:200] + "..." if len(report_content) > 200 else report_content
+            cursor.execute("""
+                UPDATE Reports SET [Content] = ?, Summary = ? 
+                WHERE FileID = ?
+            """, (report_content, summary_text, file_id))
+            if cursor.rowcount == 0:
+                cursor.execute("""
+                    INSERT INTO Reports (FileID, [Content], CreatedDate, Summary)
+                    VALUES (?, ?, GETDATE(), ?)
+                """, (file_id, report_content, summary_text))
+            conn.commit()
+        except Exception as db_err:
+            print(f"[REPORT DB ERROR] {db_err}")
+
+        conn.close()
+        return jsonify({"success": True, "report": report_content})
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@ai_bp.route('/report_templates')
+def report_templates():
+    """Trả về danh sách template báo cáo cho UI."""
+    return jsonify(get_available_templates())
+
 
 @ai_bp.route('/quick_clean', methods=['POST'])
 def quick_clean():
@@ -411,7 +468,7 @@ def ask():
             conn.close()
             if row and row[0] and os.path.exists(row[0]):
                 df = pd.read_excel(row[0], dtype=str)
-                excel_data = build_smart_summary(df)
+                excel_data = build_smart_summary_v2(df)
         except Exception as e:
             print("Lỗi đọc file excel cho ask:", e)
 
@@ -1226,6 +1283,7 @@ def bulk_delete_sessions():
             
             # Xóa theo thứ tự để không dính khóa ngoại
             cursor.execute(f"DELETE FROM ChatMessages WHERE SessionID IN ({s_placeholders})", valid_session_ids)
+            cursor.execute(f"DELETE FROM Feedbacks WHERE SessionID IN ({s_placeholders})", valid_session_ids)
             
             if file_ids:
                 f_placeholders = ','.join(['?'] * len(file_ids))

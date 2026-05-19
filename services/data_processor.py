@@ -98,6 +98,165 @@ def auto_clean_data(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def deep_clean_data(df: pd.DataFrame) -> tuple:
+    """
+    Lọc sâu dữ liệu rác TRƯỚC khi phân tích AI & vẽ biểu đồ.
+    Xử lý 8 loại rác: trùng lặp, dòng rỗng, cột rỗng,
+    header lặp, khoảng trắng, encoding, kiểu dữ liệu sai, outlier.
+    Returns: (clean_df, cleaning_report_dict)
+    """
+    report = {
+        "rows_before": len(df),
+        "cols_before": len(df.columns),
+        "actions": [],
+        "warnings": [],
+        "rows_removed": 0,
+        "cols_removed": 0
+    }
+    df = df.copy()
+
+    # ── 1. Xóa cột rỗng 100% hoặc cột "Unnamed" ────────────────────────
+    empty_cols = [c for c in df.columns
+                  if df[c].isna().all() or
+                  (str(c).startswith('Unnamed') and df[c].isna().sum() > len(df) * 0.9)]
+    if empty_cols:
+        df = df.drop(columns=empty_cols)
+        report["actions"].append({
+            "type": "cols_removed", "icon": "fa-table-columns",
+            "text": f"Xóa {len(empty_cols)} cột rỗng/không tên",
+            "detail": ", ".join(str(c) for c in empty_cols)
+        })
+        report["cols_removed"] = len(empty_cols)
+
+    # ── 2. Xóa dòng rỗng (>80% cột trống) ───────────────────────────────
+    if len(df.columns) > 0:
+        threshold = max(1, int(len(df.columns) * 0.8))
+        mask_empty = df.isna().sum(axis=1) >= threshold
+        empty_count = int(mask_empty.sum())
+        if empty_count > 0:
+            df = df[~mask_empty].reset_index(drop=True)
+            report["actions"].append({
+                "type": "empty_rows", "icon": "fa-eraser",
+                "text": f"Xóa {empty_count} dòng rỗng (>80% cột trống)", "detail": ""
+            })
+
+    # ── 3. Xóa dòng trùng lặp hoàn toàn ─────────────────────────────────
+    dup_count = int(df.duplicated().sum())
+    if dup_count > 0:
+        df = df.drop_duplicates().reset_index(drop=True)
+        report["actions"].append({
+            "type": "duplicates", "icon": "fa-clone",
+            "text": f"Xóa {dup_count} dòng trùng lặp hoàn toàn", "detail": ""
+        })
+
+    # ── 4. Phát hiện header lặp trong data ───────────────────────────────
+    try:
+        col_names_lower = [str(c).strip().lower() for c in df.columns]
+        header_mask = df.apply(
+            lambda row: sum(1 for i, c in enumerate(df.columns)
+                           if str(row[c]).strip().lower() == col_names_lower[i]) >= len(df.columns) * 0.8,
+            axis=1
+        )
+        header_count = int(header_mask.sum())
+        if header_count > 0:
+            df = df[~header_mask].reset_index(drop=True)
+            report["actions"].append({
+                "type": "header_rows", "icon": "fa-heading",
+                "text": f"Xóa {header_count} dòng header lặp trong dữ liệu", "detail": ""
+            })
+    except Exception:
+        pass
+
+    # ── 5. Khoảng trắng thừa + chuẩn hóa text ──────────────────────────
+    text_cols = df.select_dtypes(include=['object']).columns
+    strip_count = 0
+    for col in text_cols:
+        original = df[col].astype(str)
+        df[col] = df[col].astype(str).str.strip()
+        # Chuẩn hóa giá trị rỗng
+        df[col] = df[col].replace({'nan': np.nan, 'None': np.nan, 'none': np.nan, '': np.nan, 'NaT': np.nan})
+        strip_count += int((original != df[col].astype(str)).sum())
+    if strip_count > 0:
+        report["actions"].append({
+            "type": "whitespace", "icon": "fa-broom",
+            "text": f"Chuẩn hóa {strip_count} ô (khoảng trắng, giá trị rỗng)", "detail": ""
+        })
+
+    # ── 6. Ký tự đặc biệt / encoding lỗi ────────────────────────────────
+    encoding_fixes = 0
+    for col in text_cols:
+        if col in df.columns:
+            before = df[col].astype(str)
+            df[col] = df[col].astype(str).str.replace('\x00', '', regex=False)
+            df[col] = df[col].apply(
+                lambda x: ''.join(ch for ch in str(x) if ch in '\n\t' or (isinstance(ch, str) and ord(ch) >= 32))
+                if pd.notna(x) else x
+            )
+            encoding_fixes += int((before != df[col].astype(str)).sum())
+    if encoding_fixes > 0:
+        report["actions"].append({
+            "type": "encoding", "icon": "fa-code",
+            "text": f"Sửa {encoding_fixes} ô có ký tự đặc biệt/encoding lỗi", "detail": ""
+        })
+
+    # ── 7. Cột số bị lẫn text → tự động chuyển kiểu ─────────────────────
+    type_fixes = {}
+    for col in list(df.columns):
+        if df[col].dtype == 'object':
+            numeric_vals = pd.to_numeric(df[col], errors='coerce')
+            non_null = df[col].dropna().shape[0]
+            numeric_ok = numeric_vals.dropna().shape[0]
+            if non_null > 0 and numeric_ok / non_null > 0.7:
+                bad = non_null - numeric_ok
+                df[col] = numeric_vals
+                if bad > 0:
+                    type_fixes[col] = bad
+    if type_fixes:
+        detail = ", ".join(f"'{k}' ({v} giá trị sửa)" for k, v in type_fixes.items())
+        report["actions"].append({
+            "type": "type_fix", "icon": "fa-arrows-rotate",
+            "text": f"Chuẩn hóa kiểu dữ liệu {len(type_fixes)} cột", "detail": detail
+        })
+
+    # ── 8. Phát hiện outlier (IQR × 3) — chỉ CẢNH BÁO, không xóa ──────
+    num_cols = df.select_dtypes(include=['number']).columns
+    for col in num_cols:
+        data = df[col].dropna()
+        if len(data) < 10:
+            continue
+        Q1, Q3 = data.quantile(0.25), data.quantile(0.75)
+        IQR = Q3 - Q1
+        if IQR > 0:
+            lower, upper = Q1 - 3 * IQR, Q3 + 3 * IQR
+            outlier_count = int(((data < lower) | (data > upper)).sum())
+            if 0 < outlier_count <= len(data) * 0.05:
+                report["warnings"].append({
+                    "column": col, "count": outlier_count,
+                    "text": f"Cột '{col}' có {outlier_count} giá trị ngoại lệ (outlier)",
+                    "icon": "fa-triangle-exclamation"
+                })
+
+    # ── Tổng kết ─────────────────────────────────────────────────────────
+    report["rows_after"] = len(df)
+    report["cols_after"] = len(df.columns)
+    report["rows_removed"] = report["rows_before"] - report["rows_after"]
+
+    total_fixes = len(report["actions"])
+    if total_fixes == 0 and len(report["warnings"]) == 0:
+        report["status"] = "clean"
+        report["summary"] = "✅ Dữ liệu đã sạch, không phát hiện vấn đề."
+    else:
+        report["status"] = "cleaned"
+        warn_text = f", phát hiện {len(report['warnings'])} cảnh báo" if report['warnings'] else ""
+        report["summary"] = (
+            f"🧹 Đã xử lý {total_fixes} vấn đề{warn_text}"
+            f" — Còn lại {report['rows_after']:,} dòng × {report['cols_after']} cột"
+        )
+
+    print(f"[DEEP CLEAN] {report['summary']}")
+    return df, report
+
+
 def export_excel_styled(df: pd.DataFrame, output_path: str):
     """
     Skill: Excel Analysis - Xuất Excel với định dạng chuyên nghiệp.
@@ -572,6 +731,158 @@ def generate_multi_charts(df, file_id, max_charts=1):
     """
     path = generate_auto_chart(df, file_id)
     return [path] if path else []
+
+
+def generate_chart_insight(df, chart_info):
+    """
+    Tạo insight dạng text giải thích biểu đồ từ thống kê dữ liệu.
+    Không gọi AI — dùng heuristic thuần cho tốc độ nhanh.
+    """
+    insights = []
+    chart_type = chart_info.get("chart_type", "none")
+    if chart_type == "none":
+        return []
+
+    try:
+        if chart_type == "pie":
+            col = chart_info["cat_col"]
+            counts = df[col].value_counts()
+            total = counts.sum()
+            top_name, top_val = counts.index[0], counts.iloc[0]
+            top_pct = top_val / total * 100
+            insights.append(f"📊 Nhóm **'{top_name}'** chiếm tỷ trọng lớn nhất ({top_pct:.1f}%)")
+            if len(counts) >= 2:
+                bot_name = counts.index[-1]
+                bot_pct = counts.iloc[-1] / total * 100
+                insights.append(f"📉 Nhóm **'{bot_name}'** chiếm ít nhất ({bot_pct:.1f}%)")
+            if top_pct > 60:
+                insights.append("⚠️ Phân bố **không đều** — một nhóm chiếm ưu thế rõ rệt")
+
+        elif chart_type == "bar_count":
+            col = chart_info["cat_col"]
+            counts = df[col].value_counts()
+            insights.append(f"📊 **'{counts.index[0]}'** xuất hiện nhiều nhất ({counts.iloc[0]:,} lần)")
+            if len(counts) > 1 and counts.iloc[0] > counts.iloc[-1] * 3:
+                insights.append("⚠️ Chênh lệch lớn giữa các nhóm — cần kiểm tra nguyên nhân")
+            insights.append(f"📋 Tổng cộng **{counts.nunique()}** nhóm khác nhau")
+
+        elif chart_type == "bar_agg":
+            cat_col, num_col = chart_info["cat_col"], chart_info["num_col"]
+            agg = df.groupby(cat_col)[num_col].sum()
+            insights.append(f"📊 **'{agg.idxmax()}'** có tổng {num_col} cao nhất ({agg.max():,.0f})")
+            if agg.max() > 0:
+                gap = agg.max() - agg.min()
+                insights.append(f"📏 Khoảng cách giữa cao nhất và thấp nhất: **{gap:,.0f}**")
+
+        elif chart_type == "line":
+            num_col = chart_info["num_col"]
+            data = pd.to_numeric(df[num_col], errors='coerce').dropna()
+            if len(data) > 1:
+                trend = "tăng 📈" if data.iloc[-1] > data.iloc[0] else "giảm 📉"
+                if data.iloc[0] != 0:
+                    pct = abs(data.iloc[-1] - data.iloc[0]) / abs(data.iloc[0]) * 100
+                    insights.append(f"Xu hướng **{trend}** ({pct:.1f}% thay đổi)")
+                insights.append(f"Cao nhất: **{data.max():,.0f}** | Thấp nhất: **{data.min():,.0f}**")
+                std = data.std()
+                mean = data.mean()
+                if mean > 0 and std / mean > 0.5:
+                    insights.append("⚠️ Biến động **mạnh** — dữ liệu dao động nhiều")
+
+        elif chart_type == "hist":
+            num_col = chart_info["num_col"]
+            data = pd.to_numeric(df[num_col], errors='coerce').dropna()
+            skew = data.skew()
+            if abs(skew) < 0.5:
+                shape = "đối xứng (phân phối chuẩn)"
+            elif skew > 0:
+                shape = "lệch phải (nhiều giá trị nhỏ, ít giá trị lớn)"
+            else:
+                shape = "lệch trái (nhiều giá trị lớn, ít giá trị nhỏ)"
+            insights.append(f"📊 Dạng phân phối: **{shape}**")
+            insights.append(f"Trung bình: **{data.mean():,.2f}** | Trung vị: **{data.median():,.2f}**")
+
+        elif chart_type == "multi_bar":
+            cols = chart_info["num_cols"]
+            means = {c: df[c].mean() for c in cols}
+            max_col = max(means, key=means.get)
+            insights.append(f"📊 Chỉ tiêu **'{max_col}'** có giá trị trung bình cao nhất ({means[max_col]:,.1f})")
+
+    except Exception as e:
+        print(f"[INSIGHT ERROR] {e}")
+
+    return insights
+
+
+def build_smart_summary_v2(df: pd.DataFrame) -> str:
+    """
+    Phiên bản cải tiến của build_smart_summary.
+    Sử dụng Stratified Sampling + Statistics-First cho file lớn.
+    Giảm 80-95% token so với v1.
+    """
+    import io as _io
+    parts = []
+    n_rows, n_cols = df.shape
+
+    # 1. Cấu trúc cơ bản
+    parts.append(f"Số dòng: {n_rows} | Số cột: {n_cols}")
+    parts.append(f"Tên cột: {', '.join(df.columns.tolist())}")
+
+    # 2. Kiểu dữ liệu
+    dtype_lines = [f"  - {col}: {str(dt)}" for col, dt in df.dtypes.items()]
+    parts.append("Kiểu dữ liệu:\n" + "\n".join(dtype_lines))
+
+    # 3. Thống kê mô tả cho cột số
+    num_cols = df.select_dtypes(include='number').columns.tolist()
+    if num_cols:
+        desc = df[num_cols].describe().round(2)
+        buf = _io.StringIO()
+        desc.to_string(buf)
+        parts.append(f"Thống kê mô tả (cột số):\n{buf.getvalue()}")
+        # Thêm: tương quan giữa các cột số (nếu >= 2 cột)
+        if len(num_cols) >= 2:
+            corr = df[num_cols].corr().round(2)
+            corr_buf = _io.StringIO()
+            corr.to_string(corr_buf)
+            parts.append(f"Ma trận tương quan:\n{corr_buf.getvalue()}")
+
+    # 4. Giá trị null
+    null_info = df.isnull().sum()
+    null_str = ", ".join(f"{c}={v}" for c, v in null_info.items() if v > 0)
+    parts.append(f"Giá trị null: {null_str if null_str else 'Không có'}")
+
+    # 5. Cột text: top giá trị
+    cat_cols = df.select_dtypes(include='object').columns.tolist()
+    for col in cat_cols[:5]:
+        top = df[col].value_counts().head(5)
+        top_str = ", ".join(f"{k}({v})" for k, v in top.items())
+        nunique = df[col].nunique()
+        parts.append(f"'{col}': {nunique} giá trị khác nhau. Top 5: {top_str}")
+
+    # 6. Dữ liệu mẫu — STRATIFIED SAMPLING
+    sample_buf = _io.StringIO()
+    if n_rows <= 80:
+        # File nhỏ: gửi hết
+        sample = df
+        sample_label = f"toàn bộ {n_rows}"
+    elif n_rows <= 500:
+        # File trung bình: head + tail + random
+        head = df.head(30)
+        tail = df.tail(20)
+        mid_sample = df.iloc[30:-20].sample(min(50, len(df) - 50), random_state=42) if len(df) > 50 else pd.DataFrame()
+        sample = pd.concat([head, mid_sample, tail]).drop_duplicates()
+        sample_label = f"{len(sample)}/{n_rows} (stratified)"
+    else:
+        # File lớn: statistics-first, ít dữ liệu raw
+        head = df.head(20)
+        tail = df.tail(10)
+        mid_sample = df.iloc[20:-10].sample(min(40, len(df) - 30), random_state=42)
+        sample = pd.concat([head, mid_sample, tail]).drop_duplicates()
+        sample_label = f"{len(sample)}/{n_rows} (stratified sampling)"
+
+    sample.fillna("").to_csv(sample_buf, index=False)
+    parts.append(f"Dữ liệu mẫu ({sample_label}):\n{sample_buf.getvalue()}")
+
+    return "\n\n".join(parts)
 
 
 def cleanup_orphan_charts(active_file_ids: list):
