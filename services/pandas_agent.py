@@ -17,12 +17,16 @@ def ask_pandas_agent(df: pd.DataFrame, question: str, target_model: str = None) 
         try:
             api_key = rotator.get_current_api_key()
             
+            from database import get_all_system_configs
+            configs = get_all_system_configs()
+            max_tokens = int(configs.get("MaxTokens", 8192))
+
             # Khởi tạo mô hình Chat của Langchain với Gemini
             llm = ChatGoogleGenerativeAI(
                 model=target_model or GEMINI_MODEL_NAME,
                 temperature=0,
                 google_api_key=api_key,
-                max_output_tokens=2048
+                max_output_tokens=max_tokens
             )
             
             prefix = (

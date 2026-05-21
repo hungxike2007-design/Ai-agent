@@ -202,7 +202,7 @@ def deep_clean_data(df: pd.DataFrame) -> tuple:
     # ── 7. Cột số bị lẫn text → tự động chuyển kiểu ─────────────────────
     type_fixes = {}
     for col in list(df.columns):
-        if df[col].dtype == 'object':
+        if df[col].dtype == 'object' or pd.api.types.is_string_dtype(df[col]):
             numeric_vals = pd.to_numeric(df[col], errors='coerce')
             non_null = df[col].dropna().shape[0]
             numeric_ok = numeric_vals.dropna().shape[0]
@@ -310,17 +310,66 @@ def _setup_style(fig, ax):
     ax.set_axisbelow(True)
 
 
+def _parse_date_series(series: pd.Series) -> pd.Series:
+    """
+    Tự động parse một Series các giá trị chuỗi thời gian về datetime,
+    hỗ trợ DD/MM/YYYY và các định dạng phổ biến khác.
+    """
+    try:
+        # Thử parse với dayfirst=True trước (định dạng phổ biến tại Việt Nam)
+        parsed = pd.to_datetime(series, dayfirst=True, errors='coerce')
+        if parsed.notna().mean() > 0.8:
+            return parsed
+    except Exception:
+        pass
+    try:
+        parsed = pd.to_datetime(series, errors='coerce')
+        if parsed.notna().mean() > 0.8:
+            return parsed
+    except Exception:
+        pass
+    return pd.to_datetime(series, errors='coerce')
+
+
+def _select_best_numeric_column(num_cols):
+    """
+    Chọn cột số quan trọng nhất dựa trên từ khóa tiếng Việt/Anh
+    (ưu tiên doanh thu, lợi nhuận, tổng số tiền trước các cột đếm, số lượng).
+    """
+    if not num_cols:
+        return None
+    keywords = [
+        'doanh thu', 'revenue', 'lợi nhuận', 'loi nhuan', 'profit', 
+        'tổng', 'total', 'thành tiền', 'thanh tien', 'tiền', 'money', 
+        'giá', 'price', 'amount', 'số lượng', 'so luong', 'quantity', 'count'
+    ]
+    for kw in keywords:
+        for col in num_cols:
+            if kw in str(col).lower():
+                return col
+    return num_cols[0]
+
+
 def _detect_date_column(df):
     """Phát hiện cột ngày/thời gian."""
-    for col in df.select_dtypes(include=["datetime64"]).columns:
-        return col
-    for col in df.select_dtypes(include=["object"]).columns:
-        try:
-            parsed = pd.to_datetime(df[col], errors="raise", infer_datetime_format=True)
-            if parsed.dt.year.between(1990, 2100).mean() > 0.8:
-                return col
-        except Exception:
-            pass
+    for col in df.columns:
+        # Nếu cột đã là datetime sẵn
+        if df[col].dtype in ['datetime64[ns]', 'datetime64'] or pd.api.types.is_datetime64_any_dtype(df[col]):
+            return col
+    
+    # Thử quét các cột dạng chuỗi
+    for col in df.columns:
+        if df[col].dtype == 'object' or pd.api.types.is_string_dtype(df[col]):
+            col_lower = str(col).lower()
+            # Chỉ check nếu tên cột chứa các từ khóa liên quan đến thời gian
+            if any(k in col_lower for k in ['ngày', 'ngay', 'date', 'time', 'thời gian', 'thang', 'năm', 'tháng']):
+                try:
+                    sample = df[col].dropna().head(10).astype(str)
+                    parsed = _parse_date_series(sample)
+                    if parsed.dt.year.between(1990, 2100).mean() > 0.8:
+                        return col
+                except Exception:
+                    pass
     return None
 
 
@@ -330,22 +379,29 @@ def _analyze_dataframe(df):
     cùng thông tin cột cần thiết để vẽ.
     """
     num_cols = df.select_dtypes(include=["number"]).columns.tolist()
-    obj_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
+    obj_cols = df.select_dtypes(include=["object", "category", "string"]).columns.tolist()
     date_col = _detect_date_column(df)
+
+    # Loại bỏ date_col ra khỏi obj_cols để tránh vẽ bar_count/pie trên cột ngày
+    if date_col and date_col in obj_cols:
+        obj_cols.remove(date_col)
 
     # ── TRƯỜNG HỢP 1: Có cột ngày + cột số → Line Chart xu hướng ──────────
     if date_col and num_cols:
+        best_num = _select_best_numeric_column(num_cols)
         return {
             "chart_type": "line",
             "date_col": date_col,
-            "num_col": num_cols[0],
-            "reason": f"Co cot ngay '{date_col}' + so lieu → Line Chart xu huong"
+            "num_col": best_num,
+            "reason": f"Co cot ngay '{date_col}' + so lieu '{best_num}' → Line Chart xu huong"
         }
 
     # ── TRƯỜNG HỢP 2: Cột text có 2-6 nhóm → Pie Chart ────────────────────
     for col in obj_cols:
         n = df[col].nunique()
-        if 2 <= n <= 6:
+        # Tránh các cột có toàn bộ giá trị duy nhất (không lặp lại) trừ khi dữ liệu quá nhỏ
+        max_freq = df[col].value_counts().max()
+        if 2 <= n <= 6 and (max_freq > 1 or len(df) < 5):
             return {
                 "chart_type": "pie",
                 "cat_col": col,
@@ -356,18 +412,21 @@ def _analyze_dataframe(df):
     for col in obj_cols:
         n = df[col].nunique()
         if 7 <= n <= 20 and num_cols:
+            best_num = _select_best_numeric_column(num_cols)
             return {
                 "chart_type": "bar_agg",
                 "cat_col": col,
-                "num_col": num_cols[0],
-                "reason": f"Cot '{col}' co {n} nhom + so lieu → Bar Chart tong hop"
+                "num_col": best_num,
+                "reason": f"Cot '{col}' co {n} nhom + so lieu '{best_num}' → Bar Chart tong hop"
             }
 
     # ── TRƯỜNG HỢP 4: Cột text nhiều nhóm → Bar đếm ─────────────────────
     bar_cat = None
     for col in obj_cols:
         n = df[col].nunique()
-        if 2 <= n <= 30:
+        # Tránh các cột định danh duy nhất (chỉ có count = 1)
+        max_freq = df[col].value_counts().max()
+        if 2 <= n <= 30 and (max_freq > 1 or len(df) < 5):
             bar_cat = col
             break
     if bar_cat:
@@ -631,7 +690,7 @@ def generate_auto_chart(df, file_id):
             date_col = info["date_col"]
             num_col = info["num_col"]
             tmp = df[[date_col, num_col]].copy()
-            tmp[date_col] = pd.to_datetime(tmp[date_col], errors="coerce")
+            tmp[date_col] = _parse_date_series(tmp[date_col])
             tmp = tmp.dropna().sort_values(date_col)
             tmp = tmp.groupby(date_col)[num_col].sum().reset_index()
 
@@ -764,7 +823,7 @@ def generate_chart_insight(df, chart_info):
             insights.append(f"📊 **'{counts.index[0]}'** xuất hiện nhiều nhất ({counts.iloc[0]:,} lần)")
             if len(counts) > 1 and counts.iloc[0] > counts.iloc[-1] * 3:
                 insights.append("⚠️ Chênh lệch lớn giữa các nhóm — cần kiểm tra nguyên nhân")
-            insights.append(f"📋 Tổng cộng **{counts.nunique()}** nhóm khác nhau")
+            insights.append(f"📋 Tổng cộng **{len(counts)}** nhóm khác nhau")
 
         elif chart_type == "bar_agg":
             cat_col, num_col = chart_info["cat_col"], chart_info["num_col"]
@@ -775,8 +834,14 @@ def generate_chart_insight(df, chart_info):
                 insights.append(f"📏 Khoảng cách giữa cao nhất và thấp nhất: **{gap:,.0f}**")
 
         elif chart_type == "line":
+            date_col = chart_info["date_col"]
             num_col = chart_info["num_col"]
-            data = pd.to_numeric(df[num_col], errors='coerce').dropna()
+            tmp = df[[date_col, num_col]].copy()
+            tmp[date_col] = _parse_date_series(tmp[date_col])
+            tmp = tmp.dropna().sort_values(date_col)
+            tmp = tmp.groupby(date_col)[num_col].sum().reset_index()
+            
+            data = tmp[num_col]
             if len(data) > 1:
                 trend = "tăng 📈" if data.iloc[-1] > data.iloc[0] else "giảm 📉"
                 if data.iloc[0] != 0:
@@ -935,7 +1000,7 @@ def generate_plotly_json(df):
             date_col = info["date_col"]
             num_col = info["num_col"]
             tmp = df[[date_col, num_col]].copy()
-            tmp[date_col] = pd.to_datetime(tmp[date_col], errors="coerce")
+            tmp[date_col] = _parse_date_series(tmp[date_col])
             tmp[num_col] = pd.to_numeric(tmp[num_col], errors='coerce')
             tmp = tmp.dropna().sort_values(date_col)
             tmp = tmp.groupby(date_col)[num_col].sum().reset_index()
@@ -965,4 +1030,134 @@ def generate_plotly_json(df):
         return json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
     except Exception as e:
         print(f"[PLOTLY ERROR] {e}")
-        return None
+        return None
+
+def clean_excel_structure(df_raw: pd.DataFrame) -> pd.DataFrame:
+    """
+    Tự động chuẩn hóa cấu trúc Excel:
+    - Loại bỏ các dòng/cột trống ở rìa ngoài.
+    - Tìm dòng header thực sự dựa trên mật độ và kiểu dữ liệu.
+    - Đặt dòng header làm tên cột, cắt bỏ phần tiêu đề/metadata phía trên.
+    - Loại bỏ các dòng tổng cộng, trung bình ở cuối bảng.
+    - Chuẩn hóa tên cột (strip, điền Unnamed nếu trống, loại bỏ cột trống vô ích).
+    """
+    if df_raw.empty:
+        return df_raw
+
+    # 1. Tạo bản sao và loại bỏ các dòng, cột trống hoàn toàn ở rìa ngoài
+    df = df_raw.copy()
+    df = df.dropna(how='all', axis=1)
+    df = df.dropna(how='all', axis=0)
+    df = df.reset_index(drop=True)
+
+    if df.empty:
+        return df
+
+    # Helper check numeric
+    def is_data_numeric(val):
+        if pd.isna(val):
+            return False
+        if isinstance(val, (int, float, np.number)):
+            if isinstance(val, (int, np.integer)) and 1900 <= val <= 2100:
+                return False
+            return True
+        try:
+            float_val = float(val)
+            if float_val.is_integer() and 1900 <= float_val <= 2100:
+                return False
+            return True
+        except (ValueError, TypeError):
+            return False
+
+    # 2. Tìm chỉ số dòng chứa header
+    max_non_null = df.notna().sum(axis=1).max()
+    header_idx = 0
+    found = False
+
+    for i in range(len(df)):
+        row_vals = df.iloc[i]
+        non_null_count = row_vals.notna().sum()
+        
+        # Kiểm tra độ rộng của dòng
+        if non_null_count >= max(3, int(max_non_null * 0.6)):
+            # Đếm số lượng giá trị số liệu trong dòng
+            data_numeric_count = sum(1 for val in row_vals if is_data_numeric(val))
+            
+            # Header thường không chứa dữ liệu số thuần túy (trừ khi là năm)
+            if data_numeric_count <= non_null_count * 0.3:
+                header_idx = i
+                found = True
+                break
+
+    # Nếu không tìm thấy bằng heuristic, chọn dòng đầu tiên có độ rộng tương đối
+    if not found:
+        for i in range(len(df)):
+            if df.iloc[i].notna().sum() >= max(2, int(max_non_null * 0.6)):
+                header_idx = i
+                break
+
+    # 3. Tạo tiêu đề cột
+    raw_headers = df.iloc[header_idx].tolist()
+    cleaned_headers = []
+    for col_idx, h in enumerate(raw_headers):
+        if pd.isna(h) or str(h).strip() == "":
+            cleaned_headers.append(f"Unnamed_{col_idx}")
+        else:
+            cleaned_headers.append(str(h).strip())
+
+    # 4. Cắt dữ liệu từ dòng sau header
+    df_data = df.iloc[header_idx + 1:].copy()
+    df_data.columns = cleaned_headers
+
+    # 5. Loại bỏ các cột "Unnamed" không có dữ liệu
+    cols_to_keep = []
+    for col in df_data.columns:
+        # Nếu cột không rỗng hoàn toàn
+        if not df_data[col].isna().all():
+            # Và không phải toàn chuỗi rỗng
+            non_empty = df_data[col].astype(str).str.strip().replace({'nan': '', 'None': '', '': np.nan})
+            if not non_empty.isna().all():
+                cols_to_keep.append(col)
+    df_data = df_data[cols_to_keep]
+
+    # 6. Xử lý trùng lặp tên cột
+    seen = {}
+    unique_headers = []
+    for h in df_data.columns:
+        if h in seen:
+            seen[h] += 1
+            unique_headers.append(f"{h}_{seen[h]}")
+        else:
+            seen[h] = 0
+            unique_headers.append(h)
+    df_data.columns = unique_headers
+
+    # 7. Loại bỏ dòng tổng cộng / trung bình
+    def is_aggregate_row(row_series):
+        # Lấy giá trị ô đầu tiên không null
+        first_val = None
+        for val in row_series:
+            if pd.notna(val) and str(val).strip() != "":
+                first_val = val
+                break
+        if first_val is None:
+            return False
+        first_val_str = str(first_val).strip().lower()
+        agg_keywords = [
+            "tổng cộng", "tong cong", "tổng", "tong", "cộng", "cong", "lũy kế", "luy ke", 
+            "trung bình", "trung binh", "kết quả", "ket qua", "bình quân", "binh quan",
+            "total", "grand total", "subtotal", "sum", "average", "mean", "summary"
+        ]
+        for kw in agg_keywords:
+            if first_val_str == kw or first_val_str.startswith(kw + " ") or first_val_str.startswith(kw + ":"):
+                return True
+        return False
+
+    non_agg_mask = ~df_data.apply(is_aggregate_row, axis=1)
+    df_data = df_data[non_agg_mask]
+
+    # 8. Loại bỏ dòng trống hoàn toàn và reset index
+    df_data = df_data.dropna(how='all', axis=0)
+    df_data = df_data.reset_index(drop=True)
+
+    return df_data

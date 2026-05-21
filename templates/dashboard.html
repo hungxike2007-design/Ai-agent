@@ -203,7 +203,7 @@
                         <div style="font-size:.82rem;font-weight:700;color:var(--green);margin-bottom:8px;"><i
                                 class="fas fa-lightbulb"></i> Insight tự động</div>
                         {% for insight in chart_insights %}
-                        <div style="font-size:.84rem;color:var(--text);padding:4px 0;line-height:1.5;">{{ insight }}
+                        <div style="font-size:.84rem;color:var(--text);padding:4px 0;line-height:1.5;">{{ insight | safe }}
                         </div>
                         {% endfor %}
                         {% endif %}

@@ -173,7 +173,30 @@ def init_db_schema():
     try:
         conn = get_connection()
         cursor = conn.cursor()
-        # Kiểm tra và thêm cột PlotlyJSON vào bảng Reports nếu chưa có
+        
+        # 1. Kiểm tra và tạo bảng SystemConfigs nếu chưa có
+        cursor.execute("""
+            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID('SystemConfigs') AND type in ('U'))
+            BEGIN
+                CREATE TABLE SystemConfigs (
+                    ConfigKey NVARCHAR(100) PRIMARY KEY,
+                    ConfigValue NVARCHAR(MAX) NULL
+                );
+            END
+        """)
+        conn.commit()
+        
+        # Seed các giá trị mặc định cho SystemConfigs nếu bảng trống
+        cursor.execute("SELECT COUNT(*) FROM SystemConfigs")
+        if cursor.fetchone()[0] == 0:
+            cursor.execute("INSERT INTO SystemConfigs (ConfigKey, ConfigValue) VALUES ('DefaultPrompt', '')")
+            cursor.execute("INSERT INTO SystemConfigs (ConfigKey, ConfigValue) VALUES ('Temperature', '0.7')")
+            cursor.execute("INSERT INTO SystemConfigs (ConfigKey, ConfigValue) VALUES ('MaxTokens', '8192')")
+            cursor.execute("INSERT INTO SystemConfigs (ConfigKey, ConfigValue) VALUES ('APIKeys', '')")
+            conn.commit()
+            print("[DB SCHEMA] Đã tạo và seed dữ liệu mặc định cho bảng SystemConfigs.")
+
+        # 2. Kiểm tra và thêm cột PlotlyJSON vào bảng Reports nếu chưa có
         cursor.execute("""
             IF NOT EXISTS (
                 SELECT * FROM sys.columns 
@@ -184,6 +207,19 @@ def init_db_schema():
             END
         """)
         conn.commit()
+
+        # 3. Kiểm tra và thêm cột FileSize vào bảng ExcelFiles nếu chưa có
+        cursor.execute("""
+            IF NOT EXISTS (
+                SELECT * FROM sys.columns 
+                WHERE object_id = OBJECT_ID('ExcelFiles') AND name = 'FileSize'
+            )
+            BEGIN
+                ALTER TABLE ExcelFiles ADD FileSize BIGINT DEFAULT 0
+            END
+        """)
+        conn.commit()
+        
         conn.close()
     except Exception as e:
         print(f"[DB SCHEMA] Lỗi cập nhật cấu trúc: {e}")
@@ -324,7 +360,7 @@ def get_all_system_configs():
     configs = {
         "DefaultPrompt": "",
         "Temperature": 0.7,
-        "MaxTokens": 4096,
+        "MaxTokens": 8192,
         "APIKeys": ""
     }
     try:
@@ -338,7 +374,7 @@ def get_all_system_configs():
             if key == 'Temperature':
                 configs[key] = float(val) if val else 0.7
             elif key == 'MaxTokens':
-                configs[key] = int(val) if val else 2048
+                configs[key] = int(val) if val else 8192
             else:
                 configs[key] = val
         conn.close()

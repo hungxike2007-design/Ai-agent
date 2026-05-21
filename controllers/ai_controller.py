@@ -194,18 +194,41 @@ def upload_file():
     if not user_id: return "Vui lòng đăng nhập lại!"
 
     try:
-        # 1. Đọc Excel
-        df_raw = pd.read_excel(file)
+        # 1. Đọc file theo dạng chunked để hỗ trợ file lớn 1-2GB
         filename = file.filename
-
-        # Save file to disk
         import os
         os.makedirs('uploads', exist_ok=True)
-        file.seek(0)
-        file.save(os.path.join('uploads', filename))
+        temp_path = os.path.join('uploads', filename)
+        file.save(temp_path)
+        
+        file_size = os.path.getsize(temp_path)
+        
+        from services.large_file_processor import convert_excel_to_csv_chunked, read_sample_from_csv
+        
+        final_file_path = temp_path
+        final_filename = filename
+        
+        if filename.lower().endswith(('.xlsx', '.xls')):
+            csv_filename = filename.rsplit('.', 1)[0] + '.csv'
+            csv_path = os.path.join('uploads', csv_filename)
+            
+            # Convert to CSV in chunks to save memory
+            convert_excel_to_csv_chunked(temp_path, csv_path)
+            
+            # Delete original Excel file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+            final_file_path = csv_path
+            final_filename = csv_filename
+
+        # Read a sample for analysis (avoiding OOM on 2GB files)
+        df_sample = read_sample_from_csv(final_file_path, n_rows=100000)
 
         # ★ 2. LỌC DỮ LIỆU RÁC TRƯỚC KHI PHÂN TÍCH (Phase 1)
-        df, cleaning_report = deep_clean_data(df_raw)
+        # We only clean the sample for the initial preview and analysis
+        from services.data_processor import deep_clean_data
+        df, cleaning_report = deep_clean_data(df_sample)
 
         # 3. Gợi ý sửa lỗi (trên dữ liệu đã lọc)
         cleaning_hints = get_cleaning_suggestions(df)
@@ -215,10 +238,10 @@ def upload_file():
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO ExcelFiles (UserID, FileName, FilePath, UploadDate, Status) 
+            INSERT INTO ExcelFiles (UserID, FileName, FilePath, UploadDate, Status, FileSize) 
             OUTPUT INSERTED.FileID 
-            VALUES (?, ?, ?, GETDATE(), 'Success')""", 
-            (user_id, filename, f"uploads/{filename}"))
+            VALUES (?, ?, ?, GETDATE(), 'Success', ?)""", 
+            (user_id, final_filename, final_file_path, file_size))
         file_id = cursor.fetchone()[0]
 
         # 5. Tạo session
@@ -243,6 +266,7 @@ def upload_file():
 
         # ★ 7. Tạo insight biểu đồ (Phase 3 - không gọi AI)
         chart_insights = generate_chart_insight(df, chart_info)
+        chart_insights = [_inline_md(ins) for ins in chart_insights]
 
         # ★ 8. LAZY REPORT — KHÔNG gọi AI ở đây (Phase 2)
         # Người dùng sẽ bấm nút "Tạo báo cáo" để gọi AI sau
@@ -307,7 +331,11 @@ def generate_report():
             conn.close()
             return jsonify({"error": "File không tồn tại trên hệ thống"}), 404
 
-        df = pd.read_excel(row[0])
+        if row[0].lower().endswith('.csv'):
+            from services.large_file_processor import read_sample_from_csv
+            df = read_sample_from_csv(row[0], n_rows=100000)
+        else:
+            df = pd.read_excel(row[0])
 
         # 2. Lọc dữ liệu rác trước khi phân tích
         from services.data_processor import deep_clean_data
@@ -412,7 +440,10 @@ def quick_clean():
         conn.close()
         
         if row and row[0] and os.path.exists(row[0]):
-            df = pd.read_excel(row[0])
+            if row[0].lower().endswith('.csv'):
+                df = pd.read_csv(row[0])
+            else:
+                df = pd.read_excel(row[0])
             
             if action == 'drop_nulls':
                 df = df.dropna(subset=[column])
@@ -428,7 +459,10 @@ def quick_clean():
                 df[column] = df[column].abs()
                 
             # Ghi đè lại file đã clean
-            df.to_excel(row[0], index=False)
+            if row[0].lower().endswith('.csv'):
+                df.to_csv(row[0], index=False)
+            else:
+                df.to_excel(row[0], index=False)
             
             return jsonify({"success": True, "message": f"Đã áp dụng '{action}' cho cột '{column}'"})
         return jsonify({"error": "Không tìm thấy file trên hệ thống"}), 404
@@ -467,7 +501,12 @@ def ask():
             row = cursor.fetchone()
             conn.close()
             if row and row[0] and os.path.exists(row[0]):
-                df = pd.read_excel(row[0], dtype=str)
+                if row[0].lower().endswith('.csv'):
+                    from services.large_file_processor import read_sample_from_csv
+                    df = read_sample_from_csv(row[0], n_rows=100000)
+                    df = df.astype(str)
+                else:
+                    df = pd.read_excel(row[0], dtype=str)
                 excel_data = build_smart_summary_v2(df)
         except Exception as e:
             print("Lỗi đọc file excel cho ask:", e)
@@ -720,7 +759,11 @@ def export_excel():
         filename, filepath = row[0], row[1]
         
         # 1. Đọc dữ liệu
-        df = pd.read_excel(filepath)
+        if filepath.lower().endswith('.csv'):
+            from services.large_file_processor import read_sample_from_csv
+            df = read_sample_from_csv(filepath, n_rows=100000)
+        else:
+            df = pd.read_excel(filepath)
         
         # 2. Tự động làm sạch (Skill từ Excel Analysis)
         df_cleaned = auto_clean_data(df)

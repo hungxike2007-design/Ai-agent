@@ -32,6 +32,7 @@ app = Flask(__name__,
             static_folder='static',
             static_url_path='/static')
 
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 2GB
 
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "fallback_dev_key_change_in_production")
 
