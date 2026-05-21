@@ -196,6 +196,9 @@ def upload_file():
     try:
         # 1. Đọc file theo dạng chunked để hỗ trợ file lớn 1-2GB
         filename = file.filename
+        if not filename.lower().endswith(('.csv', '.xlsx', '.xls')):
+            return "Chỉ hỗ trợ upload file có định dạng .csv, .xlsx, hoặc .xls!", 400
+            
         import os
         os.makedirs('uploads', exist_ok=True)
         temp_path = os.path.join('uploads', filename)
@@ -213,14 +216,17 @@ def upload_file():
             csv_path = os.path.join('uploads', csv_filename)
             
             # Convert to CSV in chunks to save memory
-            convert_excel_to_csv_chunked(temp_path, csv_path)
+            success = convert_excel_to_csv_chunked(temp_path, csv_path)
             
-            # Delete original Excel file
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-                
-            final_file_path = csv_path
-            final_filename = csv_filename
+            if success:
+                # Delete original Excel file
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                    
+                final_file_path = csv_path
+                final_filename = csv_filename
+            else:
+                return "Lỗi khi đọc file Excel!"
 
         # Read a sample for analysis (avoiding OOM on 2GB files)
         df_sample = read_sample_from_csv(final_file_path, n_rows=100000)
@@ -1125,8 +1131,18 @@ def get_session(session_id):
         chart_path = None
         if file_data and os.path.exists(file_data[0]):
             try:
-                # nrows=20 giúp Pandas dừng đọc ngay sau khi có đủ 20 dòng, cực kỳ nhanh
-                df_preview = pd.read_excel(file_data[0], dtype=str, nrows=20).fillna("")
+                # Tối ưu: Đọc theo đúng định dạng file
+                filepath = file_data[0]
+                if filepath.lower().endswith('.csv'):
+                    df_preview = pd.read_csv(filepath, dtype=str, nrows=100)
+                else:
+                    df_preview = pd.read_excel(filepath, dtype=str, nrows=100)
+                    
+                # Chạy lại bộ lọc nhanh để hiển thị sạch sẽ như lúc upload
+                from services.data_processor import deep_clean_data
+                df_preview, _ = deep_clean_data(df_preview)
+                df_preview = df_preview.head(20).fillna("")
+                
                 table_html = df_preview.to_html(classes='table table-hover', index=False)
                 table_html += '<div class="text-center p-2 text-muted" style="font-size:0.8rem;"><i>... Đang hiển thị bản xem trước 20 dòng đầu tiên ...</i></div>'
             except Exception as read_err:

@@ -115,6 +115,19 @@ def deep_clean_data(df: pd.DataFrame) -> tuple:
     }
     df = df.copy()
 
+    # ── 0. Chuẩn hóa cấu trúc Excel (Header/Metadata) ───────────────────
+    try:
+        df_cleaned_struct = clean_excel_structure(df)
+        if len(df_cleaned_struct) < len(df) or len(df_cleaned_struct.columns) < len(df.columns) or list(df_cleaned_struct.columns) != list(df.columns):
+            df = df_cleaned_struct
+            report["actions"].append({
+                "type": "structure_fixed", "icon": "fa-layer-group",
+                "text": "Chuẩn hóa cấu trúc (loại bỏ tiêu đề thừa, cập nhật header)",
+                "detail": ""
+            })
+    except Exception as e:
+        print(f"[CLEANING ERROR] Lỗi khi chuẩn hóa cấu trúc Excel: {e}")
+
     # ── 1. Xóa cột rỗng 100% hoặc cột "Unnamed" ────────────────────────
     empty_cols = [c for c in df.columns
                   if df[c].isna().all() or

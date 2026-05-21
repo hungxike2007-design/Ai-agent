@@ -3,24 +3,18 @@ import os
 
 def convert_excel_to_csv_chunked(xlsx_path, csv_path, chunk_size=50000):
     """
-    Đọc file Excel theo từng chunk và ghi ra CSV để tránh tràn RAM.
+    Đọc file Excel và ghi ra CSV.
     """
     if os.path.exists(csv_path):
         os.remove(csv_path)
         
     try:
-        # Sử dụng engine openpyxl để hỗ trợ đọc chunksize tốt nhất cho xlsx
-        chunks = pd.read_excel(xlsx_path, chunksize=chunk_size, engine='openpyxl')
-        first_chunk = True
-        
-        for chunk in chunks:
-            # Ghi ra CSV (chỉ ghi header ở chunk đầu tiên)
-            chunk.to_csv(csv_path, mode='a', index=False, header=first_chunk)
-            first_chunk = False
-            
+        # Pandas không hỗ trợ chunksize cho read_excel, tạm thời đọc toàn bộ
+        df = pd.read_excel(xlsx_path)
+        df.to_csv(csv_path, index=False)
         return True
     except Exception as e:
-        print(f"Lỗi khi convert chunked: {e}")
+        print(f"Lỗi khi convert: {e}")
         return False
 
 def read_sample_from_csv(csv_path, n_rows=50):
