@@ -1,0 +1,396 @@
+
+ 	BỘ GIÁO DỤC VÀ ĐÀO TẠO
+TRƯỜNG ĐẠI HỌC CÔNG NGHỆ TP. HCM
+
+
+
+
+
+BÁO CÁO ĐỒ ÁN CƠ SỞ
+
+
+
+
+AI AGENT PHÂN TÍCH DỮ LIỆU EXCEL VÀ SINH BÁO CÁO TỰ ĐỘNG
+
+
+Ngành:	CÔNG NGHỆ THÔNG TIN
+
+Giảng viên hướng dẫn: KS. Phạm Văn Khải
+Nhóm Sinh viên thực hiện:
+Tên	Lớp	MSSV
+	Nguyễn Xuân Huy	23DTHB7	2380600865
+	Nguyễn Anh Huy	23DTHB7	2380600840
+	Phạm Thanh Hùng	23DTHB7	2380600779
+
+
+
+
+
+TP. Hồ Chí Minh, 2026 
+LỜI CẢM ƠN
+Kính thưa Thầy,
+Lời đầu tiên chúng em xin gửi lời cảm ơn chân thành nhất đến Thầy Phạm Văn Khải đã dành thời gian quý báu để lắng nghe và đánh giá bài báo cáo của chúng em.
+Sự hỗ trợ và phản hồi từ Thầy không chỉ là nguồn động viên lớn lao mà còn là cơ hội để chúng em có cơ sở để hoàn thiện công việc của mình. Thầy đã mang đến những góp ý xây dựng và sâu sắc, giúp chúng em hiểu rõ hơn về chủ đề và cách thức cải thiện nội dung.
+Chúng em không thể không nhắc đến sự đóng góp của Thầy, người đã giúp chúng em vượt qua những thách thức và phát triển từng ngày. Sự hỗ trợ và khích lệ của Thầy đã làm cho hành trình nghiên cứu và trình bày của chúng em trở nên ý nghĩa và giá trị hơn bao giờ hết.
+Cuối cùng, chúng em xin kính chúc Thầy sức khỏe và thành công trong công việc nghiên cứu và giảng dạy, cũng như trong mọi lĩnh vực cuộc sống. Hãy tiếp tục lan tỏa sự kiến thức và sự nhiệt huyết của mình đến những người xung quanh và là nguồn động viên cho những thế hệ tương lai.
+Xin một lần nữa, lời cảm ơn chân thành từ tận đáy lòng của chúng em!
+ 
+MỤC LỤC
+LỜI CẢM ƠN	i
+MỤC LỤC	ii
+DANH MỤC HÌNH ẢNH	v
+DANH MỤC BẢNG BIỂU	vii
+LỜI MỞ ĐẦU	1
+1. Lý do chọn đề tài	1
+2. Mục đích nghiên cứu	1
+3. Ý nghĩa của việc nghiên cứu	1
+4. Kết cấu đề tài:	2
+1	CHƯƠNG 1: TỔNG QUAN VÀ CƠ SỞ LÝ THUYẾT	3
+1.1.	Khảo sát hiện trạng	3
+1.2.	Nhiệm vụ của việc nghiên cứu	3
+1.3.	Đối tượng và khách thể nghiên cứu	3
+1.4.	Phương pháp và phạm vi nghiên cứu	3
+1.4.1.	Phương pháp nghiên cứu	3
+1.4.2.	Phạm vi nghiên cứu	4
+1.5.	Giới thiệu ngôn ngữ, framework, thư viện, nền tảng	4
+1.5.1.	Khái niệm ngôn ngữ Python	4
+1.5.2.	Tìm hiểu thư viện Pandas và Xử lý dữ liệu	5
+1.5.3.	Tìm hiểu thư viện Matplotlib và Plotly	6
+1.5.4.	Tìm hiểu về AI Agent và LLM	6
+1.6.	Tìm hiểu hệ quản trị cơ sở dữ liệu SQL Server	6
+2	CHƯƠNG 2: PHÂN TÍCH VÀ THIẾT KẾ	8
+2.1.	Quan hệ giữa các bảng	8
+2.2.	Thiết kế các bảng	8
+2.2.1.	Bảng Users	8
+2.2.2.	Bảng GoogleAccounts	8
+2.2.3.	Bảng Feedbacks	9
+2.2.4.	Bảng ExcelFiles	9
+2.2.5.	Bảng ChatSessions	10
+2.2.6.	Bảng ChatMessages	10
+2.2.7.	Bảng Reports	10
+2.2.8.	Bảng TokenLogs	11
+2.2.9.	Bảng SystemConfigs	11
+2.3.	Các mô hình dữ liệu	11
+2.3.1.	Mô hình UseCase tổng quát	11
+2.3.2.	Mô hình UseCase đăng nhập và đăng ký	12
+2.3.3.	Mô hình UseCase upload file Excel	12
+Hình 2.13. Hình ảnh mô hình UseCase upload file Excel	13
+2.3.4.	Mô hình UseCase yêu cầu phân tích	13
+2.3.5.	Mô hình UseCase sinh báo cáo tự động	13
+2.3.6.	Mô hình UseCase quản lý người dùng	14
+2.3.7.	Mô hình UseCase quản lý dữ liệu	14
+2.3.8.	Mô hình UseCase quản lý phân tích	15
+2.3.9.	Mô hình UseCase quản lý phản hồi	15
+2.4.	Mô hình Sequence Diagam	16
+2.4.1.	Sequence Diagam đăng ký	16
+2.4.2.	Sequence Diagam đăng nhập	17
+2.4.3.	Sequence Diagam tải file Excel	17
+2.4.4.	Sequence Diagam yêu cầu phân tích	17
+2.4.5.	Sequence Diagam sinh báo cáo tự động	18
+2.5.	Sơ đồ ERD	19
+2.6.	Thiết kế giao diện website	20
+2.6.1.	Giao diện trang đăng nhập	20
+2.6.2.	Giao diện trang đăng ký tài khoản	21
+2.6.3.	Giao diện trang phân tích	21
+2.6.4.	Giao diện trang quản lý người dùng	24
+2.6.5.	Giao diện trang thống kê người dùng và tỉ lệ xử lý file	24
+2.6.6.	Giao diện trang quản lý dữ liệu	25
+2.6.7.	Giao diện trang quản lý các phiên phân tích	25
+2.6.8.	Giao diện trang phần hồi người dùng	26
+2.6.9.	Giao diện trang quản lý cấu hình AI	27
+2.6.10.	Giao diện trang chia sẻ phiên phân tích	28
+3	CHƯƠNG 3: KẾT LUẬN	29
+3.1.	Ưu điểm	29
+3.2.	Nhược điểm	29
+3.3.	Hướng phát triển toàn diện	29
+TÀI LIỆU THAM KHẢO	31
+ 
+DANH MỤC HÌNH ẢNH
+Hình 1.1. Hình ảnh logo Python	4
+Hình 2.1. Hình ảnh Diagram trong SQL Mô hình quan niệm dữ liệu (thực thể - kết hợp)	8
+Hình 2.2. Hình ảnh bảng thông tin Users	8
+Hình 2.3. Hình ảnh bảng thông tin GoogleAccounts	9
+Hình 2.4. Hình ảnh bảng lưu thông tin Feedbacks	9
+Hình 2.5. Hình ảnh bảng thông tin ExcelFiles	10
+Hình 2.6. Hình ảnh bảng thông tin ChatSessions	10
+Hình 2.7. Hình ảnh bảng lưu chi tiết ChatMessages	10
+Hình 2.8. Hình ảnh lưu chi tiết bảng Reports	11
+Hình 2.9. Hình ảnh lưu chi tiết bảng TokenLogs	11
+Hình 2.10. Hình ảnh lưu chi tiết bảng SystemConfigs	11
+Hình 2.11. Hình ảnh mô hình UseCase tổng quát	12
+Hình 2.12. Hình ảnh mô hình UseCase đăng nhập	12
+Hình 2.13. Hình ảnh mô hình UseCase upload file Excel	13
+Hình 2.14. Hình ảnh mô hình UseCase yêu cầu phân tích	13
+Hình 2.15. Mô hình UseCase báo cáo tự động	14
+Hình 2.16. Mô hình UseCase quản lý người dùng	14
+Hình 2.17. Hình ảnh mô hình UseCase quản lý dữ liệu	15
+Hình 2.18. Mô hình UseCase quản lý phân tích	15
+Hình 2.19. mô hình UseCase quản lý phản h	16
+Hình 2.20. Sequence Diagam đăng ký	16
+Hình 2.21. Sequence Diagam đăng nhập	17
+Hình 2.22. Sequence Diagam tải file Excel	17
+Hình 2.23. Sequence Diagam yêu cầu phân tích	18
+Hình 2.24. Sequence Diagam sinh báo cáo tự động	19
+Hình 2.25. Hình ảnh sơ đồ ERD	20
+Hình 2.26. Hình ảnh giao diện trang đăng nhập	21
+Hình 2.27. Hình ảnh giao diện trang đăng ký tài khoản	21
+Hình 2.28. Hình ảnh giao diện trang phân tích	22
+Hình 2.29. Hình ảnh giao diện xem trước dữ liệu	22
+Hình 2.30. Hình ảnh giao diện tạo biểu đồ từ dữ liệu	23
+Hình 2.31. Hình ảnh giao diện tùy chọn kiểu phân tích	23
+Hình 2.32.  Hình ảnh giao diện sinh báo cáo	24
+Hình 2.33. Hình ảnh giao diện trang giao diện người dùng	24
+Hình 2.34. Hình ảnh giao diện trang thống kê người dùng và tỉ lệ xử lý file	25
+Hình 2.35. Hình ảnh giao diện trang quản lý dữ liệu	25
+Hình 2.36. Hình ảnh giao diện trang quản lý các phiên phân tích	26
+Hình 2.37. Hình ảnh giao diện xem lại dữ liệu phân tích của người dùng	26
+Hình 2.38. Hình ảnh giao diện trang phản hồi người dùng	27
+Hình 2.39. Hình ảnh giao diện trang quản lý phản hồi người dùng	27
+Hình 2.40. Hình ảnh giao diện trang quản lý cấu hình AI	28
+Hình 2.41. Hình ảnh giao diện phiên phân tích	28
+Hình 2.42. Hình ảnh giao diện của link chia sẻ	29
+
+ 
+DANH MỤC BẢNG BIỂU
+Bảng 1.1. Các chức năng chính của SQL Server	6
+Bảng 1.2. Ưu điểm của SQL Server trong phát triển website	7
+
+
+  
+LỜI MỞ ĐẦU
+1. Lý do chọn đề tài
+Trong kỷ nguyên số, dữ liệu đóng vai trò quan trọng trong việc đưa ra các quyết định chiến lược của doanh nghiệp. Hàng ngày, một khối lượng lớn dữ liệu được lưu trữ và xử lý dưới định dạng Excel. Tuy nhiên, việc phân tích dữ liệu theo cách thủ công đòi hỏi nhiều thời gian, công sức và phụ thuộc vào trình độ của người phân tích. Điều này dẫn đến sự chậm trễ trong việc đưa ra quyết định hoặc sai sót trong quá trình xử lý dữ liệu.
+Sự ra đời của Trí tuệ nhân tạo (AI), đặc biệt là các mô hình ngôn ngữ lớn (LLM) và AI Agent, đã mở ra hướng đi mới giúp tự động hóa quá trình xử lý, làm sạch và phân tích dữ liệu. Từ đó, ý tưởng xây dựng một "AI Agent phân tích dữ liệu Excel và sinh báo cáo tự động" được hình thành, với mục tiêu giúp người dùng không có nền tảng chuyên môn sâu về khoa học dữ liệu vẫn có thể hiểu và rút ra những hiểu biết (insights) giá trị từ dữ liệu của mình.
+2. Mục đích nghiên cứu
+Xây dựng một công cụ (AI Agent) có khả năng tự động hóa các bước sau:
+- Tiếp nhận và đọc dữ liệu từ tệp Excel.
+- Tự động làm sạch dữ liệu (loại bỏ dữ liệu rác, xử lý giá trị thiếu, chuẩn hóa định dạng).
+- Tự động vẽ các biểu đồ phù hợp với từng loại dữ liệu (Pie chart, Bar chart, Line chart, Histogram).
+- Ứng dụng LLM để sinh báo cáo phân tích dữ liệu dựa trên các số liệu và biểu đồ thu thập được, đồng thời tương tác với người dùng dưới dạng hỏi-đáp.
+
+3. Ý nghĩa của việc nghiên cứu
+Kết quả của nghiên cứu mang ý nghĩa:
+- Về mặt lý thuyết: Tìm hiểu sâu về quy trình khai phá dữ liệu (Data Mining), làm sạch dữ liệu (Data Cleaning) và ứng dụng các mô hình AI Agent/LLM vào thực tiễn. Nâng cao kỹ năng lập trình Python và sử dụng các thư viện phổ biến (Pandas, Matplotlib, Plotly).
+- Về mặt thực tiễn: Cung cấp một công cụ hữu ích giúp người dùng tiết kiệm thời gian phân tích số liệu, tạo báo cáo tự động và tăng hiệu suất làm việc.
+4. Kết cấu đề tài:
+-	LỜI MỞ ĐẦU
+-	CHƯƠNG 1: TỔNG QUAN VÀ CƠ SỞ LÝ THUYẾT
+-	CHƯƠNG 2: PHÂN TÍCH VÀ THIẾT KẾ
+-	CHƯƠNG 3: KẾT LUẬN
+ 
+1	CHƯƠNG 1: TỔNG QUAN VÀ CƠ SỞ LÝ THUYẾT
+1.1.	Khảo sát hiện trạng
+Hiện nay, Excel là công cụ phổ biến nhất để quản lý dữ liệu trong các doanh nghiệp vừa và nhỏ. Tuy nhiên, khi dữ liệu lớn dần, việc kiểm tra lỗi, lọc dữ liệu rác (dòng trống, dữ liệu trùng lặp, sai định dạng) trở nên khó khăn. Hơn nữa, việc tạo các biểu đồ phân tích và viết báo cáo đánh giá xu hướng dữ liệu đòi hỏi người dùng phải thao tác nhiều bước thủ công. Các công cụ BI (Business Intelligence) như PowerBI, Tableau lại đòi hỏi người dùng phải có kiến thức chuyên môn và thời gian đào tạo nhất định.
+Việc tích hợp AI Agent vào quy trình xử lý dữ liệu sẽ giúp thu hẹp khoảng cách giữa người dùng cơ bản và các hệ thống phân tích dữ liệu chuyên sâu. AI Agent đóng vai trò như một chuyên gia phân tích dữ liệu ảo, tự động hóa toàn bộ quá trình từ làm sạch đến đưa ra các nhận định chiến lược.
+.
+1.2.	Nhiệm vụ của việc nghiên cứu
+Phần mềm này được tạo ra nhằm đơn giản hóa quy trình phân tích dữ liệu Excel cho người dùng. Ứng dụng tích hợp sẵn các tập tin kịch bản (scripts) xử lý dữ liệu mạnh mẽ, kết hợp cùng giao diện người dùng trực quan và AI để sinh ra kết luận. Người dùng chỉ cần tải tệp Excel lên, hệ thống sẽ tự động đưa ra kết quả phân tích cùng các biểu đồ trực quan nhất.
+1.3.	Đối tượng và khách thể nghiên cứu
+- Đối tượng nghiên cứu: AI Agent, LLM, quy trình làm sạch dữ liệu và tạo biểu đồ tự động.
+- Khách thể nghiên cứu: Các cá nhân, nhân viên văn phòng, quản lý doanh nghiệp có nhu cầu phân tích dữ liệu Excel thường xuyên nhưng thiếu công cụ tự động hóa hoặc chuyên môn sâu về Data Analysis.
+
+1.4.	Phương pháp và phạm vi nghiên cứu
+1.4.1.	Phương pháp nghiên cứu
+- Nghiên cứu tài liệu: Tìm hiểu về các thư viện xử lý dữ liệu của Python (Pandas), trực quan hóa dữ liệu (Matplotlib, Plotly), các tài liệu về cách tích hợp API của các mô hình ngôn ngữ lớn (OpenAI GPT, v.v.).
+- Nghiên cứu thực nghiệm: Xây dựng các hàm ‘deep_clean_data’, “generate_auto_chart’, đánh giá tính hiệu quả khi xử lý các tập dữ liệu rác mô phỏng thực tế.
+1.4.2.	Phạm vi nghiên cứu
+- Phạm vi xử lý dữ liệu: Hệ thống hiện tập trung vào các tệp tin định dạng `.xlsx` và `.csv`. Các bước làm sạch dữ liệu tập trung vào việc loại bỏ cột/dòng rỗng, dòng trùng lặp, chuẩn hóa kiểu dữ liệu, loại bỏ ký tự đặc biệt và cảnh báo ngoại lệ (outlier).
+- Phạm vi AI: Sử dụng AI để nhận diện ngữ cảnh dữ liệu, sinh text mô tả các insight, trả lời câu hỏi của người dùng dựa trên bộ dữ liệu được tải lên.
+1.5.	Giới thiệu ngôn ngữ, framework, thư viện, nền tảng
+1.5.1.	Khái niệm ngôn ngữ Python
+Python là ngôn ngữ lập trình kịch bản mã nguồn mở, đa dụng và rất phổ biến trong lĩnh vực Khoa học Dữ liệu (Data Science) và Trí tuệ Nhân tạo (AI). Python có cú pháp đơn giản, dễ đọc, được hỗ trợ bởi hệ sinh thái thư viện phong phú, giúp các nhà phát triển dễ dàng thực hiện các thuật toán phức tạp về làm sạch dữ liệu và tích hợp mô hình AI.
+ 
+Hình 1.1. Hình ảnh logo Python
+Những ưu điểm của Python:
+Đơn giản: Đặc trưng nổi bật nhất của Python là cú pháp cực kỳ tinh gọn, rõ ràng và dễ đọc, gần giống với ngôn ngữ tự nhiên. Nó loại bỏ sự phức tạp của các dấu ngoặc nhọn {} hay dấu chấm phẩy ; kết thúc câu lệnh như trong C++ hay Java, thay vào đó sử dụng thụt lề (indentation) để cấu trúc các khối mã, giúp người mới học cực kỳ dễ tiếp cận.
+Hiện đại: Python cung cấp đầy đủ các tính năng cấp cao của một ngôn ngữ hiện đại như quản lý bộ nhớ tự động ), kiểu dữ liệu động , xử lý ngoại lệ mạnh mẽ. Hệ sinh thái thư viện chuẩn của Python vô cùng đồ sộ, đáp ứng hầu hết các nhu cầu lập trình hiện đại.
+Hướng đối tượng: Hướng đối tượng: Python hỗ trợ lập trình hướng đối tượng một cách toàn diện với đầy đủ các tính chất: đóng gói, kế thừa, đa hình và trừu tượng. Tuy nhiên, nó linh hoạt hơn nhiều ngôn ngữ khác vì cho phép kết hợp cả lập trình hướng thủ tục và lập trình hàm tùy theo nhu cầu của dự án.
+Ít từ khóa: Python là một ngôn ngữ hoàn toàn miễn phí và mã nguồn mở. Bạn có thể tự do sử dụng, phân phối, hoặc thậm chí chỉnh sửa mã nguồn của nó. Sự hỗ trợ từ cộng đồng mã nguồn mở khổng lồ trên toàn thế giới là lý do giúp hệ sinh thái Python phát triển rực rỡ.
+Mã nguồn mở: Python là một ngôn ngữ hoàn toàn miễn phí và mã nguồn mở. Bạn có thể tự do sử dụng, phân phối, hoặc thậm chí chỉnh sửa mã nguồn của nó. Sự hỗ trợ từ cộng đồng mã nguồn mở khổng lồ trên toàn thế giới là lý do giúp hệ sinh thái Python phát triển rực rỡ.
+Đa nền tảng: Python có tính di động rất cao theo nguyên tắc "viết một lần, chạy mọi nơi". Các đoạn mã Python có thể hoạt động trơn tru trên hầu hết các hệ điều hành phổ biến hiện nay như Windows, macOS, Linux hay Unix mà không cần phải viết lại hoặc thay đổi quá nhiều.
+Tiến hóa: Python không ngừng được cộng đồng nâng cấp (các phiên bản Python 3.x liên tục ra mắt giúp tối ưu tốc độ và bộ nhớ). Hiện nay, Python đã vượt ra khỏi ranh giới của một ngôn ngữ script cơ bản để trở thành ngôn ngữ thống trị trong các lĩnh vực tiên phong như Trí tuệ nhân tạo (AI), Học máy (Machine Learning), Khoa học dữ liệu và phát triển Web.
+1.5.2.	Tìm hiểu thư viện Pandas và Xử lý dữ liệu
+Pandas là một thư viện mã nguồn mở cung cấp các cấu trúc dữ liệu hiệu suất cao và các công cụ phân tích dữ liệu cho ngôn ngữ Python. DataFrame của Pandas cho phép thao tác với dữ liệu dạng bảng tương tự như Excel nhưng linh hoạt hơn rất nhiều thông qua code.
+Ứng dụng trong đề tài: Pandas được sử dụng để đọc tệp Excel, truy xuất cột, dòng, thực hiện các thao tác xử lý dữ liệu tự động như: drop_duplicates(), fillna(), thay đổi kiểu dữ liệu (to_numeric), thay thế văn bản,…
+1.5.3.	Tìm hiểu thư viện Matplotlib và Plotly
+- Matplotlib: Là một thư viện vẽ đồ thị cơ bản trong Python. Trong dự án, nó được sử dụng thông qua chế độ 'Agg' (không giao diện) để render các biểu đồ tĩnh tĩnh (PNG) phức tạp kèm theo Legend Panel chuyên nghiệp (chú thích dữ liệu).
+- Plotly: Là thư viện vẽ biểu đồ tương tác cao. Các biểu đồ tạo ra bởi Plotly có thể zoom, hover để xem số liệu trực tiếp trên trình duyệt.
+1.5.4.	Tìm hiểu về AI Agent và LLM
+LLM (Large Language Model) là các mô hình AI có khả năng hiểu và sinh ngôn ngữ tự nhiên. AI Agent là một hệ thống sử dụng LLM làm trung tâm bộ não để lập kế hoạch, sử dụng công cụ (như mã Python, thư viện Pandas) để giải quyết các vấn đề mà người dùng yêu cầu. Trong đề tài, AI Agent sẽ đọc bản tóm tắt dữ liệu (schema, summary stats) và sinh ra một bản báo cáo bằng văn bản tự nhiên để gửi cho người dùng.
+1.6.	Tìm hiểu hệ quản trị cơ sở dữ liệu SQL Server
+SQL Server là hệ quản trị cơ sở dữ liệu quan hệ (RDBMS) được phát triển bởi Microsoft. SQL Server được sử dụng rộng rãi trong việc lưu trữ, quản lý và xử lý dữ liệu cho các ứng dụng desktop, web và hệ thống doanh nghiệp. Trong đề tài website cho thuê xe ô tô, SQL Server được sử dụng để quản lý thông tin khách hàng, xe ô tô, đơn thuê xe, thanh toán và các dữ liệu liên quan khác.
+SQL Server hỗ trợ khả năng xử lý dữ liệu nhanh chóng, tính bảo mật cao và khả năng mở rộng tốt, phù hợp với các hệ thống quản lý trực tuyến hiện đại.
+Bảng 1.1. Các chức năng chính của SQL Server
+Chức năng	Mô tả
+Đọc và tiếp nhận dữ liệu	Tự động phân tích cấu trúc và tải dữ liệu từ các tệp Excel, CSV.
+Làm sạch dữ liệu tự động	Tự động phát hiện và xử lý dòng rỗng, dữ liệu rác, lỗi định dạng.
+Trực quan hóa dữ liệu	Phân tích các cột số liệu để tự động vẽ biểu đồ phù hợp (Pie, Bar, Line).
+Sinh báo cáo tự động	Gửi thông tin cho LLM (AI) để viết báo cáo phân tích bằng ngôn ngữ tự nhiên.
+Tương tác hỏi - đáp (Chat)	Cho phép người dùng chat và đặt câu hỏi trực tiếp với AI về dữ liệu hiện tại.
+Lưu trữ kết quả	Hỗ trợ lưu và hiển thị lại các biểu đồ, báo cáo đã được sinh ra.
+
+
+Bảng 1.2. Ưu điểm của SQL Server trong phát triển website
+Ưu điểm	Ý nghĩa
+Tự động hóa cao	Tiết kiệm tối đa thời gian và công sức so với thao tác làm báo cáo thủ công.
+Dễ dàng sử dụng	Không yêu cầu người dùng phải có kiến thức lập trình hay chuyên môn về Data.
+Trực quan và dễ hiểu	Kết hợp giữa biểu đồ trực quan và văn bản phân tích tự nhiên từ AI giúp người dùng nắm bắt nhanh chóng.
+Độ chính xác cao	Các thuật toán chuẩn hóa dữ liệu tự động giúp giảm thiểu tối đa sai sót từ con người.
+Linh hoạt theo ngữ cảnh	AI Agent có khả năng hiểu cấu trúc của từng file Excel khác nhau để đưa ra nhận xét phù hợp.
+Tương tác thông minh	Việc có thể hỏi đáp với dữ liệu mang lại trải nghiệm tiện lợi như một trợ lý ảo thực thụ.
+ 
+2	CHƯƠNG 2: PHÂN TÍCH VÀ THIẾT KẾ
+2.1.	Quan hệ giữa các bảng
+ 
+Hình 2.1. Hình ảnh Diagram trong SQL Mô hình quan niệm dữ liệu (thực thể - kết hợp) 
+2.2.	Thiết kế các bảng
+2.2.1.	Bảng Users
+ 
+Hình 2.2. Hình ảnh bảng thông tin Users
+2.2.2.	Bảng GoogleAccounts
+ 
+Hình 2.3. Hình ảnh bảng thông tin GoogleAccounts
+2.2.3.	Bảng Feedbacks
+ 
+Hình 2.4. Hình ảnh bảng lưu thông tin Feedbacks
+2.2.4.	Bảng ExcelFiles
+ 
+Hình 2.5. Hình ảnh bảng thông tin ExcelFiles
+2.2.5.	Bảng ChatSessions
+ 
+Hình 2.6. Hình ảnh bảng thông tin ChatSessions
+2.2.6.	Bảng ChatMessages
+ 
+Hình 2.7. Hình ảnh bảng lưu chi tiết ChatMessages
+2.2.7.	Bảng Reports
+ 
+Hình 2.8. Hình ảnh lưu chi tiết bảng Reports
+2.2.8.	Bảng TokenLogs
+ 
+Hình 2.9. Hình ảnh lưu chi tiết bảng TokenLogs
+2.2.9.	Bảng SystemConfigs
+ 
+Hình 2.10. Hình ảnh lưu chi tiết bảng SystemConfigs
+
+
+2.3.	Các mô hình dữ liệu
+2.3.1.	Mô hình UseCase tổng quát
+ 
+Hình 2.11. Hình ảnh mô hình UseCase tổng quát
+2.3.2.	Mô hình UseCase đăng nhập và đăng ký
+ 	![alt text](image.png)
+Hình 2.12. Hình ảnh mô hình UseCase đăng nhập
+2.3.3.	Mô hình UseCase upload file Excel
+ ![alt text](image-1.png)
+Hình 2.13. Hình ảnh mô hình UseCase upload file Excel
+2.3.4.	Mô hình UseCase yêu cầu phân tích
+ ![alt text](image-2.png)
+Hình 2.14. Hình ảnh mô hình UseCase yêu cầu phân tích
+2.3.5.	Mô hình UseCase sinh báo cáo tự động
+ ![alt text](image-3.png)
+Hình 2.15. Mô hình UseCase báo cáo tự động
+2.3.6.	Mô hình UseCase quản lý người dùng
+  ![alt text](image-4.png)
+Hình 2.16. Mô hình UseCase quản lý người dùng
+2.3.7.	Mô hình UseCase quản lý dữ liệu
+ ![alt text](image-5.png)
+Hình 2.17. Hình ảnh mô hình UseCase quản lý dữ liệu
+2.3.8.	Mô hình UseCase quản lý phân tích
+  ![alt text](image-6.png)
+Hình 2.18. Mô hình UseCase quản lý phân tích
+2.3.9.	 Mô hình UseCase quản lý phản hồi
+ ![alt text](image-7.png)
+Hình 2.19. mô hình UseCase quản lý phản h
+![alt text](image-8.png)
+2.4.	Mô hình Sequence Diagam
+2.4.1.	Sequence Diagam đăng ký
+![alt text](image-16.png)
+Hình 2.20. Sequence Diagam đăng ký
+2.4.2.	Sequence Diagam đăng nhập
+![alt text](image-17.png)
+Hình 2.21. Sequence Diagam đăng nhập
+2.4.3.	Sequence Diagam tải file Excel
+![alt text](image-18.png)
+Hình 2.22. Sequence Diagam tải file Excel
+2.4.4.	Sequence Diagam yêu cầu phân tích
+ ![alt text](image-12.png)
+Hình 2.23. Sequence Diagam yêu cầu phân tích
+2.4.5.	Sequence Diagam sinh báo cáo tự động
+ ![alt text](image-15.png)
+Hình 2.24. Sequence Diagam sinh báo cáo tự động
+![alt text](image-14.png)
+
+
+2.5.	Sơ đồ ERD
+  
+Hình 2.25. Hình ảnh sơ đồ ERD
+2.6.	Thiết kế giao diện website
+2.6.1.	Giao diện trang đăng nhập
+ 
+Hình 2.26. Hình ảnh giao diện trang đăng nhập
+2.6.2.	Giao diện trang đăng ký tài khoản
+ 
+Hình 2.27. Hình ảnh giao diện trang đăng ký tài khoản
+2.6.3.	Giao diện trang phân tích
+ 
+Hình 2.28. Hình ảnh giao diện trang phân tích
+ 
+Hình 2.29. Hình ảnh giao diện xem trước dữ liệu
+ 
+Hình 2.30. Hình ảnh giao diện tạo biểu đồ từ dữ liệu
+ 
+Hình 2.31. Hình ảnh giao diện tùy chọn kiểu phân tích
+ 
+Hình 2.32.  Hình ảnh giao diện sinh báo cáo
+2.6.4.	Giao diện trang quản lý người dùng
+ 
+Hình 2.33. Hình ảnh giao diện trang giao diện người dùng
+2.6.5.	Giao diện trang thống kê người dùng và tỉ lệ xử lý file
+ 
+Hình 2.34. Hình ảnh giao diện trang thống kê người dùng và tỉ lệ xử lý file
+2.6.6.	Giao diện trang quản lý dữ liệu
+ 
+Hình 2.35. Hình ảnh giao diện trang quản lý dữ liệu
+2.6.7.	Giao diện trang quản lý các phiên phân tích
+ 
+Hình 2.36. Hình ảnh giao diện trang quản lý các phiên phân tích
+ 
+Hình 2.37. Hình ảnh giao diện xem lại dữ liệu phân tích của người dùng
+2.6.8.	Giao diện trang phần hồi người dùng
+ 
+Hình 2.38. Hình ảnh giao diện trang phản hồi người dùng
+ 
+Hình 2.39. Hình ảnh giao diện trang quản lý phản hồi người dùng
+2.6.9.	Giao diện trang quản lý cấu hình AI
+ 
+Hình 2.40. Hình ảnh giao diện trang quản lý cấu hình AI
+2.6.10.	Giao diện trang chia sẻ phiên phân tích
+ 
+Hình 2.41. Hình ảnh giao diện phiên phân tích
+ 
+ 
+Hình 2.42. Hình ảnh giao diện của link chia sẻ
+3	CHƯƠNG 3: KẾT LUẬN
+3.1.	Ưu điểm
+- Giải pháp tự động hóa giúp giảm thiểu tối đa thời gian thực hiện phân tích số liệu thủ công.
+- Thuật toán làm sạch dữ liệu sâu (deep_clean) giúp chuẩn hóa bộ dữ liệu thô một cách an toàn và chi tiết.
+- Tính năng tự động vẽ đồ thị bằng Matplotlib hoạt động chính xác dựa trên việc nhận diện kiểu cột.
+- AI Agent hỗ trợ phân tích dữ liệu trực quan, đưa ra nhận xét bằng ngôn ngữ tự nhiên, rất dễ hiểu cho người không chuyên.
+3.2.	Nhược điểm
+- AI đôi khi có thể gặp tình trạng ảo giác (hallucination) khi đưa ra nhận định không hoàn toàn khớp với số liệu thực tế, đặc biệt đối với dữ liệu phức tạp.
+- Cần có kết nối internet và có thể phát sinh chi phí khi gọi API của LLM.
+- Khả năng xử lý tệp Excel có dung lượng siêu lớn (vài GB) trên giao diện web có thể gặp giới hạn về bộ nhớ và thời gian chờ (timeout).
+3.3.	Hướng phát triển toàn diện
+- Nâng cấp mô hình AI (Fine-tuning) để Agent trả lời các thuật ngữ chuyên ngành (Tài chính, Y tế, Giáo dục) chính xác hơn.
+- Cải thiện tối ưu hóa hiệu suất để xử lý dữ liệu lớn (Big Data) bằng thư viện Dask hoặc Spark.
+- Bổ sung nhiều tùy chọn biểu đồ tương tác bằng Plotly.
+- Hỗ trợ kết nối trực tiếp đến các cơ sở dữ liệu (MySQL, PostgreSQL, MongoDB) thay vì chỉ tải tệp Excel cục bộ.
+ 
+TÀI LIỆU THAM KHẢO
+[1] Wes McKinney. Python for Data Analysis, 3rd Edition. O'Reilly Media, 2022.
+[2] Jake VanderPlas. Python Data Science Handbook. O'Reilly Media, 2016.
+[3] Matplotlib Documentation. "Matplotlib: Visualization with Python." https://matplotlib.org
+[4] Pandas Documentation. "pandas - Python Data Analysis Library." https://pandas.pydata.org
+[5] OpenAI API Documentation. https://platform.openai.com/docs
+

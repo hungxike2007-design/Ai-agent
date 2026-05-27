@@ -1057,8 +1057,18 @@ def clean_excel_structure(df_raw: pd.DataFrame) -> pd.DataFrame:
     if df_raw.empty:
         return df_raw
 
+    # Pandas có thể đã parse dòng header thực sự thành columns.
+    # Ta đưa columns vào thành dòng đầu tiên (row 0) để thuật toán tự động có thể kiểm tra nó.
+    has_real_columns = any(str(c).strip() != "" and not str(c).startswith("Unnamed") and not str(c).isdigit() for c in df_raw.columns)
+    
+    if has_real_columns:
+        columns_as_row = [np.nan if str(c).startswith("Unnamed") else c for c in df_raw.columns]
+        df_top = pd.DataFrame([columns_as_row], columns=df_raw.columns)
+        df = pd.concat([df_top, df_raw], ignore_index=True)
+    else:
+        df = df_raw.copy()
+
     # 1. Tạo bản sao và loại bỏ các dòng, cột trống hoàn toàn ở rìa ngoài
-    df = df_raw.copy()
     df = df.dropna(how='all', axis=1)
     df = df.dropna(how='all', axis=0)
     df = df.reset_index(drop=True)
