@@ -103,46 +103,53 @@ class GeminiKeyRotator:
 
     def generate(self, prompt: str, generation_config=None, target_model=None):
         """
-        Gọi model.generate_content(). Nếu gặp lỗi quota thì tự xoay sang key
-        tiếp theo và thử lại (tối đa quay hết 1 vòng tất cả keys).
-        Nếu target_model bị lỗi NOT_FOUND, tự động fallback về model mặc định.
+        Gọi model.generate_content(). Nếu gặp lỗi quota thì tự xoay sang key tiếp theo.
+        Nếu tất cả các key đều hết quota cho model hiện tại, tự động chuyển sang model dự phòng (fallback).
         """
-        start_index = self._index
-        attempts = 0
+        models_to_try = []
+        if target_model:
+            models_to_try.append(target_model)
+        if self._model_name not in models_to_try:
+            models_to_try.append(self._model_name)
+            
+        # Thêm các model dự phòng có hạn mức quota hào phóng hơn
+        fallback_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-pro-latest"]
+        for m in fallback_models:
+            if m not in models_to_try:
+                models_to_try.append(m)
+
         last_err = None
 
-        while attempts < len(self._keys):
-            try:
-                model_to_use = self._model
-                if target_model:
-                    model_to_use = self._genai.GenerativeModel(target_model)
-                
-                if generation_config:
-                    return model_to_use.generate_content(prompt, generation_config=generation_config)
-                return model_to_use.generate_content(prompt)
-            except Exception as e:
-                err_str = str(e).lower()
-                # Nếu model bị 404 NOT_FOUND → fallback về model mặc định
-                if 'not_found' in err_str or '404' in err_str:
-                    if target_model and target_model != self._model_name:
-                        print(f"[KeyRotator] Model '{target_model}' không tồn tại → Fallback về '{self._model_name}'")
-                        target_model = None  # Reset để dùng self._model (model mặc định)
-                        continue
-                
-                if self._is_rotatable_error(e):
-                    print(f"[KeyRotator] Key #{self._index + 1} gặp lỗi hoặc hết quota → thử key tiếp theo…")
-                    last_err = e
-                    self._rotate()
-                    attempts += 1
-                    # Nếu đã quay đủ 1 vòng về đúng điểm xuất phát, dừng
-                    if self._index == start_index:
-                        break
-                else:
-                    raise  # lỗi khác (invalid key, network, ...) → ném ra ngay
+        for current_model in models_to_try:
+            start_index = self._index
+            attempts = 0
+            
+            while attempts < len(self._keys):
+                try:
+                    model_to_use = self._genai.GenerativeModel(current_model)
+                    if generation_config:
+                        return model_to_use.generate_content(prompt, generation_config=generation_config)
+                    return model_to_use.generate_content(prompt)
+                except Exception as e:
+                    err_str = str(e).lower()
+                    if 'not_found' in err_str or '404' in err_str:
+                        print(f"[KeyRotator] Model '{current_model}' không tồn tại. Đổi model...")
+                        break  # Bỏ qua model này, sang model kế tiếp
+                    
+                    if self._is_rotatable_error(e):
+                        print(f"[KeyRotator] Model '{current_model}' - Key #{self._index + 1} gặp lỗi/quota → Đổi key…")
+                        last_err = e
+                        self._rotate()
+                        attempts += 1
+                        if self._index == start_index:
+                            break  # Quay về key ban đầu -> hết tất cả các key cho model này
+                    else:
+                        raise  # Lỗi khác -> văng lỗi
+            
+            print(f"[KeyRotator] Hết quota tất cả các key với model '{current_model}'. Chuyển sang model dự phòng...")
 
         raise Exception(
-            f"Tất cả {len(self._keys)} API key đều gặp lỗi hoặc hết quota.\n"
-            "Hãy kiểm tra lại danh sách key trong Cấu hình AI hoặc đợi quota reset.\n"
+            f"Tất cả {len(self._keys)} API key đều gặp lỗi trên tất cả các model dự phòng.\n"
             f"Lỗi cuối cùng: {last_err}"
         )
 
@@ -220,6 +227,21 @@ def init_db_schema():
         """)
         conn.commit()
         
+        # 4. Kiểm tra và tạo bảng TokenLogs nếu chưa có
+        cursor.execute("""
+            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID('TokenLogs') AND type in ('U'))
+            BEGIN
+                CREATE TABLE TokenLogs (
+                    LogID INT IDENTITY(1,1) PRIMARY KEY,
+                    UserID INT NULL,
+                    TokensUsed INT NULL,
+                    ActionName NVARCHAR(100) NULL,
+                    LogTime DATETIME NULL
+                );
+            END
+        """)
+        conn.commit()
+
         conn.close()
     except Exception as e:
         print(f"[DB SCHEMA] Lỗi cập nhật cấu trúc: {e}")
@@ -381,6 +403,24 @@ def get_all_system_configs():
     except Exception as e:
         print(f"Lỗi lấy cấu hình hệ thống: {e}")
     return configs
+
+def log_token_usage(user_id, tokens_used, action_name):
+    """Lưu trữ số lượng token đã sử dụng vào bảng TokenLogs."""
+    if not tokens_used:
+        return
+    conn = get_connection()
+    cursor = conn.cursor()
+    query = """
+        INSERT INTO TokenLogs (UserID, TokensUsed, ActionName, LogTime)
+        VALUES (?, ?, ?, GETDATE())
+    """
+    try:
+        cursor.execute(query, (user_id, tokens_used, action_name))
+        conn.commit()
+    except Exception as e:
+        print(f"Lỗi log_token_usage: {e}")
+    finally:
+        conn.close()
 
 # --- PHẦN 5: QUẢN LÝ PHẢN HỒI (FEEDBACKS) ---
 

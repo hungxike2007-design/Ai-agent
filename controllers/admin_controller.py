@@ -38,18 +38,35 @@ def dashboard():
     """)
     sessions = cursor.fetchall()
 
-    # 4. Thống kê
+    # 4. Thống kê tổng quan
     cursor.execute("SELECT SUM(TokensUsed) FROM TokenLogs")
     total_tokens = cursor.fetchone()[0] or 0
     
     cursor.execute("SELECT COUNT(*) FROM ChatSessions")
     total_requests = cursor.fetchone()[0] or 0
 
+    # 5. Thống kê token của từng người dùng
+    cursor.execute("""
+        SELECT 
+            u.UserID, 
+            u.Username, 
+            u.FullName, 
+            u.Email, 
+            COALESCE(SUM(tl.TokensUsed), 0) AS TotalTokens,
+            COUNT(tl.LogID) AS TotalRequests
+        FROM Users u
+        LEFT JOIN TokenLogs tl ON u.UserID = tl.UserID
+        GROUP BY u.UserID, u.Username, u.FullName, u.Email
+        ORDER BY TotalTokens DESC
+    """)
+    user_token_stats = cursor.fetchall()
+
     conn.close()
     return render_template('admin_dashboard.html', 
                             users=users, files=files, sessions=sessions,
                             total_tokens=total_tokens, total_requests=total_requests,
-                            total_users=len(users))
+                            total_users=len(users),
+                            user_token_stats=user_token_stats)
 
 @admin_bp.route('/update_role', methods=['POST'])
 def update_role():

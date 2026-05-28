@@ -140,6 +140,39 @@
                             </div>
                         </article>
                     </div>
+
+                    <!-- Thống kê token của từng người dùng -->
+                    <div class="table-card" style="margin-top: 24px;">
+                        <div class="table-card-header">
+                            <div><i class="fas fa-coins" style="color: var(--admin-accent); margin-right: 8px;"></i> Mức tiêu thụ Token theo Người dùng</div>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Người dùng</th>
+                                    <th>Email</th>
+                                    <th>Số yêu cầu</th>
+                                    <th>Token đã sử dụng</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in user_token_stats %}
+                                <tr>
+                                    <td style="color:var(--muted);">#{{ row[0] }}</td>
+                                    <td style="font-weight:600;">{{ row[2] }} ({{ row[1] }})</td>
+                                    <td>{{ row[3] }}</td>
+                                    <td>
+                                        <span class="badge badge-user">{{ row[5] }} yêu cầu</span>
+                                    </td>
+                                    <td style="font-weight:700; color: var(--admin-accent);">
+                                        {{ "{:,}".format(row[4]) }} token
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </section>
             </div>
 

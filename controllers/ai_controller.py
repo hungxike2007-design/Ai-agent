@@ -386,6 +386,16 @@ def generate_report():
             )
             response = get_key_rotator().generate(prompt, generation_config=_gen_cfg)
             report_content = clean_ai_response(response.text)
+            
+            # Lưu TokenLogs
+            try:
+                if hasattr(response, 'usage_metadata') and hasattr(response.usage_metadata, 'total_token_count'):
+                    tokens_used = response.usage_metadata.total_token_count
+                    from database import log_token_usage
+                    log_token_usage(user_id, tokens_used, 'Generate Report')
+            except Exception as e:
+                print(f"[TOKEN LOG ERROR] {e}")
+
         except Exception as ai_err:
             err_str = str(ai_err).lower()
             if 'quota' in err_str or 'resource exhausted' in err_str or '429' in err_str:
@@ -571,16 +581,102 @@ def ask():
         
         # --- SỬ DỤNG PANDAS AGENT (CODE INTERPRETER) ---
         if df is not None:
-            # Nếu có dữ liệu bảng, gọi LangChain Pandas Agent thay vì gửi text
-            from services.pandas_agent import ask_pandas_agent
+            # Phân loại câu hỏi để tối ưu quota và cải thiện chất lượng trả lời
+            intent = "CODE"
+            q_clean = question.strip().lower().replace(".", "").replace("?", "")
             
-            agent_prompt = f"{history_context}\n\nCâu hỏi mới nhất: {question}"
-            if default_prompt:
-                agent_prompt = f"Quy tắc từ Admin: {default_prompt}\n\n{agent_prompt}"
+            # Danh sách từ khóa biểu thị câu hỏi phân tích chung định tính (Rule-based để tiết kiệm quota hoàn toàn)
+            general_keywords = [
+                "phân tích chi tiết và đưa ra đề xuất hành động",
+                "phân tích chi tiết và đưa ra đề xuất",
+                "phân tích và đề xuất hành động",
+                "phân tích chi tiết",
+                "phân tích bảng dữ liệu này",
+                "đưa ra đề xuất hành động",
+                "phân tích dữ liệu này",
+                "nhận xét chung",
+                "tóm tắt dữ liệu",
+                "tóm tắt bảng dữ liệu này",
+                "báo cáo tổng quan",
+                "báo cáo chi tiết",
+                "đưa ra đề xuất",
+                "nhận xét dữ liệu"
+            ]
+            
+            if any(k in q_clean for k in general_keywords):
+                intent = "TEXT"
+                print(f"[ASK INTENT] Trùng khớp từ khóa cứng -> TEXT (Bỏ qua Classifier và Pandas Agent để tiết kiệm quota)")
+            else:
+                # Nếu không khớp từ khóa cứng, gọi classifier siêu nhẹ để phân loại
+                try:
+                    classify_prompt = (
+                        "Bạn là bộ phân loại câu hỏi dữ liệu chuyên nghiệp.\n"
+                        "Nhiệm vụ: Phân loại câu hỏi của người dùng đối với bảng dữ liệu thành 'CODE' hoặc 'TEXT'.\n\n"
+                        "Quy tắc:\n"
+                        "1. Trả về 'CODE': Nếu câu hỏi yêu cầu tính toán số liệu cụ thể, tính tổng/trung bình/tỷ lệ, lọc dòng/cột, tìm giá trị cụ thể, so sánh các cột số liệu cụ thể, hoặc vẽ biểu đồ.\n"
+                        "   Ví dụ: 'tổng doanh thu tháng 3', 'lọc ra các hàng...', 'vẽ biểu đồ cột...', 'ai có doanh số cao nhất', 'số lượng của X'.\n"
+                        "2. Trả về 'TEXT': Nếu câu hỏi là phân tích định tính tổng quan, yêu cầu nhận xét chung, giải thích ý nghĩa chung, tóm tắt dữ liệu hoặc đề xuất giải pháp/hành động chung chung không có chỉ tiêu tính toán số liệu mới.\n"
+                        "   Ví dụ: 'nhận xét dữ liệu này giúp tôi', 'tóm tắt xu hướng chung', 'phân tích dữ liệu này', 'đề xuất hành động từ dữ liệu'.\n\n"
+                        "Chỉ trả về duy nhất một từ 'CODE' hoặc 'TEXT' (không viết thêm bất kỳ từ hoặc ký tự nào khác).\n\n"
+                        f"Câu hỏi: \"{question}\"\n"
+                        "Kết quả phân loại (CODE/TEXT):"
+                    )
+                    
+                    _gen_cfg_cls = genai.types.GenerationConfig(
+                        temperature=0.0,
+                        max_output_tokens=5
+                    )
+                    cls_response = get_key_rotator().generate(classify_prompt, generation_config=_gen_cfg_cls, target_model=target_model_name)
+                    cls_text = cls_response.text.strip().upper()
+                    if "TEXT" in cls_text:
+                        intent = "TEXT"
+                        print(f"[ASK INTENT] Classifier phân loại: TEXT (Bỏ qua Pandas Agent)")
+                    else:
+                        print(f"[ASK INTENT] Classifier phân loại: CODE (Sử dụng Pandas Agent)")
+                except Exception as cls_err:
+                    print(f"[ASK INTENT ERROR] Lỗi phân loại: {cls_err} -> Mặc định dùng CODE")
+
+            answer = ""
+            if intent == "CODE":
+                from services.pandas_agent import ask_pandas_agent
                 
-            answer = ask_pandas_agent(df, agent_prompt, target_model=target_model_name)
-            # Làm sạch kết quả trả về
-            answer = clean_ai_response(answer)
+                agent_prompt = f"{history_context}\n\nCâu hỏi mới nhất: {question}"
+                if default_prompt:
+                    agent_prompt = f"Quy tắc từ Admin: {default_prompt}\n\n{agent_prompt}"
+                    
+                answer = ask_pandas_agent(df, agent_prompt, target_model=target_model_name)
+                # Làm sạch kết quả trả về
+                answer = clean_ai_response(answer)
+
+            # Nếu phân loại là TEXT hoặc Pandas Agent chạy thất bại / quá tải (Agent stopped due to max iterations)
+            # Thì fallback về Chat bình thường dựa trên tóm tắt dữ liệu thông minh
+            is_max_iterations_error = isinstance(answer, str) and ("Dữ liệu quá phức tạp" in answer or "max iterations" in answer.lower())
+            
+            if intent == "TEXT" or not answer or is_max_iterations_error:
+                if is_max_iterations_error:
+                    print(f"[FALLBACK] Pandas Agent vượt quá số lượt lặp -> Fallback về Chat thông thường với tóm tắt dữ liệu")
+                
+                data_prompt = f"Dữ liệu bảng (tóm tắt thông minh):\n{excel_data}\n\n{history_context}\n\nCâu hỏi mới nhất: {question}\n\nTrả lời bằng tiếng Việt. Hãy phân tích sâu và trả lời chuẩn xác những gì người dùng đặt câu hỏi, đưa ra đề xuất hành động cụ thể từ dữ liệu trên. Trình bày đẹp bằng Markdown (bảng, bold, bullet). KHÔNG dùng ** trong bảng."
+                if default_prompt:
+                    full_prompt = f"{default_prompt}\n\n[Định dạng: Dùng Markdown (##, bảng |bảng|, -). KHÔNG dùng ** trong bảng. Bắt đầu thẳng vào câu trả lời.]\n\n{data_prompt}"
+                else:
+                    full_prompt = data_prompt
+                
+                _gen_cfg = genai.types.GenerationConfig(
+                    temperature=configs.get("Temperature", 0.7),
+                    max_output_tokens=int(configs.get("MaxTokens", 2048))
+                )
+                response = get_key_rotator().generate(full_prompt, generation_config=_gen_cfg, target_model=target_model_name)
+                answer = clean_ai_response(response.text)
+                
+                # Lưu TokenLogs cho fallback
+                try:
+                    if hasattr(response, 'usage_metadata') and hasattr(response.usage_metadata, 'total_token_count'):
+                        tokens_used = response.usage_metadata.total_token_count
+                        from database import log_token_usage
+                        log_token_usage(user_id, tokens_used, 'Chat Q&A (Fallback/Text)')
+                except Exception as e:
+                    print(f"[TOKEN LOG ERROR] {e}")
         else:
             # --- FALLBACK CHAT BÌNH THƯỜNG (Không có file) ---
             data_prompt = f"Dữ liệu bảng: {excel_data}{history_context}\n\nCâu hỏi mới nhất: {question}\n\nTrả lời ngắn gọn bằng tiếng Việt. Dùng Markdown (bảng, bold, bullet). KHÔNG dùng ** trong bảng."
@@ -596,6 +692,16 @@ def ask():
             # Dùng rotator.generate() — tự xoay key khi gặp quota
             response = get_key_rotator().generate(full_prompt, generation_config=_gen_cfg, target_model=target_model_name)
             answer = clean_ai_response(response.text)
+            
+            # Lưu TokenLogs
+            try:
+                if hasattr(response, 'usage_metadata') and hasattr(response.usage_metadata, 'total_token_count'):
+                    tokens_used = response.usage_metadata.total_token_count
+                    from database import log_token_usage
+                    log_token_usage(user_id, tokens_used, 'Chat Q&A')
+            except Exception as e:
+                print(f"[TOKEN LOG ERROR] {e}")
+
         
         # 3. LƯU VÀO DATABASE (Cả SessionTitle và ChatMessages)
         conn = get_connection()
