@@ -7,6 +7,55 @@ const btnAsk = document.getElementById('btnAsk');
 
 // Lấy session ID ban đầu từ config
 let currentSessionId = window.DASHBOARD_CONFIG.currentSessionId;
+let selectedChatImageFile = null;
+
+function triggerImageUpload() {
+    const fileInput = document.getElementById('chatImageInput');
+    if (fileInput) fileInput.click();
+}
+
+function handleChatImageSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    displayImagePreview(file);
+    event.target.value = '';
+}
+
+function displayImagePreview(file) {
+    if (!file.type.startsWith('image/')) {
+        showToast('error', '<i class="fas fa-exclamation-circle"></i> Vui lòng chỉ chọn tệp hình ảnh!');
+        return;
+    }
+
+    selectedChatImageFile = file;
+
+    const previewArea = document.getElementById('chatImagePreviewArea');
+    const thumbnail = document.getElementById('chatImagePreviewThumbnail');
+    const nameSpan = document.getElementById('chatImageName');
+    const sizeSpan = document.getElementById('chatImageSize');
+
+    if (previewArea && thumbnail && nameSpan && sizeSpan) {
+        nameSpan.textContent = file.name;
+        const sizeInMb = (file.size / (1024 * 1024)).toFixed(2);
+        sizeSpan.textContent = `${sizeInMb} MB`;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            thumbnail.src = e.target.result;
+            previewArea.style.display = 'flex';
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function removeSelectedChatImage() {
+    selectedChatImageFile = null;
+    const fileInput = document.getElementById('chatImageInput');
+    if (fileInput) fileInput.value = '';
+
+    const previewArea = document.getElementById('chatImagePreviewArea');
+    if (previewArea) previewArea.style.display = 'none';
+}
 
 function showShareModal() {
     if (!currentSessionId) return alert("Chưa có phiên chat nào được chọn!");
@@ -120,29 +169,15 @@ async function loadChatSession(sessionId) {
         }
 
         if (chartBoxEl) {
-            if (data.chart_path || data.plotly_json) {
+            if (data.chart_path) {
                 chartBoxEl.style.display = 'block';
                 const grid = document.querySelector('.charts-grid');
 
-                let imagesHtml = '';
-                if (data.chart_path) {
-                    imagesHtml += `
-                    <div class="chart-card">
-                        <img src="${data.chart_path}" alt="Biểu đồ" onclick="openLightbox(this.src)">
-                        <div class="chart-caption"><i class="fas fa-chart-pie"></i> Biểu đồ phân tích chính</div>
-                    </div>`;
-                }
-
-                grid.innerHTML = imagesHtml + `
-                <div class="chart-card" style="${data.plotly_json ? '' : 'display:none;'}">
-                    <div id="plotly-chart" style="min-height:500px; background:#0f172a;"></div>
-                    <div class="chart-caption"><i class="fas fa-chart-line"></i> Biểu đồ tương tác Plotly</div>
+                grid.innerHTML = `
+                <div class="chart-card">
+                    <img src="${data.chart_path}" alt="Biểu đồ" onclick="openLightbox(this.src)">
+                    <div class="chart-caption"><i class="fas fa-chart-pie"></i> Biểu đồ phân tích chính</div>
                 </div>`;
-
-                if (data.plotly_json) {
-                    const plotData = JSON.parse(data.plotly_json);
-                    Plotly.newPlot('plotly-chart', plotData.data, plotData.layout, { responsive: true, displayModeBar: false });
-                }
             } else {
                 chartBoxEl.style.display = 'none';
             }
@@ -152,7 +187,7 @@ async function loadChatSession(sessionId) {
         if (data.messages && data.messages.length > 0) {
             data.messages.forEach(msg => {
                 const isAI = msg.role.toLowerCase() === 'assistant' || msg.role.toLowerCase() === 'ai';
-                const body = isAI ? `<div class="md-body">${marked.parse(msg.content)}</div>` : msg.content;
+                const body = `<div class="md-body">${marked.parse(msg.content)}</div>`;
                 chatContent.innerHTML += `
                     <div class="bubble ${isAI ? 'ai-bubble' : 'user-bubble'}" ${isAI ? 'style="max-width:100%"' : ''}>
                         <strong><i class="fas ${isAI ? 'fa-robot' : 'fa-user'}"></i> ${isAI ? 'AI Agent' : 'Bạn'}</strong>
@@ -179,25 +214,60 @@ function fillChat(text) {
 async function askAI() {
     const question = questionInput.value.trim();
     const modelChoice = document.getElementById('aiModelSelect').value;
-    if (!question) return;
-    chatContent.innerHTML += `<div class="bubble user-bubble"><strong><i class="fas fa-user"></i> Bạn</strong>${question}</div>`;
+    if (!question && !selectedChatImageFile) return;
+
+    let userBubbleContent = '';
+    if (selectedChatImageFile) {
+        const thumbnailSrc = document.getElementById('chatImagePreviewThumbnail').src;
+        userBubbleContent += `
+            <div style="margin-bottom: 8px; max-width: 300px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border);">
+                <img src="${thumbnailSrc}" style="width: 100%; height: auto; max-height: 200px; object-fit: contain; cursor: zoom-in;" onclick="openLightbox(this.src)">
+            </div>`;
+    }
+    
+    if (question) {
+        userBubbleContent += `<p style="margin: 0; white-space: pre-wrap;">${question}</p>`;
+    } else {
+        userBubbleContent += `<p style="margin: 0; font-style: italic; color: var(--muted);">[Gửi hình ảnh]</p>`;
+    }
+
+    chatContent.innerHTML += `
+        <div class="bubble user-bubble">
+            <strong><i class="fas fa-user"></i> Bạn</strong>
+            <div class="md-body">${userBubbleContent}</div>
+        </div>`;
+
     if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+    
     questionInput.value = '';
+    const tempImageFile = selectedChatImageFile;
+    removeSelectedChatImage();
+
     loading.style.display = 'flex';
     btnAsk.disabled = true;
 
     try {
+        const formData = new FormData();
+        formData.append('question', question);
+        formData.append('model', modelChoice);
+        if (tempImageFile) {
+            formData.append('image', tempImageFile);
+        }
+
         const res = await fetch(window.DASHBOARD_CONFIG.askUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ question, model: modelChoice })
+            body: formData
         });
         const data = await res.json();
         chatContent.innerHTML += `<div class="bubble ai-bubble" style="max-width:100%"><strong><i class="fas fa-robot"></i> AI Agent</strong><div class="md-body">${marked.parse(data.answer)}</div></div>`;
         if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
         loadSidebarHistory();
-    } catch (e) { alert('Lỗi kết nối server!'); }
-    finally { loading.style.display = 'none'; btnAsk.disabled = false; }
+    } catch (e) { 
+        alert('Lỗi kết nối server!'); 
+    } finally { 
+        loading.style.display = 'none'; 
+        btnAsk.disabled = false; 
+    }
 }
 
 async function loadSidebarHistory() {
@@ -569,6 +639,32 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', () => {
         document.querySelectorAll('.drop-menu').forEach(el => el.classList.remove('open'));
     });
+    
+    // Hỗ trợ Ctrl+V dán ảnh nhanh từ bộ nhớ tạm (Clipboard)
+    document.addEventListener('paste', e => {
+        const items = (e.clipboardData || e.originalEvent.clipboardData || window.clipboardData).items;
+        if (!items) return;
+        
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const file = items[i].getAsFile();
+                if (file) {
+                    const ext = file.type.split('/')[1] || 'png';
+                    const name = `pasted_image_${Date.now()}.${ext}`;
+                    const renamedFile = new File([file], name, { type: file.type });
+                    
+                    displayImagePreview(renamedFile);
+                    
+                    // Tự động focus vào ô câu hỏi để người dùng nhập tiếp
+                    if (questionInput) questionInput.focus();
+                    
+                    e.preventDefault();
+                    break;
+                }
+            }
+        }
+    });
+
     if (questionInput) {
         questionInput.addEventListener('keypress', e => { if (e.key === 'Enter') askAI(); });
     }

@@ -481,10 +481,10 @@ _SYMBOL_MEANINGS = {
 }
 
 
-def _draw_legend_panel(fig, counts_series, col_name, total):
+def _draw_legend_panel(fig, counts_series, col_name, total, value_col_name="Số lượng", is_count=True):
     """
     Vẽ bảng CHÚ THÍCH bên phải biểu đồ:
-      Ký hiệu | Số lượng | Tỷ lệ | Ý nghĩa
+      Ký hiệu | Số lượng/Giá trị | Tỷ lệ | Ý nghĩa
     """
     ax_leg = fig.add_axes([0.67, 0.06, 0.31, 0.88])
     ax_leg.set_facecolor('#111827')
@@ -509,11 +509,15 @@ def _draw_legend_panel(fig, counts_series, col_name, total):
 
     # ── Header cột
     hdr_y = 0.875
+    display_val_col = str(value_col_name)
+    if len(display_val_col) > 12:
+        display_val_col = display_val_col[:10] + ".."
+
     ax_leg.text(0.08, hdr_y, 'Phân loại', transform=ax_leg.transAxes,
                 fontsize=7.5, fontweight='bold', color='#64748b', va='top')
-    ax_leg.text(0.42, hdr_y, 'Số lượng', transform=ax_leg.transAxes,
+    ax_leg.text(0.52, hdr_y, _safe_label(display_val_col), transform=ax_leg.transAxes,
                 fontsize=7.5, fontweight='bold', color='#64748b', va='top')
-    ax_leg.text(0.60, hdr_y, 'Tỷ lệ (%)', transform=ax_leg.transAxes,
+    ax_leg.text(0.78, hdr_y, 'Tỷ lệ (%)', transform=ax_leg.transAxes,
                 fontsize=7.5, fontweight='bold', color='#64748b', va='top')
 
     # ── Các dòng
@@ -524,8 +528,11 @@ def _draw_legend_panel(fig, counts_series, col_name, total):
         if y < 0.06:
             break
 
-        pct = count / total * 100
+        pct = count / total * 100 if total > 0 else 0
         label_str = str(label).strip()
+        if len(label_str) > 12:
+            label_str = label_str[:10] + ".."
+            
         color = _PALETTE[i % len(_PALETTE)]
         meaning = _SYMBOL_MEANINGS.get(label_str, '')
 
@@ -538,28 +545,40 @@ def _draw_legend_panel(fig, counts_series, col_name, total):
             transform=ax_leg.transAxes, clip_on=False))
 
         # Chấm màu
-        ax_leg.plot(0.10, y - row_h * 0.35, 'o',
+        ax_leg.plot(0.08, y - row_h * 0.35, 'o',
                     color=color, markersize=8,
                     transform=ax_leg.transAxes, clip_on=False)
 
         # Ký hiệu (lớn, nổi bật)
-        ax_leg.text(0.22, y - row_h * 0.25, label_str,
+        ax_leg.text(0.18, y - row_h * 0.25, _safe_label(label_str),
                     transform=ax_leg.transAxes,
-                    fontsize=11, fontweight='bold', color='#f1f5f9', va='top')
+                    fontsize=9.5, fontweight='bold', color='#f1f5f9', va='top')
 
-        # Số lượng
-        ax_leg.text(0.42, y - row_h * 0.25, str(int(count)),
+        # Giá trị
+        if is_count:
+            val_str = f"{int(count):,}"
+        else:
+            if count >= 1_000_000_000:
+                val_str = f"{count/1_000_000_000:,.1f}B"
+            elif count >= 1_000_000:
+                val_str = f"{count/1_000_000:,.1f}M"
+            elif count >= 1_000:
+                val_str = f"{count/1_000:,.1f}K"
+            else:
+                val_str = f"{count:,.0f}"
+
+        ax_leg.text(0.52, y - row_h * 0.25, val_str,
                     transform=ax_leg.transAxes,
                     fontsize=9, color='#cbd5e1', va='top')
 
         # Tỷ lệ %
-        ax_leg.text(0.60, y - row_h * 0.25, f'{pct:.1f}%',
+        ax_leg.text(0.78, y - row_h * 0.25, f'{pct:.1f}%',
                     transform=ax_leg.transAxes,
                     fontsize=9, color='#10a37f', fontweight='bold', va='top')
 
         # Ý nghĩa (nếu biết)
         if meaning:
-            ax_leg.text(0.22, y - row_h * 0.60, meaning,
+            ax_leg.text(0.18, y - row_h * 0.60, _safe_label(meaning),
                         transform=ax_leg.transAxes,
                         fontsize=6.5, color='#64748b', va='top', style='italic')
 
@@ -571,15 +590,101 @@ def _draw_legend_panel(fig, counts_series, col_name, total):
         boxstyle='square,pad=0',
         facecolor='#334155', edgecolor='none',
         transform=ax_leg.transAxes))
-    ax_leg.text(0.08, 0.04, f'Tong: {int(total)} ban ghi',
+        
+    if is_count:
+        tot_str = f"Tổng: {int(total):,} bản ghi"
+    else:
+        if total >= 1_000_000_000:
+            tot_str = f"Tổng: {total/1_000_000_000:,.1f}B"
+        elif total >= 1_000_000:
+            tot_str = f"Tổng: {total/1_000_000:,.1f}M"
+        elif total >= 1_000:
+            tot_str = f"Tổng: {total/1_000:,.1f}K"
+        else:
+            tot_str = f"Tổng: {total:,.0f}"
+            
+    ax_leg.text(0.08, 0.04, _safe_label(tot_str),
                 transform=ax_leg.transAxes,
                 fontsize=7.5, color='#94a3b8', va='bottom')
+
+
+def _draw_stats_panel(fig, col_name, stats_dict, title="THỐNG KÊ CHI TIẾT", color_theme="#f59e0b"):
+    """
+    Vẽ bảng THỐNG KÊ CHI TIẾT bên phải biểu đồ (cho histogram, line chart, v.v.):
+      Chỉ số | Giá trị
+    """
+    ax_leg = fig.add_axes([0.67, 0.06, 0.31, 0.88])
+    ax_leg.set_facecolor('#111827')
+    ax_leg.axis('off')
+
+    # ── Tiêu đề panel
+    ax_leg.text(0.5, 0.975, title,
+                transform=ax_leg.transAxes,
+                ha='center', va='top', fontsize=11, fontweight='bold',
+                color='#f8fafc')
+    ax_leg.text(0.5, 0.935, _safe_label(f'Cột dữ liệu: {col_name}'),
+                transform=ax_leg.transAxes,
+                ha='center', va='top', fontsize=8,
+                color='#94a3b8', style='italic')
+
+    # Đường kẻ dưới tiêu đề
+    ax_leg.add_patch(mpatches.FancyBboxPatch(
+        (0.04, 0.905), 0.92, 0.002,
+        boxstyle='square,pad=0',
+        facecolor=color_theme, edgecolor='none',
+        transform=ax_leg.transAxes))
+
+    # ── Các dòng
+    y = 0.820
+    row_h = min(0.12, 0.78 / max(len(stats_dict), 1))
+
+    for idx, (label, val) in enumerate(stats_dict.items()):
+        if y < 0.06:
+            break
+            
+        color = _PALETTE[idx % len(_PALETTE)]
+        
+        # Nền hàng
+        ax_leg.add_patch(mpatches.FancyBboxPatch(
+            (0.04, y - row_h * 0.85), 0.92, row_h * 0.88,
+            boxstyle='round,pad=0.01',
+            facecolor='#1e293b',
+            edgecolor='#334155',
+            transform=ax_leg.transAxes, clip_on=False))
+
+        # Chỉ số
+        ax_leg.text(0.08, y - row_h * 0.35, _safe_label(label),
+                    transform=ax_leg.transAxes,
+                    fontsize=9, fontweight='bold', color='#cbd5e1', va='top')
+
+        # Định dạng giá trị
+        if isinstance(val, (int, float, np.number)):
+            if label in ('Số lượng mẫu', 'Số mốc thời gian'):
+                val_str = f"{int(val):,}"
+            else:
+                if abs(val) >= 1_000_000_000:
+                    val_str = f"{val/1_000_000_000:,.2f}B"
+                elif abs(val) >= 1_000_000:
+                    val_str = f"{val/1_000_000:,.2f}M"
+                elif abs(val) >= 1_000:
+                    val_str = f"{val/1_000:,.1f}K"
+                else:
+                    val_str = f"{val:,.2f}"
+        else:
+            val_str = str(val)
+
+        ax_leg.text(0.92, y - row_h * 0.35, val_str,
+                    transform=ax_leg.transAxes,
+                    ha='right',
+                    fontsize=9.5, fontweight='bold', color=color, va='top')
+
+        y -= row_h
 
 
 def generate_auto_chart(df, file_id):
     """
     Phân tích thông minh DataFrame, chọn 1 loại biểu đồ phù hợp nhất,
-    và vẽ kèm bảng CHÚ THÍCH giải thích ký hiệu trong dữ liệu.
+    và vẽ kèm bảng CHÚ THÍCH / THỐNG KÊ CHI TIẾT bên phải.
     Trả về đường dẫn ảnh PNG hoặc None.
     """
     chart_path = f"static/charts/chart_{file_id}.png"
@@ -595,17 +700,13 @@ def generate_auto_chart(df, file_id):
     if chart_type == "none":
         return None
 
-    # Chart có legend → rộng hơn để chứa panel bên phải
-    has_legend = chart_type in ("pie", "bar_count", "bar_agg")
-    fig_w = 12.5 if has_legend else 10.0
+    # Unify: Toàn bộ biểu đồ đều có panel chú thích/thống kê bên phải → tăng kích thước ảnh rộng ra
+    fig_w = 12.5
     fig = plt.figure(figsize=(fig_w, 6.2))
     fig.patch.set_facecolor("#0f172a")
 
-    # Axes chính
-    if has_legend:
-        ax = fig.add_axes([0.05, 0.10, 0.59, 0.82])
-    else:
-        ax = fig.add_axes([0.08, 0.10, 0.88, 0.82])
+    # Axes chính (60% chiều rộng bên trái)
+    ax = fig.add_axes([0.05, 0.10, 0.59, 0.82])
     _setup_style(fig, ax)
 
     try:
@@ -640,7 +741,7 @@ def generate_auto_chart(df, file_id):
             ax.set_title(_safe_label(f"Phân bổ: {col}"),
                          fontsize=15, pad=20, color="#f8fafc", fontweight="bold")
             ax.axis("equal")
-            _draw_legend_panel(fig, counts, col, total)
+            _draw_legend_panel(fig, counts, col, total, value_col_name="Số lượng", is_count=True)
 
         # ── BAR COUNT ─────────────────────────────────────────────────────
         elif chart_type == "bar_count":
@@ -670,25 +771,35 @@ def generate_auto_chart(df, file_id):
                 mticker.FuncFormatter(lambda x, _: f"{int(x):,}"))
             plt.sca(ax)
             plt.xticks(rotation=40, ha="right", fontsize=8.5)
-            _draw_legend_panel(fig, counts, col, total)
+            _draw_legend_panel(fig, counts, col, total, value_col_name="Số lượng", is_count=True)
 
         # ── BAR AGG ───────────────────────────────────────────────────────
         elif chart_type == "bar_agg":
             cat_col = info["cat_col"]
             num_col = info["num_col"]
             agg = df.groupby(cat_col)[num_col].sum()\
-                    .nlargest(15).sort_values(ascending=False)
+                     .nlargest(15).sort_values(ascending=False)
 
             for i, (idx, val) in enumerate(agg.items()):
                 ax.bar(str(idx), val,
                        color=_PALETTE[i % len(_PALETTE)],
                        edgecolor="none", width=0.65)
+                
+                # Format annotation text nicely
+                if val >= 1_000_000_000:
+                    lbl = f"{val/1_000_000_000:,.1f}B"
+                elif val >= 1_000_000:
+                    lbl = f"{val/1_000_000:,.1f}M"
+                else:
+                    lbl = f"{val:,.0f}"
+                    
                 ax.text(i, val + agg.max() * 0.015,
-                        f"{val:,.0f}",
+                        lbl,
                         ha="center", va="bottom",
                         color="#f1f5f9", fontsize=8, fontweight="bold")
 
-            ax.set_title(_safe_label(f"Tổng {num_col} theo {cat_col}"),
+            title_prefix = "" if str(num_col).strip().lower().startswith(("tổng", "tong")) else "Tổng "
+            ax.set_title(_safe_label(f"{title_prefix}{num_col} theo {cat_col}"),
                          fontsize=15, pad=18, color="#f8fafc", fontweight="bold")
             ax.set_xlabel(_safe_label(cat_col), fontsize=10, color="#cbd5e1")
             ax.set_ylabel(_safe_label(num_col), fontsize=10, color="#cbd5e1")
@@ -696,7 +807,7 @@ def generate_auto_chart(df, file_id):
                 mticker.FuncFormatter(lambda x, _: f"{x:,.0f}"))
             plt.sca(ax)
             plt.xticks(rotation=40, ha="right", fontsize=8.5)
-            _draw_legend_panel(fig, agg, cat_col, agg.sum())
+            _draw_legend_panel(fig, agg, cat_col, agg.sum(), value_col_name=num_col, is_count=False)
 
         # ── LINE CHART ────────────────────────────────────────────────────
         elif chart_type == "line":
@@ -714,7 +825,7 @@ def generate_auto_chart(df, file_id):
             ax.fill_between(tmp[date_col], tmp[num_col],
                             alpha=0.12, color=_PALETTE[0])
 
-            # Annotate max point
+            # Annotate max & min points
             if len(tmp) > 1:
                 max_i = tmp[num_col].idxmax()
                 ax.annotate(
@@ -724,6 +835,16 @@ def generate_auto_chart(df, file_id):
                     color="#10a37f", fontsize=8.5, fontweight="bold",
                     arrowprops={"arrowstyle": "->", "color": "#10a37f", "lw": 1.2}
                 )
+                
+                min_i = tmp[num_col].idxmin()
+                if min_i != max_i:
+                    ax.annotate(
+                        f"Min: {tmp[num_col].min():,.0f}",
+                        xy=(tmp[date_col].iloc[min_i], tmp[num_col].iloc[min_i]),
+                        xytext=(12, -18), textcoords="offset points",
+                        color="#ef4444", fontsize=8.5, fontweight="bold",
+                        arrowprops={"arrowstyle": "->", "color": "#ef4444", "lw": 1.2}
+                    )
 
             ax.set_title(_safe_label(f"Xu hướng {num_col} theo thời gian"),
                          fontsize=15, pad=18, color="#f8fafc", fontweight="bold")
@@ -733,6 +854,16 @@ def generate_auto_chart(df, file_id):
                 mticker.FuncFormatter(lambda x, _: f"{x:,.0f}"))
             plt.sca(ax)
             plt.xticks(rotation=35, ha="right", fontsize=8.5)
+
+            # Vẽ thống kê xu hướng bên phải
+            stats_dict = {
+                'Số mốc thời gian': len(tmp),
+                'Tổng cộng': tmp[num_col].sum(),
+                'Trung bình': tmp[num_col].mean(),
+                'Cao nhất (Max)': tmp[num_col].max(),
+                'Thấp nhất (Min)': tmp[num_col].min(),
+            }
+            _draw_stats_panel(fig, num_col, stats_dict, title="THỐNG KÊ XU HƯỚNG", color_theme="#3b82f6")
 
         # ── MULTI-BAR ─────────────────────────────────────────────────────
         elif chart_type == "multi_bar":
@@ -759,6 +890,10 @@ def generate_auto_chart(df, file_id):
                 mticker.FuncFormatter(lambda x, _: f"{x:,.1f}"))
             plt.sca(ax)
             plt.xticks(rotation=30, ha="right", fontsize=9)
+            
+            # Vẽ bảng so sánh chỉ tiêu bên phải
+            means_series = pd.Series(means)
+            _draw_legend_panel(fig, means_series, "Chỉ tiêu", sum(y_vals), value_col_name="Trung bình", is_count=False)
 
         # ── HISTOGRAM ─────────────────────────────────────────────────────
         elif chart_type == "hist":
@@ -782,6 +917,17 @@ def generate_auto_chart(df, file_id):
             ax.set_ylabel("Tần suất", fontsize=10, color="#cbd5e1")
             ax.yaxis.set_major_formatter(
                 mticker.FuncFormatter(lambda x, _: f"{int(x):,}"))
+
+            # Vẽ thống kê phân phối bên phải
+            stats_dict = {
+                'Số lượng mẫu': len(data),
+                'Trung bình': mean_v,
+                'Trung vị': med_v,
+                'Độ lệch chuẩn': data.std() if len(data) > 1 else 0.0,
+                'Giá trị nhỏ nhất': data.min(),
+                'Giá trị lớn nhất': data.max(),
+            }
+            _draw_stats_panel(fig, num_col, stats_dict, title="THỐNG KÊ PHÂN PHỐI", color_theme="#f59e0b")
 
         # ── Lưu ──────────────────────────────────────────────────────────
         fig.savefig(full_path, dpi=130, bbox_inches="tight",
@@ -841,7 +987,8 @@ def generate_chart_insight(df, chart_info):
         elif chart_type == "bar_agg":
             cat_col, num_col = chart_info["cat_col"], chart_info["num_col"]
             agg = df.groupby(cat_col)[num_col].sum()
-            insights.append(f"📊 **'{agg.idxmax()}'** có tổng {num_col} cao nhất ({agg.max():,.0f})")
+            title_prefix = "" if str(num_col).strip().lower().startswith(("tổng", "tong")) else "tổng "
+            insights.append(f"📊 **'{agg.idxmax()}'** có {title_prefix}{num_col} cao nhất ({agg.max():,.0f})")
             if agg.max() > 0:
                 gap = agg.max() - agg.min()
                 insights.append(f"📏 Khoảng cách giữa cao nhất và thấp nhất: **{gap:,.0f}**")
@@ -1006,7 +1153,8 @@ def generate_plotly_json(df):
             df_copy = df.copy()
             df_copy[num_col] = pd.to_numeric(df_copy[num_col], errors='coerce')
             agg = df_copy.groupby(cat_col)[num_col].sum().nlargest(15).reset_index()
-            fig = px.bar(agg, x=cat_col, y=num_col, title=f'Tổng {num_col} theo {cat_col}',
+            title_prefix = "" if str(num_col).strip().lower().startswith(("tổng", "tong")) else "Tổng "
+            fig = px.bar(agg, x=cat_col, y=num_col, title=f'{title_prefix}{num_col} theo {cat_col}',
                          color=cat_col, color_discrete_sequence=_PALETTE)
 
         elif chart_type == "line":

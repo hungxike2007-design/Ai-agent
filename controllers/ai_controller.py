@@ -488,9 +488,21 @@ def quick_clean():
 
 @ai_bp.route('/ask', methods=['POST'])
 def ask():
-    data = request.json
-    question = data.get('question')
-    model_choice = data.get('model', 'fast')
+    try:
+        user_id = int(session.get('user_id'))
+    except:
+        return jsonify({"answer": "Vui lòng đăng nhập lại."}), 400
+
+    image_file = None
+    if request.is_json:
+        data = request.json or {}
+        question = data.get('question', '')
+        model_choice = data.get('model', 'fast')
+    else:
+        question = request.form.get('question', '')
+        model_choice = request.form.get('model', 'fast')
+        image_file = request.files.get('image')
+
     target_model_name = "gemini-flash-latest" if model_choice == 'fast' else "gemini-1.5-pro"
     
     session_id = session.get('current_session_id') # Lấy ID phiên từ lúc upload
@@ -527,18 +539,13 @@ def ask():
         except Exception as e:
             print("Lỗi đọc file excel cho ask:", e)
 
-    try:
-        user_id = int(session.get('user_id'))
-    except:
-        return jsonify({"answer": "Vui lòng đăng nhập lại."}), 400
-
     # Nếu chưa có session_id (người dùng chưa upload file mà đã hỏi), tạo mới
     if not session_id:
         try:
             conn = get_connection()
             cursor = conn.cursor()
             cursor.execute("INSERT INTO ChatSessions (UserID, StartTime, SessionTitle) OUTPUT INSERTED.SessionID VALUES (?, GETDATE(), ?)", 
-                           (user_id, question[:50]))
+                           (user_id, question[:50] if question else "Hỏi đáp bằng hình ảnh"))
             session_id = cursor.fetchone()[0]
             session['current_session_id'] = session_id
             conn.commit()
@@ -569,23 +576,104 @@ def ask():
     except Exception as e:
         print(f"[MEMORY ERROR] Không lấy được lịch sử: {e}")
 
+    # --- ĐỊNH NGHĨA CÁC BIẾN CẤU HÌNH AI ---
+    import google.generativeai as genai
+    configs = get_all_system_configs()
+    default_prompt = configs.get('DefaultPrompt', '').strip()
+
+    # --- XỬ LÝ KHI CÓ HÌNH ẢNH ĐƯỢC TẢI LÊN ---
+    image_url = None
+    if image_file and image_file.filename:
+        filename = image_file.filename
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in ['.png', '.jpg', '.jpeg', '.webp', '.gif']:
+            return jsonify({"answer": "Chỉ hỗ trợ các định dạng ảnh: .png, .jpg, .jpeg, .webp, .gif"}), 400
+        
+        try:
+            upload_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'uploads', 'chat_images')
+            os.makedirs(upload_dir, exist_ok=True)
+            unique_name = f"{uuid.uuid4().hex}{ext}"
+            image_path = os.path.join(upload_dir, unique_name)
+            
+            image_bytes = image_file.read()
+            image_file.seek(0)
+            image_file.save(image_path)
+            image_url = f"/static/uploads/chat_images/{unique_name}"
+        except Exception as upload_err:
+            print("Lỗi lưu file ảnh:", upload_err)
+            return jsonify({"answer": f"Lỗi hệ thống khi tải ảnh lên: {str(upload_err)}"}), 500
+
+    if image_url:
+        try:
+            title = question.strip()[:50].replace('"', '').replace('*', '') if question else "Hỏi đáp bằng hình ảnh"
+            if len(title) > 50:
+                title = title.rsplit(' ', 1)[0] + '…'
+
+            prompt_text = question.strip() if question else "Hãy mô tả hoặc phân tích hình ảnh này"
+            
+            if history_context:
+                prompt_text = f"{history_context}\n\nCâu hỏi mới nhất: {prompt_text}"
+                
+            if default_prompt:
+                full_prompt = f"{default_prompt}\n\n[Định dạng: Dùng Markdown (##, bảng |bảng|, -). KHÔNG dùng ** trong bảng. Bắt đầu thẳng vào câu trả lời.]\n\n{prompt_text}"
+            else:
+                full_prompt = f"{prompt_text}\n\nTrả lời bằng tiếng Việt. Dùng Markdown. KHÔNG dùng ** trong bảng."
+
+            contents = [
+                {
+                    "mime_type": image_file.content_type or f"image/{ext.replace('.', '')}",
+                    "data": image_bytes
+                },
+                full_prompt
+            ]
+
+            _gen_cfg = genai.types.GenerationConfig(
+                temperature=configs.get("Temperature", 0.7),
+                max_output_tokens=int(configs.get("MaxTokens", 2048))
+            )
+            
+            response = get_key_rotator().generate(contents, generation_config=_gen_cfg, target_model=target_model_name)
+            answer = clean_ai_response(response.text)
+
+            # Lưu TokenLogs
+            try:
+                if hasattr(response, 'usage_metadata') and hasattr(response.usage_metadata, 'total_token_count'):
+                    tokens_used = response.usage_metadata.total_token_count
+                    from database import log_token_usage
+                    log_token_usage(user_id, tokens_used, 'Chat Q&A (Image)')
+            except Exception as e:
+                print(f"[TOKEN LOG ERROR] {e}")
+
+            # Lưu vào Database
+            user_msg_content = f"![Uploaded Image]({image_url})"
+            if question.strip():
+                user_msg_content += f"\n\n{question.strip()}"
+
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("UPDATE ChatSessions SET SessionTitle = ? WHERE SessionID = ?", (title, session_id))
+            cursor.execute("INSERT INTO ChatMessages (SessionID, Role, [Content], CreatedAt) VALUES (?, 'user', ?, GETDATE())", (session_id, user_msg_content))
+            cursor.execute("INSERT INTO ChatMessages (SessionID, Role, [Content], CreatedAt) VALUES (?, 'assistant', ?, GETDATE())", (session_id, answer))
+            conn.commit()
+            conn.close()
+
+            return jsonify({"answer": answer})
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return jsonify({"answer": f"Lỗi AI xử lý ảnh: {str(e)}"}), 500
+
+    # --- XỬ LÝ CHAT BẰNG VĂN BẢN THƯỜNG (Dữ liệu bảng hoặc fallback text) ---
     try:
-        # 1. Tạo tiêu đề bằng HEURISTIC (Refactoring: bỏ API call riêng → tiết kiệm 1 lần gọi AI/câu hỏi)
         title = question.strip()[:50].replace('"', '').replace('*', '')
         if len(question) > 50:
             title = title.rsplit(' ', 1)[0] + '…'
             
-        import google.generativeai as genai
-        configs = get_all_system_configs()
-        default_prompt = configs.get('DefaultPrompt', '').strip()
-        
         # --- SỬ DỤNG PANDAS AGENT (CODE INTERPRETER) ---
         if df is not None:
-            # Phân loại câu hỏi để tối ưu quota và cải thiện chất lượng trả lời
             intent = "CODE"
             q_clean = question.strip().lower().replace(".", "").replace("?", "")
             
-            # Danh sách từ khóa biểu thị câu hỏi phân tích chung định tính (Rule-based để tiết kiệm quota hoàn toàn)
             general_keywords = [
                 "phân tích chi tiết và đưa ra đề xuất hành động",
                 "phân tích chi tiết và đưa ra đề xuất",
@@ -607,7 +695,6 @@ def ask():
                 intent = "TEXT"
                 print(f"[ASK INTENT] Trùng khớp từ khóa cứng -> TEXT (Bỏ qua Classifier và Pandas Agent để tiết kiệm quota)")
             else:
-                # Nếu không khớp từ khóa cứng, gọi classifier siêu nhẹ để phân loại
                 try:
                     classify_prompt = (
                         "Bạn là bộ phân loại câu hỏi dữ liệu chuyên nghiệp.\n"
@@ -645,11 +732,8 @@ def ask():
                     agent_prompt = f"Quy tắc từ Admin: {default_prompt}\n\n{agent_prompt}"
                     
                 answer = ask_pandas_agent(df, agent_prompt, target_model=target_model_name)
-                # Làm sạch kết quả trả về
                 answer = clean_ai_response(answer)
 
-            # Nếu phân loại là TEXT hoặc Pandas Agent chạy thất bại / quá tải (Agent stopped due to max iterations)
-            # Thì fallback về Chat bình thường dựa trên tóm tắt dữ liệu thông minh
             is_max_iterations_error = isinstance(answer, str) and ("Dữ liệu quá phức tạp" in answer or "max iterations" in answer.lower())
             
             if intent == "TEXT" or not answer or is_max_iterations_error:
@@ -689,7 +773,6 @@ def ask():
                 temperature=configs.get("Temperature", 0.7),
                 max_output_tokens=int(configs.get("MaxTokens", 2048))
             )
-            # Dùng rotator.generate() — tự xoay key khi gặp quota
             response = get_key_rotator().generate(full_prompt, generation_config=_gen_cfg, target_model=target_model_name)
             answer = clean_ai_response(response.text)
             
@@ -702,19 +785,12 @@ def ask():
             except Exception as e:
                 print(f"[TOKEN LOG ERROR] {e}")
 
-        
-        # 3. LƯU VÀO DATABASE (Cả SessionTitle và ChatMessages)
+        # 3. LƯU VÀO DATABASE
         conn = get_connection()
         cursor = conn.cursor()
-        
-        # Cập nhật lại tiêu đề phiên chat cho hay hơn (nếu cần)
         cursor.execute("UPDATE ChatSessions SET SessionTitle = ? WHERE SessionID = ?", (title, session_id))
-        
-        # Lưu tin nhắn của Người dùng và AI (Quan trọng để hiện lịch sử)
-        # Sử dụng [Content] vì đây là từ khóa trong SQL
         cursor.execute("INSERT INTO ChatMessages (SessionID, Role, [Content], CreatedAt) VALUES (?, 'user', ?, GETDATE())", (session_id, question))
         cursor.execute("INSERT INTO ChatMessages (SessionID, Role, [Content], CreatedAt) VALUES (?, 'assistant', ?, GETDATE())", (session_id, answer))
-        
         conn.commit()
         conn.close()
         
@@ -749,6 +825,53 @@ def history():
         print(f"Lỗi history: {e}")
         return jsonify([])
 
+def _register_pdf_fonts():
+    """
+    Đăng ký font Arial hệ thống vào ReportLab và cấu hình lại bản đồ font mặc định của xhtml2pdf.
+    """
+    import os
+    try:
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        from reportlab.lib.fonts import addMapping
+        import xhtml2pdf.default
+        
+        # Override xhtml2pdf default font family names to point to our registered 'Arial'
+        xhtml2pdf.default.DEFAULT_FONT['arial'] = 'Arial'
+        xhtml2pdf.default.DEFAULT_FONT['sans-serif'] = 'Arial'
+        xhtml2pdf.default.DEFAULT_FONT['sans'] = 'Arial'
+        xhtml2pdf.default.DEFAULT_FONT['sansserif'] = 'Arial'
+        
+        if 'Arial' in pdfmetrics.getRegisteredFontNames():
+            return True
+            
+        font_paths = [
+            ('Arial', "C:/Windows/Fonts/arial.ttf"),
+            ('Arial-Bold', "C:/Windows/Fonts/arialbd.ttf"),
+            ('Arial-Italic', "C:/Windows/Fonts/ariali.ttf"),
+            ('Arial-BoldItalic', "C:/Windows/Fonts/arialbi.ttf")
+        ]
+        
+        registered_all = True
+        for name, path in font_paths:
+            if os.path.exists(path):
+                pdfmetrics.registerFont(TTFont(name, path))
+            else:
+                registered_all = False
+                print(f"[FONTS] Không tìm thấy file font: {path}")
+                
+        if registered_all:
+            addMapping('Arial', 0, 0, 'Arial')
+            addMapping('Arial', 1, 0, 'Arial-Bold')
+            addMapping('Arial', 0, 1, 'Arial-Italic')
+            addMapping('Arial', 1, 1, 'Arial-BoldItalic')
+            print("[FONTS] Đã đăng ký thành công bộ font Arial cho PDF.")
+            return True
+    except Exception as e:
+        print(f"[FONTS] Lỗi khi đăng ký bộ font Arial: {e}")
+    return False
+
+
 @ai_bp.route('/export_report') # Sửa tên route để hết lỗi 404
 def export_report():
     format_type = request.args.get('format', 'word')
@@ -781,6 +904,25 @@ def export_report():
     # 1.5. Fallback lấy file_id từ session nếu DB không tìm thấy
     if not file_id:
         file_id = session.get('current_file_id')
+
+    # Lấy tên file Excel gốc từ DB để tự động đặt tên file báo cáo xuất ra
+    original_filename = "Bao_Cao_AI"
+    if file_id:
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT FileName FROM ExcelFiles WHERE FileID = ?", (file_id,))
+            f_row = cursor.fetchone()
+            conn.close()
+            if f_row and f_row[0]:
+                original_filename = f_row[0]
+        except Exception as e:
+            print(f"Lỗi DB khi lấy FileName: {e}")
+
+    # Trích xuất phần tên cơ bản (base name) bỏ đuôi mở rộng
+    base_name = os.path.splitext(original_filename)[0]
+    if base_name.lower().endswith('.csv'):
+        base_name = base_name[:-4]
 
     # 2. Nếu không tìm thấy nội dung, dùng cache
     if not content:
@@ -818,14 +960,46 @@ def export_report():
         stream = io.BytesIO()
         doc.save(stream)
         stream.seek(0)
-        return send_file(stream, as_attachment=True, download_name="Bao_cao_AI.docx",
+        download_name = f"{base_name}.docx"
+        return send_file(stream, as_attachment=True, download_name=download_name,
                          mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
 
-    # Xuất HTML (in ấn / PDF)
+    # Xuất PDF thực tế bằng xhtml2pdf
+    if format_type == 'pdf':
+        _register_pdf_fonts()
+        html_body = _markdown_to_html(content)
+        html = _build_html_report(html_body, now, chart_path)
+        
+        # Loại bỏ @import để ngăn xhtml2pdf gọi mạng tải Google Font (gây lỗi PermissionError trên Windows)
+        html_pdf = html.replace("@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');", "")
+        # Thay thế font-family để sử dụng Arial hỗ trợ tiếng Việt
+        html_pdf = html_pdf.replace("font-family: 'Inter', sans-serif;", "font-family: Arial, sans-serif;")
+        
+        pdf_stream = io.BytesIO()
+        from xhtml2pdf import pisa
+        pisa_status = pisa.CreatePDF(html_pdf, dest=pdf_stream)
+        
+        if pisa_status.err:
+            return f"Lỗi khi xuất PDF: {pisa_status.err}"
+            
+        pdf_stream.seek(0)
+        download_name = f"{base_name}.pdf"
+        
+        # Trả về file PDF để đọc inline trong trình duyệt
+        response = send_file(
+            pdf_stream,
+            mimetype='application/pdf',
+            as_attachment=False,
+            download_name=download_name
+        )
+        response.headers['Content-Disposition'] = f'inline; filename="{download_name}"'
+        return response
+
+    # Xuất HTML (fallback)
     html_body = _markdown_to_html(content)
     html = _build_html_report(html_body, now, chart_path)
     res = make_response(html)
-    res.headers['Content-Disposition'] = 'attachment; filename=Bao_cao_AI.html'
+    res.headers['Content-Disposition'] = f'attachment; filename={base_name}.html'
     res.headers['Content-Type'] = 'text/html; charset=utf-8'
     return res
 

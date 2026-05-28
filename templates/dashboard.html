@@ -275,8 +275,8 @@
                     <span class="export-label">Xuất báo cáo:</span>
                     <a href="{{ url_for('ai.export_report', format='word') }}" class="btn btn-word"><i
                             class="fas fa-file-word"></i> Word (.docx)</a>
-                    <a href="{{ url_for('ai.export_report', format='pdf') }}" class="btn btn-export"><i
-                            class="fas fa-file-code"></i> PDF (.html)</a>
+                    <a href="{{ url_for('ai.export_report', format='pdf') }}" class="btn btn-export" target="_blank"><i
+                            class="fas fa-file-pdf"></i> PDF (.pdf)</a>
                 </div>
             </div>
 
@@ -353,12 +353,32 @@
                         onmouseout="this.style.background='var(--surface)'; this.style.color='var(--text)'; this.style.borderColor='var(--border)'"
                         onclick="fillChat('Phân tích chi tiết và đưa ra đề xuất hành động.')">💡 Phân tích sâu</button>
                 </div>
+                <!-- Image Preview Area -->
+                <div id="chatImagePreviewArea" style="display: none; align-items: center; gap: 12px; padding: 10px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; position: relative; animation: cardSlideUp 0.3s ease;">
+                    <div style="position: relative; width: 50px; height: 50px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border);">
+                        <img id="chatImagePreviewThumbnail" src="" style="width: 100%; height: 100%; object-fit: cover;">
+                        <button onclick="removeSelectedChatImage()" style="position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: rgba(15, 23, 42, 0.7); color: #fff; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 10px; transition: background 0.2s;" onmouseover="this.style.background='#ef4444'" onmouseout="this.style.background='rgba(15, 23, 42, 0.7)'" type="button" title="Xóa ảnh">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden;">
+                        <span id="chatImageName" style="font-size: .82rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;"></span>
+                        <span id="chatImageSize" style="font-size: .72rem; color: var(--muted);"></span>
+                    </div>
+                </div>
+
                 <div class="chat-input-row" style="align-items:center;">
                     <!-- Model Selector -->
                     <select id="aiModelSelect"
                         style="padding:12px; border-radius:10px; border:1px solid var(--border); background:#f8fafc; color:var(--text); font-size:.85rem; font-weight:600; outline:none; margin-right:8px; cursor:pointer;">
                         <option value="fast">⚡ AI Fast</option>
                     </select>
+                    <!-- Attach Image Button -->
+                    <button id="btnAttachImage" class="btn" onclick="triggerImageUpload()" style="padding:12px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:.85rem; margin-right:8px; cursor:pointer; min-height:46px; width:46px; display:flex; align-items:center; justify-content:center;" type="button" title="Đính kèm ảnh từ máy tính">
+                        <i class="fas fa-image" style="font-size: 1.1rem;"></i>
+                    </button>
+                    <input type="file" id="chatImageInput" accept="image/*" style="display:none;" onchange="handleChatImageSelect(event)">
+                    
                     <input type="text" id="userQuestion" class="form-control chat-input"
                         placeholder="Nhập câu hỏi của bạn...">
                     <button id="btnAsk" class="btn btn-green" onclick="askAI()"><i class="fas fa-paper-plane"></i>
